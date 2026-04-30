@@ -1,0 +1,8 @@
+.env
+.env.*
+
+docker-data/
+postgres-data/
+redis-data/
+
+*.log
