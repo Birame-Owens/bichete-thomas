@@ -1,6 +1,11 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\CategorieCoiffureController;
 use App\Http\Controllers\Api\Admin\CoiffeuseController;
+use App\Http\Controllers\Api\Admin\CoiffureController;
+use App\Http\Controllers\Api\Admin\ImageCoiffureController;
+use App\Http\Controllers\Api\Admin\OptionCoiffureController;
+use App\Http\Controllers\Api\Admin\VarianteCoiffureController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentationController;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +27,15 @@ Route::middleware(['auth.token', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function (): void {
+        Route::apiResource('categories-coiffures', CategorieCoiffureController::class)
+            ->parameters(['categories-coiffures' => 'categorieCoiffure']);
+        Route::apiResource('coiffures', CoiffureController::class);
+        Route::apiResource('variantes-coiffures', VarianteCoiffureController::class)
+            ->parameters(['variantes-coiffures' => 'varianteCoiffure']);
+        Route::apiResource('options-coiffures', OptionCoiffureController::class)
+            ->parameters(['options-coiffures' => 'optionCoiffure']);
+        Route::apiResource('images-coiffures', ImageCoiffureController::class)
+            ->parameters(['images-coiffures' => 'imageCoiffure']);
         Route::apiResource('coiffeuses', CoiffeuseController::class)
             ->parameters(['coiffeuses' => 'coiffeuse']);
     });
