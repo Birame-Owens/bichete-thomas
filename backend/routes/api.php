@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\CategorieCoiffureController;
+use App\Http\Controllers\Api\Admin\CoiffeuseController;
 use App\Http\Controllers\Api\Admin\CoiffureController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
 use App\Http\Controllers\Api\Admin\OptionCoiffureController;
@@ -35,4 +36,6 @@ Route::middleware(['auth.token', 'role:admin'])
             ->parameters(['options-coiffures' => 'optionCoiffure']);
         Route::apiResource('images-coiffures', ImageCoiffureController::class)
             ->parameters(['images-coiffures' => 'imageCoiffure']);
+        Route::apiResource('coiffeuses', CoiffeuseController::class)
+            ->parameters(['coiffeuses' => 'coiffeuse']);
     });

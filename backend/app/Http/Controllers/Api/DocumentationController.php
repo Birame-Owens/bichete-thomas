@@ -43,7 +43,7 @@ HTML);
             'info' => [
                 'title' => 'Bichette Thomas API',
                 'version' => '1.0.0',
-                'description' => 'API d authentification admin et gerante.',
+                'description' => 'API d authentification, catalogue admin et personnel admin.',
             ],
             'servers' => [
                 ['url' => url('/api')],
@@ -127,182 +127,192 @@ HTML);
                             'principale' => ['type' => 'boolean', 'example' => true],
                         ],
                     ],
-                ],
-            ],
-            'paths' => [
-                '/auth/login' => [
-                    'post' => [
-                        'tags' => ['Authentification'],
-                        'summary' => 'Connecter un admin ou une gerante',
-                        'requestBody' => [
-                            'required' => true,
-                            'content' => [
-                                'application/json' => [
-                                    'schema' => ['$ref' => '#/components/schemas/LoginRequest'],
-                                ],
-                            ],
+                    'CoiffeuseRequest' => [
+                        'type' => 'object',
+                        'required' => ['nom', 'prenom'],
+                        'properties' => [
+                            'nom' => ['type' => 'string', 'example' => 'Ndiaye'],
+                            'prenom' => ['type' => 'string', 'example' => 'Aissatou'],
+                            'telephone' => ['type' => 'string', 'nullable' => true, 'example' => '+221770000000'],
+                            'pourcentage_commission' => ['type' => 'number', 'format' => 'float', 'example' => 15],
+                            'actif' => ['type' => 'boolean', 'example' => true],
                         ],
-                        'responses' => [
-                            '200' => [
-                                'description' => 'Connexion reussie',
-                                'content' => [
-                                    'application/json' => [
-                                        'example' => [
-                                            'message' => 'Connexion reussie.',
-                                            'token_type' => 'Bearer',
-                                            'access_token' => 'plain-text-token',
-                                            'user' => [
-                                                'id' => 1,
-                                                'name' => 'Administratrice',
-                                                'email' => 'admin@bichette-thomas.test',
-                                                'role' => 'admin',
-                                            ],
-                                        ],
-                                    ],
-                                ],
-                            ],
-                            '401' => ['description' => 'Identifiants incorrects'],
-                            '403' => ['description' => 'Role non autorise'],
-                            '422' => ['description' => 'Validation echouee'],
-                        ],
-                    ],
-                ],
-                '/auth/me' => [
-                    'get' => [
-                        'tags' => ['Authentification'],
-                        'summary' => 'Retourner l utilisateur connecte',
-                        'security' => [['bearerAuth' => []]],
-                        'responses' => [
-                            '200' => [
-                                'description' => 'Utilisateur connecte',
-                                'content' => [
-                                    'application/json' => [
-                                        'schema' => [
-                                            'type' => 'object',
-                                            'properties' => [
-                                                'user' => ['$ref' => '#/components/schemas/User'],
-                                            ],
-                                        ],
-                                    ],
-                                ],
-                            ],
-                            '401' => ['description' => 'Token absent ou invalide'],
-                        ],
-                    ],
-                ],
-                '/auth/logout' => [
-                    'post' => [
-                        'tags' => ['Authentification'],
-                        'summary' => 'Deconnecter la session courante',
-                        'security' => [['bearerAuth' => []]],
-                        'responses' => [
-                            '200' => ['description' => 'Deconnexion reussie'],
-                            '401' => ['description' => 'Token absent ou invalide'],
-                        ],
-                    ],
-                ],
-                '/auth/logout-all' => [
-                    'post' => [
-                        'tags' => ['Authentification'],
-                        'summary' => 'Deconnecter toutes les sessions de l utilisateur',
-                        'security' => [['bearerAuth' => []]],
-                        'responses' => [
-                            '200' => ['description' => 'Toutes les sessions fermees'],
-                            '401' => ['description' => 'Token absent ou invalide'],
-                        ],
-                    ],
-                ],
-                '/admin/categories-coiffures' => [
-                    'get' => [
-                        'tags' => ['Admin catalogue'],
-                        'summary' => 'Lister les categories de coiffures',
-                        'security' => [['bearerAuth' => []]],
-                        'responses' => ['200' => ['description' => 'Liste paginee']],
-                    ],
-                    'post' => [
-                        'tags' => ['Admin catalogue'],
-                        'summary' => 'Creer une categorie de coiffure',
-                        'security' => [['bearerAuth' => []]],
-                        'requestBody' => [
-                            'required' => true,
-                            'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/CategorieCoiffureRequest']]],
-                        ],
-                        'responses' => ['201' => ['description' => 'Categorie creee']],
-                    ],
-                ],
-                '/admin/coiffures' => [
-                    'get' => [
-                        'tags' => ['Admin catalogue'],
-                        'summary' => 'Lister les coiffures avec categorie, variantes, options et images',
-                        'security' => [['bearerAuth' => []]],
-                        'responses' => ['200' => ['description' => 'Liste paginee']],
-                    ],
-                    'post' => [
-                        'tags' => ['Admin catalogue'],
-                        'summary' => 'Creer une coiffure',
-                        'security' => [['bearerAuth' => []]],
-                        'requestBody' => [
-                            'required' => true,
-                            'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/CoiffureRequest']]],
-                        ],
-                        'responses' => ['201' => ['description' => 'Coiffure creee']],
-                    ],
-                ],
-                '/admin/variantes-coiffures' => [
-                    'get' => [
-                        'tags' => ['Admin catalogue'],
-                        'summary' => 'Lister les variantes',
-                        'security' => [['bearerAuth' => []]],
-                        'responses' => ['200' => ['description' => 'Liste paginee']],
-                    ],
-                    'post' => [
-                        'tags' => ['Admin catalogue'],
-                        'summary' => 'Creer une variante',
-                        'security' => [['bearerAuth' => []]],
-                        'requestBody' => [
-                            'required' => true,
-                            'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/VarianteCoiffureRequest']]],
-                        ],
-                        'responses' => ['201' => ['description' => 'Variante creee']],
-                    ],
-                ],
-                '/admin/options-coiffures' => [
-                    'get' => [
-                        'tags' => ['Admin catalogue'],
-                        'summary' => 'Lister les options',
-                        'security' => [['bearerAuth' => []]],
-                        'responses' => ['200' => ['description' => 'Liste paginee']],
-                    ],
-                    'post' => [
-                        'tags' => ['Admin catalogue'],
-                        'summary' => 'Creer une option',
-                        'security' => [['bearerAuth' => []]],
-                        'requestBody' => [
-                            'required' => true,
-                            'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/OptionCoiffureRequest']]],
-                        ],
-                        'responses' => ['201' => ['description' => 'Option creee']],
-                    ],
-                ],
-                '/admin/images-coiffures' => [
-                    'get' => [
-                        'tags' => ['Admin catalogue'],
-                        'summary' => 'Lister les images',
-                        'security' => [['bearerAuth' => []]],
-                        'responses' => ['200' => ['description' => 'Liste paginee']],
-                    ],
-                    'post' => [
-                        'tags' => ['Admin catalogue'],
-                        'summary' => 'Creer une image de coiffure',
-                        'security' => [['bearerAuth' => []]],
-                        'requestBody' => [
-                            'required' => true,
-                            'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/ImageCoiffureRequest']]],
-                        ],
-                        'responses' => ['201' => ['description' => 'Image creee']],
                     ],
                 ],
             ],
+            'paths' => array_merge(
+                $this->authPaths(),
+                $this->cataloguePaths(),
+                $this->personnelPaths(),
+            ),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function authPaths(): array
+    {
+        return [
+            '/auth/login' => [
+                'post' => [
+                    'tags' => ['Authentification'],
+                    'summary' => 'Connecter un admin ou une gerante',
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/LoginRequest']]],
+                    ],
+                    'responses' => [
+                        '200' => ['description' => 'Connexion reussie'],
+                        '401' => ['description' => 'Identifiants incorrects'],
+                        '403' => ['description' => 'Role non autorise'],
+                        '422' => ['description' => 'Validation echouee'],
+                    ],
+                ],
+            ],
+            '/auth/me' => [
+                'get' => [
+                    'tags' => ['Authentification'],
+                    'summary' => 'Retourner l utilisateur connecte',
+                    'security' => [['bearerAuth' => []]],
+                    'responses' => ['200' => ['description' => 'Utilisateur connecte']],
+                ],
+            ],
+            '/auth/logout' => [
+                'post' => [
+                    'tags' => ['Authentification'],
+                    'summary' => 'Deconnecter la session courante',
+                    'security' => [['bearerAuth' => []]],
+                    'responses' => ['200' => ['description' => 'Deconnexion reussie']],
+                ],
+            ],
+            '/auth/logout-all' => [
+                'post' => [
+                    'tags' => ['Authentification'],
+                    'summary' => 'Deconnecter toutes les sessions de l utilisateur',
+                    'security' => [['bearerAuth' => []]],
+                    'responses' => ['200' => ['description' => 'Toutes les sessions fermees']],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function cataloguePaths(): array
+    {
+        return [
+            '/admin/categories-coiffures' => $this->crudCollectionPath('Admin catalogue', 'categories de coiffures', 'CategorieCoiffureRequest'),
+            '/admin/coiffures' => $this->crudCollectionPath('Admin catalogue', 'coiffures', 'CoiffureRequest'),
+            '/admin/variantes-coiffures' => $this->crudCollectionPath('Admin catalogue', 'variantes', 'VarianteCoiffureRequest'),
+            '/admin/options-coiffures' => $this->crudCollectionPath('Admin catalogue', 'options', 'OptionCoiffureRequest'),
+            '/admin/images-coiffures' => $this->crudCollectionPath('Admin catalogue', 'images de coiffures', 'ImageCoiffureRequest'),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function personnelPaths(): array
+    {
+        return [
+            '/admin/coiffeuses' => [
+                'get' => [
+                    'tags' => ['Admin personnel'],
+                    'summary' => 'Lister les coiffeuses',
+                    'description' => 'Reserve au role admin. Filtres disponibles: search, actif.',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [
+                        ['name' => 'search', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'actif', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'boolean']],
+                    ],
+                    'responses' => ['200' => ['description' => 'Liste paginee des coiffeuses']],
+                ],
+                'post' => [
+                    'tags' => ['Admin personnel'],
+                    'summary' => 'Creer une coiffeuse',
+                    'security' => [['bearerAuth' => []]],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/CoiffeuseRequest']]],
+                    ],
+                    'responses' => ['201' => ['description' => 'Coiffeuse creee']],
+                ],
+            ],
+            '/admin/coiffeuses/{coiffeuse}' => $this->crudItemPath('Admin personnel', 'coiffeuse', 'CoiffeuseRequest'),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function crudCollectionPath(string $tag, string $resourceName, string $schema): array
+    {
+        return [
+            'get' => [
+                'tags' => [$tag],
+                'summary' => "Lister les {$resourceName}",
+                'security' => [['bearerAuth' => []]],
+                'responses' => ['200' => ['description' => 'Liste paginee']],
+            ],
+            'post' => [
+                'tags' => [$tag],
+                'summary' => "Creer {$resourceName}",
+                'security' => [['bearerAuth' => []]],
+                'requestBody' => [
+                    'required' => true,
+                    'content' => ['application/json' => ['schema' => ['$ref' => "#/components/schemas/{$schema}"]]],
+                ],
+                'responses' => ['201' => ['description' => 'Ressource creee']],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function crudItemPath(string $tag, string $parameter, string $schema): array
+    {
+        return [
+            'get' => [
+                'tags' => [$tag],
+                'summary' => "Afficher {$parameter}",
+                'security' => [['bearerAuth' => []]],
+                'parameters' => [$this->pathParameter($parameter)],
+                'responses' => ['200' => ['description' => 'Detail de la ressource']],
+            ],
+            'put' => [
+                'tags' => [$tag],
+                'summary' => "Mettre a jour {$parameter}",
+                'security' => [['bearerAuth' => []]],
+                'parameters' => [$this->pathParameter($parameter)],
+                'requestBody' => [
+                    'required' => true,
+                    'content' => ['application/json' => ['schema' => ['$ref' => "#/components/schemas/{$schema}"]]],
+                ],
+                'responses' => ['200' => ['description' => 'Ressource mise a jour']],
+            ],
+            'delete' => [
+                'tags' => [$tag],
+                'summary' => "Supprimer {$parameter}",
+                'security' => [['bearerAuth' => []]],
+                'parameters' => [$this->pathParameter($parameter)],
+                'responses' => ['200' => ['description' => 'Ressource supprimee']],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function pathParameter(string $name): array
+    {
+        return [
+            'name' => $name,
+            'in' => 'path',
+            'required' => true,
+            'schema' => ['type' => 'integer'],
+        ];
     }
 }
