@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -15,11 +17,32 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $adminRole = Role::query()->updateOrCreate(
+            ['nom' => 'admin'],
+            ['description' => 'Administrateur de la plateforme']
+        );
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $geranteRole = Role::query()->updateOrCreate(
+            ['nom' => 'gerante'],
+            ['description' => 'Gerante du salon']
+        );
+
+        User::query()->updateOrCreate([
+            'email' => env('ADMIN_EMAIL', 'admin@bichette-thomas.test'),
+        ], [
+            'role_id' => $adminRole->id,
+            'name' => env('ADMIN_NAME', 'Administratrice'),
+            'password' => Hash::make(env('ADMIN_PASSWORD', 'password')),
+            'email_verified_at' => now(),
+        ]);
+
+        User::query()->updateOrCreate([
+            'email' => env('GERANTE_EMAIL', 'gerante@bichette-thomas.test'),
+        ], [
+            'role_id' => $geranteRole->id,
+            'name' => env('GERANTE_NAME', 'Gerante'),
+            'password' => Hash::make(env('GERANTE_PASSWORD', 'password')),
+            'email_verified_at' => now(),
         ]);
     }
 }

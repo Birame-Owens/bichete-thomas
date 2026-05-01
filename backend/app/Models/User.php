@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
 #[Fillable(['role_id', 'name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
@@ -33,6 +35,31 @@ class User extends Authenticatable
     public function client(): HasOne
     {
         return $this->hasOne(Client::class);
+    }
+
+    /**
+     * @return HasMany<PersonalAccessToken, $this>
+     */
+    public function tokens(): HasMany
+    {
+        return $this->hasMany(PersonalAccessToken::class);
+    }
+
+    public function createApiToken(string $name = 'api'): string
+    {
+        $plainTextToken = Str::random(80);
+
+        $this->tokens()->create([
+            'name' => $name,
+            'token' => hash('sha256', $plainTextToken),
+        ]);
+
+        return $plainTextToken;
+    }
+
+    public function hasRole(string ...$roles): bool
+    {
+        return $this->role !== null && in_array($this->role->nom, $roles, true);
     }
 
     /**
