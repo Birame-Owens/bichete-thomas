@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\CoiffeuseController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentationController;
 use Illuminate\Support\Facades\Route;
@@ -16,3 +17,11 @@ Route::prefix('auth')->group(function (): void {
         Route::post('/logout-all', [AuthController::class, 'logoutAll']);
     });
 });
+
+Route::middleware(['auth.token', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function (): void {
+        Route::apiResource('coiffeuses', CoiffeuseController::class)
+            ->parameters(['coiffeuses' => 'coiffeuse']);
+    });

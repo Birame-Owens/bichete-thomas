@@ -75,6 +75,17 @@ HTML);
                             'role' => ['type' => 'string', 'enum' => ['admin', 'gerante'], 'example' => 'admin'],
                         ],
                     ],
+                    'CoiffeuseRequest' => [
+                        'type' => 'object',
+                        'required' => ['nom', 'prenom'],
+                        'properties' => [
+                            'nom' => ['type' => 'string', 'example' => 'Ndiaye'],
+                            'prenom' => ['type' => 'string', 'example' => 'Aissatou'],
+                            'telephone' => ['type' => 'string', 'nullable' => true, 'example' => '+221770000000'],
+                            'pourcentage_commission' => ['type' => 'number', 'format' => 'float', 'example' => 15],
+                            'actif' => ['type' => 'boolean', 'example' => true],
+                        ],
+                    ],
                 ],
             ],
             'paths' => [
@@ -158,6 +169,98 @@ HTML);
                             '200' => ['description' => 'Toutes les sessions fermees'],
                             '401' => ['description' => 'Token absent ou invalide'],
                         ],
+                    ],
+                ],
+                '/admin/coiffeuses' => [
+                    'get' => [
+                        'tags' => ['Admin personnel'],
+                        'summary' => 'Lister les coiffeuses',
+                        'description' => 'Reservé au role admin. Filtres disponibles: search, actif.',
+                        'security' => [['bearerAuth' => []]],
+                        'parameters' => [
+                            [
+                                'name' => 'search',
+                                'in' => 'query',
+                                'required' => false,
+                                'schema' => ['type' => 'string'],
+                            ],
+                            [
+                                'name' => 'actif',
+                                'in' => 'query',
+                                'required' => false,
+                                'schema' => ['type' => 'boolean'],
+                            ],
+                        ],
+                        'responses' => [
+                            '200' => ['description' => 'Liste paginee des coiffeuses'],
+                            '401' => ['description' => 'Token absent ou invalide'],
+                            '403' => ['description' => 'Role non autorise'],
+                        ],
+                    ],
+                    'post' => [
+                        'tags' => ['Admin personnel'],
+                        'summary' => 'Creer une coiffeuse',
+                        'security' => [['bearerAuth' => []]],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => [
+                                'application/json' => [
+                                    'schema' => ['$ref' => '#/components/schemas/CoiffeuseRequest'],
+                                ],
+                            ],
+                        ],
+                        'responses' => [
+                            '201' => ['description' => 'Coiffeuse creee'],
+                            '401' => ['description' => 'Token absent ou invalide'],
+                            '403' => ['description' => 'Role non autorise'],
+                            '422' => ['description' => 'Validation echouee'],
+                        ],
+                    ],
+                ],
+                '/admin/coiffeuses/{coiffeuse}' => [
+                    'get' => [
+                        'tags' => ['Admin personnel'],
+                        'summary' => 'Afficher une coiffeuse',
+                        'security' => [['bearerAuth' => []]],
+                        'parameters' => [[
+                            'name' => 'coiffeuse',
+                            'in' => 'path',
+                            'required' => true,
+                            'schema' => ['type' => 'integer'],
+                        ]],
+                        'responses' => ['200' => ['description' => 'Detail de la coiffeuse']],
+                    ],
+                    'put' => [
+                        'tags' => ['Admin personnel'],
+                        'summary' => 'Mettre a jour une coiffeuse',
+                        'security' => [['bearerAuth' => []]],
+                        'parameters' => [[
+                            'name' => 'coiffeuse',
+                            'in' => 'path',
+                            'required' => true,
+                            'schema' => ['type' => 'integer'],
+                        ]],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => [
+                                'application/json' => [
+                                    'schema' => ['$ref' => '#/components/schemas/CoiffeuseRequest'],
+                                ],
+                            ],
+                        ],
+                        'responses' => ['200' => ['description' => 'Coiffeuse mise a jour']],
+                    ],
+                    'delete' => [
+                        'tags' => ['Admin personnel'],
+                        'summary' => 'Supprimer une coiffeuse',
+                        'security' => [['bearerAuth' => []]],
+                        'parameters' => [[
+                            'name' => 'coiffeuse',
+                            'in' => 'path',
+                            'required' => true,
+                            'schema' => ['type' => 'integer'],
+                        ]],
+                        'responses' => ['200' => ['description' => 'Coiffeuse supprimee']],
                     ],
                 ],
             ],
