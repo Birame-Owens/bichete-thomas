@@ -75,6 +75,58 @@ HTML);
                             'role' => ['type' => 'string', 'enum' => ['admin', 'gerante'], 'example' => 'admin'],
                         ],
                     ],
+                    'CategorieCoiffureRequest' => [
+                        'type' => 'object',
+                        'required' => ['nom'],
+                        'properties' => [
+                            'nom' => ['type' => 'string', 'example' => 'Tresses'],
+                            'description' => ['type' => 'string', 'nullable' => true, 'example' => 'Styles de tresses'],
+                            'actif' => ['type' => 'boolean', 'example' => true],
+                        ],
+                    ],
+                    'CoiffureRequest' => [
+                        'type' => 'object',
+                        'required' => ['categorie_coiffure_id', 'nom'],
+                        'properties' => [
+                            'categorie_coiffure_id' => ['type' => 'integer', 'example' => 1],
+                            'nom' => ['type' => 'string', 'example' => 'Knotless Braids'],
+                            'description' => ['type' => 'string', 'nullable' => true],
+                            'image' => ['type' => 'string', 'nullable' => true, 'example' => '/storage/coiffures/knotless.jpg'],
+                            'actif' => ['type' => 'boolean', 'example' => true],
+                            'option_ids' => ['type' => 'array', 'items' => ['type' => 'integer'], 'example' => [1, 2]],
+                        ],
+                    ],
+                    'VarianteCoiffureRequest' => [
+                        'type' => 'object',
+                        'required' => ['coiffure_id', 'nom', 'prix', 'duree_minutes'],
+                        'properties' => [
+                            'coiffure_id' => ['type' => 'integer', 'example' => 1],
+                            'nom' => ['type' => 'string', 'example' => 'Long'],
+                            'prix' => ['type' => 'number', 'format' => 'float', 'example' => 25000],
+                            'duree_minutes' => ['type' => 'integer', 'example' => 180],
+                            'actif' => ['type' => 'boolean', 'example' => true],
+                        ],
+                    ],
+                    'OptionCoiffureRequest' => [
+                        'type' => 'object',
+                        'required' => ['nom', 'prix'],
+                        'properties' => [
+                            'nom' => ['type' => 'string', 'example' => 'Perles'],
+                            'prix' => ['type' => 'number', 'format' => 'float', 'example' => 2000],
+                            'actif' => ['type' => 'boolean', 'example' => true],
+                        ],
+                    ],
+                    'ImageCoiffureRequest' => [
+                        'type' => 'object',
+                        'required' => ['coiffure_id', 'url'],
+                        'properties' => [
+                            'coiffure_id' => ['type' => 'integer', 'example' => 1],
+                            'url' => ['type' => 'string', 'example' => '/storage/coiffures/image.jpg'],
+                            'alt' => ['type' => 'string', 'nullable' => true, 'example' => 'Knotless Braids long'],
+                            'ordre' => ['type' => 'integer', 'example' => 1],
+                            'principale' => ['type' => 'boolean', 'example' => true],
+                        ],
+                    ],
                 ],
             ],
             'paths' => [
@@ -158,6 +210,96 @@ HTML);
                             '200' => ['description' => 'Toutes les sessions fermees'],
                             '401' => ['description' => 'Token absent ou invalide'],
                         ],
+                    ],
+                ],
+                '/admin/categories-coiffures' => [
+                    'get' => [
+                        'tags' => ['Admin catalogue'],
+                        'summary' => 'Lister les categories de coiffures',
+                        'security' => [['bearerAuth' => []]],
+                        'responses' => ['200' => ['description' => 'Liste paginee']],
+                    ],
+                    'post' => [
+                        'tags' => ['Admin catalogue'],
+                        'summary' => 'Creer une categorie de coiffure',
+                        'security' => [['bearerAuth' => []]],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/CategorieCoiffureRequest']]],
+                        ],
+                        'responses' => ['201' => ['description' => 'Categorie creee']],
+                    ],
+                ],
+                '/admin/coiffures' => [
+                    'get' => [
+                        'tags' => ['Admin catalogue'],
+                        'summary' => 'Lister les coiffures avec categorie, variantes, options et images',
+                        'security' => [['bearerAuth' => []]],
+                        'responses' => ['200' => ['description' => 'Liste paginee']],
+                    ],
+                    'post' => [
+                        'tags' => ['Admin catalogue'],
+                        'summary' => 'Creer une coiffure',
+                        'security' => [['bearerAuth' => []]],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/CoiffureRequest']]],
+                        ],
+                        'responses' => ['201' => ['description' => 'Coiffure creee']],
+                    ],
+                ],
+                '/admin/variantes-coiffures' => [
+                    'get' => [
+                        'tags' => ['Admin catalogue'],
+                        'summary' => 'Lister les variantes',
+                        'security' => [['bearerAuth' => []]],
+                        'responses' => ['200' => ['description' => 'Liste paginee']],
+                    ],
+                    'post' => [
+                        'tags' => ['Admin catalogue'],
+                        'summary' => 'Creer une variante',
+                        'security' => [['bearerAuth' => []]],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/VarianteCoiffureRequest']]],
+                        ],
+                        'responses' => ['201' => ['description' => 'Variante creee']],
+                    ],
+                ],
+                '/admin/options-coiffures' => [
+                    'get' => [
+                        'tags' => ['Admin catalogue'],
+                        'summary' => 'Lister les options',
+                        'security' => [['bearerAuth' => []]],
+                        'responses' => ['200' => ['description' => 'Liste paginee']],
+                    ],
+                    'post' => [
+                        'tags' => ['Admin catalogue'],
+                        'summary' => 'Creer une option',
+                        'security' => [['bearerAuth' => []]],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/OptionCoiffureRequest']]],
+                        ],
+                        'responses' => ['201' => ['description' => 'Option creee']],
+                    ],
+                ],
+                '/admin/images-coiffures' => [
+                    'get' => [
+                        'tags' => ['Admin catalogue'],
+                        'summary' => 'Lister les images',
+                        'security' => [['bearerAuth' => []]],
+                        'responses' => ['200' => ['description' => 'Liste paginee']],
+                    ],
+                    'post' => [
+                        'tags' => ['Admin catalogue'],
+                        'summary' => 'Creer une image de coiffure',
+                        'security' => [['bearerAuth' => []]],
+                        'requestBody' => [
+                            'required' => true,
+                            'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/ImageCoiffureRequest']]],
+                        ],
+                        'responses' => ['201' => ['description' => 'Image creee']],
                     ],
                 ],
             ],
