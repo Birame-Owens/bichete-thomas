@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\CategorieCoiffureController;
+use App\Http\Controllers\Api\Admin\CaisseController;
 use App\Http\Controllers\Api\Admin\CodePromoController;
 use App\Http\Controllers\Api\Admin\CoiffeuseController;
 use App\Http\Controllers\Api\Admin\CoiffureController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\CategorieDepenseController;
 use App\Http\Controllers\Api\Admin\DepenseController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
+use App\Http\Controllers\Api\Admin\MouvementCaisseController;
 use App\Http\Controllers\Api\Admin\OptionCoiffureController;
 use App\Http\Controllers\Api\Admin\ParametreSystemeController;
 use App\Http\Controllers\Api\Admin\RegleFideliteController;
@@ -54,4 +56,11 @@ Route::middleware(['auth.token', 'role:admin'])
         Route::apiResource('categories-depenses', CategorieDepenseController::class)
             ->parameters(['categories-depenses' => 'categorieDepense']);
         Route::apiResource('depenses', DepenseController::class);
+        Route::get('caisses/du-jour', [CaisseController::class, 'today'])->name('caisses.today');
+        Route::post('caisses/ouvrir-du-jour', [CaisseController::class, 'openToday'])->name('caisses.open-today');
+        Route::patch('caisses/{caisse}/fermer', [CaisseController::class, 'close'])->name('caisses.close');
+        Route::apiResource('caisses', CaisseController::class)
+            ->parameters(['caisses' => 'caisse']);
+        Route::apiResource('mouvements-caisses', MouvementCaisseController::class)
+            ->parameters(['mouvements-caisses' => 'mouvementCaisse']);
     });
