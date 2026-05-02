@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\CategorieDepenseController;
 use App\Http\Controllers\Api\Admin\DepenseController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
+use App\Http\Controllers\Api\Admin\LogSystemeController;
 use App\Http\Controllers\Api\Admin\MouvementCaisseController;
 use App\Http\Controllers\Api\Admin\OptionCoiffureController;
 use App\Http\Controllers\Api\Admin\ParametreSystemeController;
@@ -31,7 +32,7 @@ Route::prefix('auth')->group(function (): void {
     });
 });
 
-Route::middleware(['auth.token', 'role:admin'])
+Route::middleware(['auth.token', 'role:admin', 'log.admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function (): void {
@@ -63,4 +64,7 @@ Route::middleware(['auth.token', 'role:admin'])
             ->parameters(['caisses' => 'caisse']);
         Route::apiResource('mouvements-caisses', MouvementCaisseController::class)
             ->parameters(['mouvements-caisses' => 'mouvementCaisse']);
+        Route::apiResource('logs-systeme', LogSystemeController::class)
+            ->only(['index', 'store', 'show'])
+            ->parameters(['logs-systeme' => 'logSysteme']);
     });

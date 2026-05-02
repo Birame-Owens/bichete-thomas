@@ -45,6 +45,14 @@ class User extends Authenticatable
         return $this->hasMany(PersonalAccessToken::class);
     }
 
+    /**
+     * @return HasMany<LogSysteme, $this>
+     */
+    public function logsSysteme(): HasMany
+    {
+        return $this->hasMany(LogSysteme::class);
+    }
+
     public function createApiToken(string $name = 'api'): string
     {
         $plainTextToken = Str::random(80);
