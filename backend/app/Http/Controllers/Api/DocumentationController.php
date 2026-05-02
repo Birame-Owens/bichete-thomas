@@ -43,7 +43,7 @@ HTML);
             'info' => [
                 'title' => 'Bichette Thomas API',
                 'version' => '1.0.0',
-                'description' => 'API d authentification, catalogue admin et personnel admin.',
+                'description' => 'API d authentification, catalogue admin, personnel admin et parametres admin.',
             ],
             'servers' => [
                 ['url' => url('/api')],
@@ -138,12 +138,49 @@ HTML);
                             'actif' => ['type' => 'boolean', 'example' => true],
                         ],
                     ],
+                    'ParametreSystemeRequest' => [
+                        'type' => 'object',
+                        'required' => ['cle', 'type'],
+                        'properties' => [
+                            'cle' => ['type' => 'string', 'example' => 'pourcentage_acompte'],
+                            'valeur' => ['nullable' => true, 'example' => 30],
+                            'type' => ['type' => 'string', 'enum' => ['string', 'integer', 'decimal', 'boolean', 'time', 'json'], 'example' => 'decimal'],
+                            'description' => ['type' => 'string', 'nullable' => true, 'example' => 'Pourcentage d acompte applique.'],
+                            'modifiable' => ['type' => 'boolean', 'example' => true],
+                        ],
+                    ],
+                    'RegleFideliteRequest' => [
+                        'type' => 'object',
+                        'required' => ['nom', 'nombre_reservations_requis', 'type_recompense', 'valeur_recompense'],
+                        'properties' => [
+                            'nom' => ['type' => 'string', 'example' => 'Fidelite 9 reservations'],
+                            'nombre_reservations_requis' => ['type' => 'integer', 'example' => 9],
+                            'type_recompense' => ['type' => 'string', 'enum' => ['pourcentage', 'montant'], 'example' => 'pourcentage'],
+                            'valeur_recompense' => ['type' => 'number', 'format' => 'float', 'example' => 10],
+                            'actif' => ['type' => 'boolean', 'example' => true],
+                        ],
+                    ],
+                    'CodePromoRequest' => [
+                        'type' => 'object',
+                        'required' => ['code', 'type_reduction', 'valeur'],
+                        'properties' => [
+                            'code' => ['type' => 'string', 'example' => 'BIENVENUE10'],
+                            'nom' => ['type' => 'string', 'nullable' => true, 'example' => 'Offre bienvenue'],
+                            'type_reduction' => ['type' => 'string', 'enum' => ['pourcentage', 'montant'], 'example' => 'pourcentage'],
+                            'valeur' => ['type' => 'number', 'format' => 'float', 'example' => 10],
+                            'date_debut' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                            'date_fin' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                            'limite_utilisation' => ['type' => 'integer', 'nullable' => true, 'example' => 100],
+                            'actif' => ['type' => 'boolean', 'example' => true],
+                        ],
+                    ],
                 ],
             ],
             'paths' => array_merge(
                 $this->authPaths(),
                 $this->cataloguePaths(),
                 $this->personnelPaths(),
+                $this->parametresPaths(),
             ),
         ]);
     }
@@ -241,6 +278,63 @@ HTML);
                 ],
             ],
             '/admin/coiffeuses/{coiffeuse}' => $this->crudItemPath('Admin personnel', 'coiffeuse', 'CoiffeuseRequest'),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function parametresPaths(): array
+    {
+        return [
+            '/admin/parametres-systeme' => [
+                'get' => [
+                    'tags' => ['Admin parametres'],
+                    'summary' => 'Lister les parametres systeme',
+                    'description' => 'Reserve au role admin. Filtre disponible: search.',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [
+                        ['name' => 'search', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                    ],
+                    'responses' => ['200' => ['description' => 'Liste paginee des parametres']],
+                ],
+                'post' => [
+                    'tags' => ['Admin parametres'],
+                    'summary' => 'Creer un parametre systeme',
+                    'security' => [['bearerAuth' => []]],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/ParametreSystemeRequest']]],
+                    ],
+                    'responses' => ['201' => ['description' => 'Parametre cree']],
+                ],
+            ],
+            '/admin/parametres-systeme/{parametreSysteme}' => $this->crudItemPath('Admin parametres', 'parametreSysteme', 'ParametreSystemeRequest'),
+            '/admin/regles-fidelite' => $this->crudCollectionPath('Admin parametres', 'regles de fidelite', 'RegleFideliteRequest'),
+            '/admin/regles-fidelite/{regleFidelite}' => $this->crudItemPath('Admin parametres', 'regleFidelite', 'RegleFideliteRequest'),
+            '/admin/codes-promo' => [
+                'get' => [
+                    'tags' => ['Admin parametres'],
+                    'summary' => 'Lister les codes promo',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [
+                        ['name' => 'search', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'actif', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'boolean']],
+                    ],
+                    'responses' => ['200' => ['description' => 'Liste paginee des codes promo']],
+                ],
+                'post' => [
+                    'tags' => ['Admin parametres'],
+                    'summary' => 'Creer un code promo',
+                    'security' => [['bearerAuth' => []]],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/CodePromoRequest']]],
+                    ],
+                    'responses' => ['201' => ['description' => 'Code promo cree']],
+                ],
+            ],
+            '/admin/codes-promo/{codePromo}' => $this->crudItemPath('Admin parametres', 'codePromo', 'CodePromoRequest'),
         ];
     }
 

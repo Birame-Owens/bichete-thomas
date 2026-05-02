@@ -1,10 +1,13 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\CategorieCoiffureController;
+use App\Http\Controllers\Api\Admin\CodePromoController;
 use App\Http\Controllers\Api\Admin\CoiffeuseController;
 use App\Http\Controllers\Api\Admin\CoiffureController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
 use App\Http\Controllers\Api\Admin\OptionCoiffureController;
+use App\Http\Controllers\Api\Admin\ParametreSystemeController;
+use App\Http\Controllers\Api\Admin\RegleFideliteController;
 use App\Http\Controllers\Api\Admin\VarianteCoiffureController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentationController;
@@ -38,4 +41,10 @@ Route::middleware(['auth.token', 'role:admin'])
             ->parameters(['images-coiffures' => 'imageCoiffure']);
         Route::apiResource('coiffeuses', CoiffeuseController::class)
             ->parameters(['coiffeuses' => 'coiffeuse']);
+        Route::apiResource('parametres-systeme', ParametreSystemeController::class)
+            ->parameters(['parametres-systeme' => 'parametreSysteme']);
+        Route::apiResource('regles-fidelite', RegleFideliteController::class)
+            ->parameters(['regles-fidelite' => 'regleFidelite']);
+        Route::apiResource('codes-promo', CodePromoController::class)
+            ->parameters(['codes-promo' => 'codePromo']);
     });
