@@ -15,12 +15,18 @@ function StatCard({
   pending?: boolean
 }) {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div
+      className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"
+      aria-label={label}
+      role="region"
+    >
       <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-400">{label}</p>
       {pending ? (
         <p className="mt-2 text-sm italic text-gray-400">Module à venir</p>
       ) : (
-        <p className="mt-2 text-3xl font-bold text-gray-900">{value ?? '—'}</p>
+        <p className="mt-2 text-3xl font-bold text-gray-900" aria-live="polite">
+          {value ?? '—'}
+        </p>
       )}
     </div>
   )
