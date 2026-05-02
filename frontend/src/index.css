@@ -1,0 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+@import 'tailwindcss';
+
+:root {
+  font-family: 'Manrope', sans-serif;
+  color: #2b2b2b;
+  background-color: #f7f4f6;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #fff6fb 0%, #f7f4f6 55%, #f2f2f2 100%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.font-display {
+  font-family: 'Playfair Display', serif;
+}
