@@ -18,7 +18,6 @@ const sections = [
     children: [
       { label: 'Categories coiffures', path: '/admin/catalogue/categories-coiffures' },
       { label: 'Coiffures', path: '/admin/catalogue/coiffures' },
-      { label: 'Variantes', path: '/admin/catalogue/variantes' },
       { label: 'Options', path: '/admin/catalogue/options' },
     ],
   },
