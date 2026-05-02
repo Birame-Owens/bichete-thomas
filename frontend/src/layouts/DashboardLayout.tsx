@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { logout } from '../services/authService'
 import { clearAuth, getToken } from '../lib/authStorage'
@@ -6,9 +6,10 @@ import { clearAuth, getToken } from '../lib/authStorage'
 type DashboardLayoutProps = {
   title: string
   subtitle: string
+  children?: ReactNode
 }
 
-function DashboardLayout({ title, subtitle }: DashboardLayoutProps) {
+function DashboardLayout({ title, subtitle, children }: DashboardLayoutProps) {
   const navigate = useNavigate()
   const [loggingOutCurrent, setLoggingOutCurrent] = useState(false)
   const [loggingOutAll, setLoggingOutAll] = useState(false)
@@ -79,10 +80,12 @@ function DashboardLayout({ title, subtitle }: DashboardLayoutProps) {
         )}
       </header>
       <div className="mx-auto w-full max-w-5xl px-6 py-12">
-        <div className="rounded-3xl border border-gray-100 bg-white p-10 shadow-sm">
-          <h2 className="font-display text-3xl text-gray-900">{title}</h2>
-          <p className="mt-3 text-gray-600">{subtitle}</p>
-        </div>
+        {children ?? (
+          <div className="rounded-3xl border border-gray-100 bg-white p-10 shadow-sm">
+            <h2 className="font-display text-3xl text-gray-900">{title}</h2>
+            <p className="mt-3 text-gray-600">{subtitle}</p>
+          </div>
+        )}
       </div>
     </div>
   )
