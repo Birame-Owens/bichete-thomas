@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'user_id',
@@ -28,6 +30,30 @@ class Client extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * @return HasOne<PreferenceClient, $this>
+     */
+    public function preferences(): HasOne
+    {
+        return $this->hasOne(PreferenceClient::class);
+    }
+
+    /**
+     * @return HasMany<ListeNoireClient, $this>
+     */
+    public function listeNoire(): HasMany
+    {
+        return $this->hasMany(ListeNoireClient::class);
+    }
+
+    /**
+     * @return HasOne<ListeNoireClient, $this>
+     */
+    public function blacklistActive(): HasOne
+    {
+        return $this->hasOne(ListeNoireClient::class)->where('actif', true);
     }
 
     /**

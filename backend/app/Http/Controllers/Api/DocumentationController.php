@@ -196,6 +196,35 @@ HTML);
                             'reference' => ['type' => 'string', 'nullable' => true, 'example' => 'FAC-2026-05'],
                         ],
                     ],
+                    'ClientRequest' => [
+                        'type' => 'object',
+                        'required' => ['nom', 'prenom', 'telephone'],
+                        'properties' => [
+                            'nom' => ['type' => 'string', 'example' => 'Ndiaye'],
+                            'prenom' => ['type' => 'string', 'example' => 'Aminata'],
+                            'telephone' => ['type' => 'string', 'example' => '+221771234567'],
+                            'email' => ['type' => 'string', 'format' => 'email', 'nullable' => true, 'example' => 'aminata@example.test'],
+                            'source' => ['type' => 'string', 'enum' => ['en_ligne', 'physique'], 'example' => 'physique'],
+                            'nombre_reservations_terminees' => ['type' => 'integer', 'example' => 3],
+                            'fidelite_disponible' => ['type' => 'boolean', 'example' => false],
+                        ],
+                    ],
+                    'PreferenceClientRequest' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'coiffures_preferees' => ['type' => 'array', 'items' => ['type' => 'string'], 'example' => ['Knotless Braids']],
+                            'options_preferees' => ['type' => 'array', 'items' => ['type' => 'string'], 'example' => ['Perles']],
+                            'notes' => ['type' => 'string', 'nullable' => true, 'example' => 'Prefere les rendez-vous le matin'],
+                            'notifications_whatsapp' => ['type' => 'boolean', 'example' => true],
+                            'notifications_promos' => ['type' => 'boolean', 'example' => true],
+                        ],
+                    ],
+                    'BlacklistClientRequest' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'raison' => ['type' => 'string', 'nullable' => true, 'example' => 'Absences repetees sans prevenir'],
+                        ],
+                    ],
                     'CaisseRequest' => [
                         'type' => 'object',
                         'required' => ['date', 'solde_ouverture'],
@@ -283,6 +312,7 @@ HTML);
                 $this->parametresPaths(),
                 $this->depensesPaths(),
                 $this->caissePaths(),
+                $this->clientsPaths(),
                 $this->logsSystemePaths(),
                 $this->analyticsSeoPaths(),
             ),
@@ -531,6 +561,94 @@ HTML);
                 ],
             ],
             '/admin/depenses/{depense}' => $this->crudItemPath('Admin depenses', 'depense', 'DepenseRequest'),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function clientsPaths(): array
+    {
+        return [
+            '/admin/clients' => [
+                'get' => [
+                    'tags' => ['Admin clients'],
+                    'summary' => 'Lister les clients',
+                    'description' => 'Filtres disponibles: search, source, blackliste.',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [
+                        ['name' => 'search', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'source', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'enum' => ['en_ligne', 'physique']]],
+                        ['name' => 'blackliste', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'boolean']],
+                    ],
+                    'responses' => ['200' => ['description' => 'Liste paginee des clients']],
+                ],
+                'post' => [
+                    'tags' => ['Admin clients'],
+                    'summary' => 'Creer un client',
+                    'security' => [['bearerAuth' => []]],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/ClientRequest']]],
+                    ],
+                    'responses' => ['201' => ['description' => 'Client cree']],
+                ],
+            ],
+            '/admin/clients/{client}' => $this->crudItemPath('Admin clients', 'client', 'ClientRequest'),
+            '/admin/clients/{client}/preferences' => [
+                'put' => [
+                    'tags' => ['Admin clients'],
+                    'summary' => 'Mettre a jour les preferences d un client',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [$this->pathParameter('client')],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/PreferenceClientRequest']]],
+                    ],
+                    'responses' => ['200' => ['description' => 'Preferences mises a jour']],
+                ],
+            ],
+            '/admin/clients/{client}/blacklist' => [
+                'patch' => [
+                    'tags' => ['Admin clients'],
+                    'summary' => 'Ajouter un client a la liste noire',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [$this->pathParameter('client')],
+                    'requestBody' => [
+                        'required' => false,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/BlacklistClientRequest']]],
+                    ],
+                    'responses' => ['200' => ['description' => 'Client blackliste']],
+                ],
+            ],
+            '/admin/clients/{client}/unblacklist' => [
+                'patch' => [
+                    'tags' => ['Admin clients'],
+                    'summary' => 'Retirer un client de la liste noire',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [$this->pathParameter('client')],
+                    'responses' => ['200' => ['description' => 'Client retire de la liste noire']],
+                ],
+            ],
+            '/admin/preferences-clients' => [
+                'get' => [
+                    'tags' => ['Admin clients'],
+                    'summary' => 'Lister les preferences clients',
+                    'security' => [['bearerAuth' => []]],
+                    'responses' => ['200' => ['description' => 'Liste paginee des preferences']],
+                ],
+            ],
+            '/admin/liste-noire-clients' => [
+                'get' => [
+                    'tags' => ['Admin clients'],
+                    'summary' => 'Lister la liste noire clients',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [
+                        ['name' => 'actif', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'boolean']],
+                    ],
+                    'responses' => ['200' => ['description' => 'Liste paginee des clients blacklistes']],
+                ],
+            ],
         ];
     }
 
