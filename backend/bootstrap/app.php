@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'auth.token' => App\Http\Middleware\AuthenticateApiToken::class,
+            'log.admin' => App\Http\Middleware\LogAdminAction::class,
             'role' => App\Http\Middleware\EnsureUserHasRole::class,
         ]);
     })

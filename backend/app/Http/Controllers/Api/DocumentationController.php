@@ -225,6 +225,18 @@ HTML);
                             'date_mouvement' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                         ],
                     ],
+                    'LogSystemeRequest' => [
+                        'type' => 'object',
+                        'required' => ['action'],
+                        'properties' => [
+                            'action' => ['type' => 'string', 'example' => 'gerante_creee'],
+                            'module' => ['type' => 'string', 'nullable' => true, 'example' => 'users'],
+                            'description' => ['type' => 'string', 'nullable' => true, 'example' => 'Creation d une gerante depuis l admin'],
+                            'before' => ['type' => 'object', 'nullable' => true, 'example' => ['statut' => 'ancien']],
+                            'after' => ['type' => 'object', 'nullable' => true, 'example' => ['statut' => 'nouveau']],
+                            'metadata' => ['type' => 'object', 'nullable' => true, 'example' => ['source' => 'postman']],
+                        ],
+                    ],
                 ],
             ],
             'paths' => array_merge(
@@ -235,6 +247,7 @@ HTML);
                 $this->parametresPaths(),
                 $this->depensesPaths(),
                 $this->caissePaths(),
+                $this->logsSystemePaths(),
             ),
         ]);
     }
@@ -550,6 +563,54 @@ HTML);
                 ],
             ],
             '/admin/mouvements-caisses/{mouvementCaisse}' => $this->crudItemPath('Admin caisse', 'mouvementCaisse', 'MouvementCaisseRequest'),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function logsSystemePaths(): array
+    {
+        return [
+            '/admin/logs-systeme' => [
+                'get' => [
+                    'tags' => ['Admin logs systeme'],
+                    'summary' => 'Lister les actions systeme',
+                    'description' => 'Filtres disponibles: action, module, user_id, subject_type, subject_id, date_debut, date_fin, search.',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [
+                        ['name' => 'action', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'module', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'user_id', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'integer']],
+                        ['name' => 'subject_type', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'subject_id', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'integer']],
+                        ['name' => 'date_debut', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'format' => 'date']],
+                        ['name' => 'date_fin', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'format' => 'date']],
+                        ['name' => 'search', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                    ],
+                    'responses' => ['200' => ['description' => 'Liste paginee des logs systeme']],
+                ],
+                'post' => [
+                    'tags' => ['Admin logs systeme'],
+                    'summary' => 'Creer un log systeme manuel',
+                    'description' => 'Utile pour enregistrer une action specifique: gerante_creee, prix_modifie, paiement_enregistre, reservation_annulee.',
+                    'security' => [['bearerAuth' => []]],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/LogSystemeRequest']]],
+                    ],
+                    'responses' => ['201' => ['description' => 'Log systeme cree']],
+                ],
+            ],
+            '/admin/logs-systeme/{logSysteme}' => [
+                'get' => [
+                    'tags' => ['Admin logs systeme'],
+                    'summary' => 'Afficher un log systeme',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [$this->pathParameter('logSysteme')],
+                    'responses' => ['200' => ['description' => 'Detail du log systeme']],
+                ],
+            ],
         ];
     }
 
