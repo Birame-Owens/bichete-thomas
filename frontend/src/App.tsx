@@ -1,15 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
+import AdminDashboardPage from './pages/AdminDashboardPage'
 import DashboardLayout from './layouts/DashboardLayout'
-
-function AdminDashboard() {
-  return (
-    <DashboardLayout
-      title="Admin dashboard"
-      subtitle="Vous etes connecte en tant qu administrateur."
-    />
-  )
-}
 
 function ManagerDashboard() {
   return (
@@ -38,7 +30,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/admin/dashboard" element={<AdminDashboard />} />
+      <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
       <Route path="/manager/dashboard" element={<ManagerDashboard />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\CategorieCoiffureController;
+use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\CodePromoController;
 use App\Http\Controllers\Api\Admin\CoiffeuseController;
 use App\Http\Controllers\Api\Admin\CoiffureController;
@@ -30,6 +31,7 @@ Route::middleware(['auth.token', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function (): void {
+        Route::get('dashboard', [DashboardController::class, 'index']);
         Route::apiResource('categories-coiffures', CategorieCoiffureController::class)
             ->parameters(['categories-coiffures' => 'categorieCoiffure']);
         Route::apiResource('coiffures', CoiffureController::class);
