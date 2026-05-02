@@ -1,22 +1,13 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
-import DashboardLayout from './layouts/DashboardLayout'
-
-function AdminDashboard() {
-  return (
-    <DashboardLayout
-      title="Admin dashboard"
-      subtitle="Vous etes connecte en tant qu administrateur."
-    />
-  )
-}
+import AdminDashboardPage from './features/admin/dashboard/AdminDashboardPage'
+import RequireAuth from './features/auth/RequireAuth'
 
 function ManagerDashboard() {
   return (
-    <DashboardLayout
-      title="Manager dashboard"
-      subtitle="Vous etes connecte en tant que gerante."
-    />
+    <div className="min-h-screen bg-white px-6 py-12">
+      <h1 className="text-3xl font-bold">Espace gerante</h1>
+    </div>
   )
 }
 
@@ -38,7 +29,15 @@ function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/admin/dashboard" element={<AdminDashboard />} />
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <RequireAuth role="admin">
+            <AdminDashboardPage />
+          </RequireAuth>
+        }
+      />
       <Route path="/manager/dashboard" element={<ManagerDashboard />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

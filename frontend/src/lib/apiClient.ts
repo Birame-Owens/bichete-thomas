@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getToken } from './authStorage'
 
 // Base URL is configurable via VITE_API_BASE_URL for different environments.
 export const API_BASE_URL =
@@ -10,4 +11,14 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+})
+
+apiClient.interceptors.request.use((config) => {
+  const token = getToken()
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+
+  return config
 })
