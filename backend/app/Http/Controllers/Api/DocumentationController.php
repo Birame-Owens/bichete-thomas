@@ -225,6 +225,47 @@ HTML);
                             'raison' => ['type' => 'string', 'nullable' => true, 'example' => 'Absences repetees sans prevenir'],
                         ],
                     ],
+                    'CaisseRequest' => [
+                        'type' => 'object',
+                        'required' => ['date', 'solde_ouverture'],
+                        'properties' => [
+                            'date' => ['type' => 'string', 'format' => 'date', 'example' => '2026-05-02'],
+                            'solde_ouverture' => ['type' => 'number', 'format' => 'float', 'example' => 100000],
+                            'note' => ['type' => 'string', 'nullable' => true, 'example' => 'Ouverture de caisse'],
+                        ],
+                    ],
+                    'FermetureCaisseRequest' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'solde_fermeture' => ['type' => 'number', 'format' => 'float', 'nullable' => true, 'example' => 135000],
+                            'note' => ['type' => 'string', 'nullable' => true, 'example' => 'Fermeture controlee'],
+                        ],
+                    ],
+                    'MouvementCaisseRequest' => [
+                        'type' => 'object',
+                        'required' => ['caisse_id', 'type', 'montant'],
+                        'properties' => [
+                            'caisse_id' => ['type' => 'integer', 'example' => 1],
+                            'type' => ['type' => 'string', 'enum' => ['entree', 'sortie'], 'example' => 'entree'],
+                            'montant' => ['type' => 'number', 'format' => 'float', 'example' => 25000],
+                            'description' => ['type' => 'string', 'nullable' => true, 'example' => 'Encaissement cash'],
+                            'source' => ['type' => 'string', 'nullable' => true, 'example' => 'paiement'],
+                            'reference' => ['type' => 'string', 'nullable' => true, 'example' => 'PAY-001'],
+                            'date_mouvement' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                        ],
+                    ],
+                    'LogSystemeRequest' => [
+                        'type' => 'object',
+                        'required' => ['action'],
+                        'properties' => [
+                            'action' => ['type' => 'string', 'example' => 'gerante_creee'],
+                            'module' => ['type' => 'string', 'nullable' => true, 'example' => 'users'],
+                            'description' => ['type' => 'string', 'nullable' => true, 'example' => 'Creation d une gerante depuis l admin'],
+                            'before' => ['type' => 'object', 'nullable' => true, 'example' => ['statut' => 'ancien']],
+                            'after' => ['type' => 'object', 'nullable' => true, 'example' => ['statut' => 'nouveau']],
+                            'metadata' => ['type' => 'object', 'nullable' => true, 'example' => ['source' => 'postman']],
+                        ],
+                    ],
                 ],
             ],
             'paths' => array_merge(
@@ -234,7 +275,9 @@ HTML);
                 $this->personnelPaths(),
                 $this->parametresPaths(),
                 $this->depensesPaths(),
+                $this->caissePaths(),
                 $this->clientsPaths(),
+                $this->logsSystemePaths(),
             ),
         ]);
     }
@@ -567,6 +610,123 @@ HTML);
                         ['name' => 'actif', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'boolean']],
                     ],
                     'responses' => ['200' => ['description' => 'Liste paginee des clients blacklistes']],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function caissePaths(): array
+    {
+        return [
+            '/admin/caisses/du-jour' => [
+                'get' => [
+                    'tags' => ['Admin caisse'],
+                    'summary' => 'Voir la caisse du jour',
+                    'security' => [['bearerAuth' => []]],
+                    'responses' => ['200' => ['description' => 'Caisse du jour et resume']],
+                ],
+            ],
+            '/admin/caisses/ouvrir-du-jour' => [
+                'post' => [
+                    'tags' => ['Admin caisse'],
+                    'summary' => 'Ouvrir la caisse du jour',
+                    'security' => [['bearerAuth' => []]],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/CaisseRequest']]],
+                    ],
+                    'responses' => ['201' => ['description' => 'Caisse ouverte']],
+                ],
+            ],
+            '/admin/caisses/{caisse}/fermer' => [
+                'patch' => [
+                    'tags' => ['Admin caisse'],
+                    'summary' => 'Fermer et controler une caisse',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [$this->pathParameter('caisse')],
+                    'requestBody' => [
+                        'required' => false,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/FermetureCaisseRequest']]],
+                    ],
+                    'responses' => ['200' => ['description' => 'Caisse fermee avec resume']],
+                ],
+            ],
+            '/admin/caisses' => $this->crudCollectionPath('Admin caisse', 'caisses', 'CaisseRequest'),
+            '/admin/caisses/{caisse}' => $this->crudItemPath('Admin caisse', 'caisse', 'CaisseRequest'),
+            '/admin/mouvements-caisses' => [
+                'get' => [
+                    'tags' => ['Admin caisse'],
+                    'summary' => 'Lister les entrees et sorties de caisse',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [
+                        ['name' => 'caisse_id', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'integer']],
+                        ['name' => 'type', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'enum' => ['entree', 'sortie']]],
+                        ['name' => 'date_debut', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'format' => 'date']],
+                        ['name' => 'date_fin', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'format' => 'date']],
+                    ],
+                    'responses' => ['200' => ['description' => 'Liste paginee des mouvements']],
+                ],
+                'post' => [
+                    'tags' => ['Admin caisse'],
+                    'summary' => 'Ajouter une entree ou une sortie',
+                    'security' => [['bearerAuth' => []]],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/MouvementCaisseRequest']]],
+                    ],
+                    'responses' => ['201' => ['description' => 'Mouvement cree']],
+                ],
+            ],
+            '/admin/mouvements-caisses/{mouvementCaisse}' => $this->crudItemPath('Admin caisse', 'mouvementCaisse', 'MouvementCaisseRequest'),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function logsSystemePaths(): array
+    {
+        return [
+            '/admin/logs-systeme' => [
+                'get' => [
+                    'tags' => ['Admin logs systeme'],
+                    'summary' => 'Lister les actions systeme',
+                    'description' => 'Filtres disponibles: action, module, user_id, subject_type, subject_id, date_debut, date_fin, search.',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [
+                        ['name' => 'action', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'module', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'user_id', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'integer']],
+                        ['name' => 'subject_type', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'subject_id', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'integer']],
+                        ['name' => 'date_debut', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'format' => 'date']],
+                        ['name' => 'date_fin', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'format' => 'date']],
+                        ['name' => 'search', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                    ],
+                    'responses' => ['200' => ['description' => 'Liste paginee des logs systeme']],
+                ],
+                'post' => [
+                    'tags' => ['Admin logs systeme'],
+                    'summary' => 'Creer un log systeme manuel',
+                    'description' => 'Utile pour enregistrer une action specifique: gerante_creee, prix_modifie, paiement_enregistre, reservation_annulee.',
+                    'security' => [['bearerAuth' => []]],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/LogSystemeRequest']]],
+                    ],
+                    'responses' => ['201' => ['description' => 'Log systeme cree']],
+                ],
+            ],
+            '/admin/logs-systeme/{logSysteme}' => [
+                'get' => [
+                    'tags' => ['Admin logs systeme'],
+                    'summary' => 'Afficher un log systeme',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [$this->pathParameter('logSysteme')],
+                    'responses' => ['200' => ['description' => 'Detail du log systeme']],
                 ],
             ],
         ];
