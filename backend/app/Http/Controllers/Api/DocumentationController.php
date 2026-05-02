@@ -178,6 +178,7 @@ HTML);
             ],
             'paths' => array_merge(
                 $this->authPaths(),
+                $this->dashboardPaths(),
                 $this->cataloguePaths(),
                 $this->personnelPaths(),
                 $this->parametresPaths(),
@@ -229,6 +230,61 @@ HTML);
                     'summary' => 'Deconnecter toutes les sessions de l utilisateur',
                     'security' => [['bearerAuth' => []]],
                     'responses' => ['200' => ['description' => 'Toutes les sessions fermees']],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dashboardPaths(): array
+    {
+        return [
+            '/admin/dashboard' => [
+                'get' => [
+                    'tags' => ['Admin dashboard'],
+                    'summary' => 'Vue globale du dashboard admin',
+                    'description' => 'Retourne les statistiques disponibles et signale les modules encore non implementes.',
+                    'security' => [['bearerAuth' => []]],
+                    'responses' => [
+                        '200' => [
+                            'description' => 'Dashboard admin',
+                            'content' => [
+                                'application/json' => [
+                                    'example' => [
+                                        'generated_at' => '2026-05-02T12:00:00.000000Z',
+                                        'period' => ['today' => '2026-05-02'],
+                                        'kpis' => [
+                                            'chiffre_affaires' => [
+                                                'available' => false,
+                                                'value' => null,
+                                                'message' => 'Module paiements non implemente.',
+                                            ],
+                                            'reservations_du_jour' => [
+                                                'available' => false,
+                                                'value' => null,
+                                                'message' => 'Module reservations non implemente.',
+                                            ],
+                                            'clients_total' => ['available' => true, 'value' => 12],
+                                            'coiffures_total' => ['available' => true, 'value' => 8],
+                                            'coiffeuses_actives' => ['available' => true, 'value' => 4],
+                                        ],
+                                        'sections' => [
+                                            'clients_recents' => ['available' => true, 'data' => []],
+                                            'paiements_recents' => ['available' => false, 'data' => []],
+                                            'coiffures_plus_demandees' => ['available' => false, 'data' => []],
+                                            'coiffeuses_plus_productives' => ['available' => false, 'data' => []],
+                                            'depenses_recentes' => ['available' => false, 'data' => []],
+                                        ],
+                                        'modules_en_attente' => ['reservations', 'paiements', 'depenses'],
+                                    ],
+                                ],
+                            ],
+                        ],
+                        '401' => ['description' => 'Token absent ou invalide'],
+                        '403' => ['description' => 'Role non autorise'],
+                    ],
                 ],
             ],
         ];
