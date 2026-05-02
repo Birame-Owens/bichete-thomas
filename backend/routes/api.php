@@ -8,19 +8,25 @@ use App\Http\Controllers\Api\Admin\CoiffureController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\CategorieDepenseController;
 use App\Http\Controllers\Api\Admin\DepenseController;
+use App\Http\Controllers\Api\Admin\EvenementAnalyticsController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
 use App\Http\Controllers\Api\Admin\LogSystemeController;
 use App\Http\Controllers\Api\Admin\MouvementCaisseController;
 use App\Http\Controllers\Api\Admin\OptionCoiffureController;
+use App\Http\Controllers\Api\Admin\PageSeoController;
 use App\Http\Controllers\Api\Admin\ParametreSystemeController;
 use App\Http\Controllers\Api\Admin\RegleFideliteController;
 use App\Http\Controllers\Api\Admin\VarianteCoiffureController;
+use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentationController;
+use App\Http\Controllers\Api\SeoController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/documentation', [DocumentationController::class, 'ui']);
 Route::get('/openapi.json', [DocumentationController::class, 'openApi']);
+Route::get('/seo/{slug?}', [SeoController::class, 'show'])->where('slug', '.*');
+Route::post('/analytics/events', [AnalyticsController::class, 'store']);
 
 Route::prefix('auth')->group(function (): void {
     Route::post('/login', [AuthController::class, 'login']);
@@ -67,4 +73,9 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
         Route::apiResource('logs-systeme', LogSystemeController::class)
             ->only(['index', 'store', 'show'])
             ->parameters(['logs-systeme' => 'logSysteme']);
+        Route::apiResource('pages-seo', PageSeoController::class)
+            ->parameters(['pages-seo' => 'pageSeo']);
+        Route::apiResource('evenements-analytics', EvenementAnalyticsController::class)
+            ->only(['index', 'show'])
+            ->parameters(['evenements-analytics' => 'evenementAnalytics']);
     });

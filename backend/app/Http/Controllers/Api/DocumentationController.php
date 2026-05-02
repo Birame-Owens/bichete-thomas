@@ -237,6 +237,42 @@ HTML);
                             'metadata' => ['type' => 'object', 'nullable' => true, 'example' => ['source' => 'postman']],
                         ],
                     ],
+                    'PageSeoRequest' => [
+                        'type' => 'object',
+                        'required' => ['slug', 'titre'],
+                        'properties' => [
+                            'slug' => ['type' => 'string', 'example' => 'coiffure/knotless-braids-dakar'],
+                            'titre' => ['type' => 'string', 'example' => 'Knotless Braids a Dakar'],
+                            'meta_title' => ['type' => 'string', 'nullable' => true, 'example' => 'Knotless Braids a Dakar | Bichette Thomas'],
+                            'meta_description' => ['type' => 'string', 'nullable' => true, 'example' => 'Reservez vos knotless braids a Dakar avec Bichette Thomas.'],
+                            'keywords' => ['type' => 'array', 'items' => ['type' => 'string'], 'example' => ['coiffure Dakar', 'knotless braids', 'tresses']],
+                            'canonical_url' => ['type' => 'string', 'nullable' => true, 'example' => 'https://bichette-thomas.com/coiffure/knotless-braids-dakar'],
+                            'image_og' => ['type' => 'string', 'nullable' => true, 'example' => '/storage/seo/knotless.jpg'],
+                            'robots' => ['type' => 'string', 'example' => 'index,follow'],
+                            'type_page' => ['type' => 'string', 'nullable' => true, 'example' => 'coiffure'],
+                            'cible_type' => ['type' => 'string', 'nullable' => true, 'example' => 'App\\Models\\Coiffure'],
+                            'cible_id' => ['type' => 'integer', 'nullable' => true, 'example' => 1],
+                            'schema_json' => ['type' => 'object', 'nullable' => true, 'example' => ['@type' => 'BeautySalon']],
+                            'actif' => ['type' => 'boolean', 'example' => true],
+                            'published_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
+                        ],
+                    ],
+                    'EvenementAnalyticsRequest' => [
+                        'type' => 'object',
+                        'required' => ['nom_evenement'],
+                        'properties' => [
+                            'nom_evenement' => ['type' => 'string', 'example' => 'page_view'],
+                            'page_slug' => ['type' => 'string', 'nullable' => true, 'example' => 'coiffure/knotless-braids-dakar'],
+                            'page_url' => ['type' => 'string', 'nullable' => true, 'example' => 'https://bichette-thomas.com/coiffure/knotless-braids-dakar'],
+                            'referrer' => ['type' => 'string', 'nullable' => true, 'example' => 'https://google.com'],
+                            'visitor_id' => ['type' => 'string', 'nullable' => true, 'example' => 'visitor-123'],
+                            'session_id' => ['type' => 'string', 'nullable' => true, 'example' => 'session-123'],
+                            'utm_source' => ['type' => 'string', 'nullable' => true, 'example' => 'google'],
+                            'utm_medium' => ['type' => 'string', 'nullable' => true, 'example' => 'organic'],
+                            'utm_campaign' => ['type' => 'string', 'nullable' => true, 'example' => 'coiffure-dakar'],
+                            'metadata' => ['type' => 'object', 'nullable' => true, 'example' => ['device' => 'mobile']],
+                        ],
+                    ],
                 ],
             ],
             'paths' => array_merge(
@@ -248,6 +284,7 @@ HTML);
                 $this->depensesPaths(),
                 $this->caissePaths(),
                 $this->logsSystemePaths(),
+                $this->analyticsSeoPaths(),
             ),
         ]);
     }
@@ -609,6 +646,89 @@ HTML);
                     'security' => [['bearerAuth' => []]],
                     'parameters' => [$this->pathParameter('logSysteme')],
                     'responses' => ['200' => ['description' => 'Detail du log systeme']],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function analyticsSeoPaths(): array
+    {
+        return [
+            '/seo/{slug}' => [
+                'get' => [
+                    'tags' => ['SEO public'],
+                    'summary' => 'Retourner les meta SEO publiques d une page',
+                    'parameters' => [
+                        ['name' => 'slug', 'in' => 'path', 'required' => false, 'schema' => ['type' => 'string'], 'example' => 'coiffure/knotless-braids-dakar'],
+                    ],
+                    'responses' => [
+                        '200' => ['description' => 'Meta SEO de la page'],
+                        '404' => ['description' => 'Page SEO introuvable'],
+                    ],
+                ],
+            ],
+            '/analytics/events' => [
+                'post' => [
+                    'tags' => ['Analytics public'],
+                    'summary' => 'Enregistrer un evenement analytics depuis le frontend',
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/EvenementAnalyticsRequest']]],
+                    ],
+                    'responses' => ['201' => ['description' => 'Evenement enregistre']],
+                ],
+            ],
+            '/admin/pages-seo' => [
+                'get' => [
+                    'tags' => ['Admin analytics SEO'],
+                    'summary' => 'Lister les pages SEO',
+                    'description' => 'Filtres disponibles: search, type_page, actif.',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [
+                        ['name' => 'search', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'type_page', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'actif', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'boolean']],
+                    ],
+                    'responses' => ['200' => ['description' => 'Liste paginee des pages SEO']],
+                ],
+                'post' => [
+                    'tags' => ['Admin analytics SEO'],
+                    'summary' => 'Creer une page SEO',
+                    'security' => [['bearerAuth' => []]],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/PageSeoRequest']]],
+                    ],
+                    'responses' => ['201' => ['description' => 'Page SEO creee']],
+                ],
+            ],
+            '/admin/pages-seo/{pageSeo}' => $this->crudItemPath('Admin analytics SEO', 'pageSeo', 'PageSeoRequest'),
+            '/admin/evenements-analytics' => [
+                'get' => [
+                    'tags' => ['Admin analytics SEO'],
+                    'summary' => 'Lister les evenements analytics',
+                    'description' => 'Filtres disponibles: nom_evenement, page_slug, utm_source, date_debut, date_fin.',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [
+                        ['name' => 'nom_evenement', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'page_slug', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'utm_source', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                        ['name' => 'date_debut', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'format' => 'date']],
+                        ['name' => 'date_fin', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'format' => 'date']],
+                    ],
+                    'responses' => ['200' => ['description' => 'Liste paginee des evenements analytics avec resume']],
+                ],
+            ],
+            '/admin/evenements-analytics/{evenementAnalytics}' => [
+                'get' => [
+                    'tags' => ['Admin analytics SEO'],
+                    'summary' => 'Afficher un evenement analytics',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [$this->pathParameter('evenementAnalytics')],
+                    'responses' => ['200' => ['description' => 'Detail de l evenement analytics']],
                 ],
             ],
         ];
