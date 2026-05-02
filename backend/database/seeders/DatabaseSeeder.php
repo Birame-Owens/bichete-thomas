@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\CategorieDepense;
 use App\Models\ParametreSysteme;
 use App\Models\Role;
 use App\Models\User;
@@ -52,6 +53,13 @@ class DatabaseSeeder extends Seeder
                 $setting
             );
         }
+
+        foreach ($this->defaultExpenseCategories() as $category) {
+            CategorieDepense::query()->updateOrCreate(
+                ['nom' => $category['nom']],
+                $category
+            );
+        }
     }
 
     /**
@@ -95,6 +103,23 @@ class DatabaseSeeder extends Seeder
                 'description' => 'Nombre de reservations terminees avant recompense fidelite.',
                 'modifiable' => true,
             ],
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function defaultExpenseCategories(): array
+    {
+        return [
+            ['nom' => 'loyer', 'description' => 'Charges de location du salon', 'actif' => true],
+            ['nom' => 'electricite', 'description' => 'Factures et recharges electricite', 'actif' => true],
+            ['nom' => 'internet', 'description' => 'Connexion internet et telephone', 'actif' => true],
+            ['nom' => 'meches', 'description' => 'Achat de meches et extensions', 'actif' => true],
+            ['nom' => 'produits', 'description' => 'Produits de soin et consommables', 'actif' => true],
+            ['nom' => 'transport', 'description' => 'Frais de transport et livraison', 'actif' => true],
+            ['nom' => 'salaire', 'description' => 'Salaires et avances', 'actif' => true],
+            ['nom' => 'materiel', 'description' => 'Materiel et equipements du salon', 'actif' => true],
         ];
     }
 }
