@@ -174,6 +174,28 @@ HTML);
                             'actif' => ['type' => 'boolean', 'example' => true],
                         ],
                     ],
+                    'CategorieDepenseRequest' => [
+                        'type' => 'object',
+                        'required' => ['nom'],
+                        'properties' => [
+                            'nom' => ['type' => 'string', 'example' => 'loyer'],
+                            'description' => ['type' => 'string', 'nullable' => true, 'example' => 'Charges de location du salon'],
+                            'actif' => ['type' => 'boolean', 'example' => true],
+                        ],
+                    ],
+                    'DepenseRequest' => [
+                        'type' => 'object',
+                        'required' => ['titre', 'montant', 'date_depense'],
+                        'properties' => [
+                            'categorie_depense_id' => ['type' => 'integer', 'nullable' => true, 'example' => 1],
+                            'titre' => ['type' => 'string', 'example' => 'Facture electricite mai'],
+                            'montant' => ['type' => 'number', 'format' => 'float', 'example' => 35000],
+                            'date_depense' => ['type' => 'string', 'format' => 'date', 'example' => '2026-05-02'],
+                            'description' => ['type' => 'string', 'nullable' => true, 'example' => 'Paiement mensuel'],
+                            'mode_paiement' => ['type' => 'string', 'nullable' => true, 'example' => 'cash'],
+                            'reference' => ['type' => 'string', 'nullable' => true, 'example' => 'FAC-2026-05'],
+                        ],
+                    ],
                 ],
             ],
             'paths' => array_merge(
@@ -182,6 +204,7 @@ HTML);
                 $this->cataloguePaths(),
                 $this->personnelPaths(),
                 $this->parametresPaths(),
+                $this->depensesPaths(),
             ),
         ]);
     }
@@ -391,6 +414,43 @@ HTML);
                 ],
             ],
             '/admin/codes-promo/{codePromo}' => $this->crudItemPath('Admin parametres', 'codePromo', 'CodePromoRequest'),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function depensesPaths(): array
+    {
+        return [
+            '/admin/categories-depenses' => $this->crudCollectionPath('Admin depenses', 'categories de depenses', 'CategorieDepenseRequest'),
+            '/admin/categories-depenses/{categorieDepense}' => $this->crudItemPath('Admin depenses', 'categorieDepense', 'CategorieDepenseRequest'),
+            '/admin/depenses' => [
+                'get' => [
+                    'tags' => ['Admin depenses'],
+                    'summary' => 'Lister les depenses',
+                    'description' => 'Filtres disponibles: categorie_depense_id, date_debut, date_fin, search.',
+                    'security' => [['bearerAuth' => []]],
+                    'parameters' => [
+                        ['name' => 'categorie_depense_id', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'integer']],
+                        ['name' => 'date_debut', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'format' => 'date']],
+                        ['name' => 'date_fin', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string', 'format' => 'date']],
+                        ['name' => 'search', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                    ],
+                    'responses' => ['200' => ['description' => 'Liste paginee des depenses']],
+                ],
+                'post' => [
+                    'tags' => ['Admin depenses'],
+                    'summary' => 'Creer une depense',
+                    'security' => [['bearerAuth' => []]],
+                    'requestBody' => [
+                        'required' => true,
+                        'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/DepenseRequest']]],
+                    ],
+                    'responses' => ['201' => ['description' => 'Depense creee']],
+                ],
+            ],
+            '/admin/depenses/{depense}' => $this->crudItemPath('Admin depenses', 'depense', 'DepenseRequest'),
         ];
     }
 

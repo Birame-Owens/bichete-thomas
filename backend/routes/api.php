@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\Admin\CodePromoController;
 use App\Http\Controllers\Api\Admin\CoiffeuseController;
 use App\Http\Controllers\Api\Admin\CoiffureController;
 use App\Http\Controllers\Api\Admin\DashboardController;
+use App\Http\Controllers\Api\Admin\CategorieDepenseController;
+use App\Http\Controllers\Api\Admin\DepenseController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
 use App\Http\Controllers\Api\Admin\OptionCoiffureController;
 use App\Http\Controllers\Api\Admin\ParametreSystemeController;
@@ -49,4 +51,7 @@ Route::middleware(['auth.token', 'role:admin'])
             ->parameters(['regles-fidelite' => 'regleFidelite']);
         Route::apiResource('codes-promo', CodePromoController::class)
             ->parameters(['codes-promo' => 'codePromo']);
+        Route::apiResource('categories-depenses', CategorieDepenseController::class)
+            ->parameters(['categories-depenses' => 'categorieDepense']);
+        Route::apiResource('depenses', DepenseController::class);
     });
