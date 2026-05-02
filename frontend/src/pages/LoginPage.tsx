@@ -4,7 +4,11 @@ import AuthLayout from '../layouts/AuthLayout'
 import HeroPanel from '../components/auth/HeroPanel'
 import LoginPanel from '../components/auth/LoginPanel'
 import { login } from '../services/authService'
-import { setRememberMe, setToken, setUser } from '../lib/authStorage'
+import {
+  setRememberMe as persistRememberMe,
+  setToken,
+  setUser,
+} from '../lib/authStorage'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -31,7 +35,7 @@ function LoginPage() {
 
       setToken(response.access_token)
       setUser(response.user)
-      setRememberMe(rememberMe)
+      persistRememberMe(rememberMe)
 
       if (response.user.role === 'admin') {
         navigate('/admin/dashboard')
@@ -44,7 +48,7 @@ function LoginPage() {
       }
 
       navigate('/login')
-    } catch (err) {
+    } catch {
       setError('Impossible de vous connecter. Verifiez vos identifiants.')
     } finally {
       setLoading(false)

@@ -8,6 +8,20 @@ const REMEMBER_KEY = 'remember_me'
 // Read the current access token if it exists.
 export const getToken = () => localStorage.getItem(TOKEN_KEY)
 
+export const getUser = (): User | null => {
+  const rawUser = localStorage.getItem(USER_KEY)
+
+  if (!rawUser) {
+    return null
+  }
+
+  try {
+    return JSON.parse(rawUser) as User
+  } catch {
+    return null
+  }
+}
+
 // Persist access token for authenticated requests.
 export const setToken = (token: string) => {
   localStorage.setItem(TOKEN_KEY, token)
