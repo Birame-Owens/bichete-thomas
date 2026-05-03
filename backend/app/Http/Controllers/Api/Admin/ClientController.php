@@ -12,12 +12,15 @@ class ClientController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $perPage = max(1, min($request->integer('per_page', 15), 100));
+
         $clients = Client::query()
             ->with(['preferences', 'blacklistActive'])
             ->when($request->has('blackliste'), fn ($query) => $query->where('est_blackliste', $request->boolean('blackliste')))
+            ->when($request->has('fidelite_disponible'), fn ($query) => $query->where('fidelite_disponible', $request->boolean('fidelite_disponible')))
             ->when($request->filled('source'), fn ($query) => $query->where('source', $request->string('source')->toString()))
             ->when($request->filled('search'), function ($query) use ($request): void {
-                $search = $request->string('search')->toString();
+                $search = trim($request->string('search')->toString());
 
                 $query->where(function ($query) use ($search): void {
                     $query->where('nom', 'ilike', "%{$search}%")
@@ -27,7 +30,7 @@ class ClientController extends Controller
                 });
             })
             ->latest()
-            ->paginate(15);
+            ->paginate($perPage);
 
         return response()->json(['data' => $clients]);
     }
@@ -40,10 +43,15 @@ class ClientController extends Controller
             'telephone' => ['required', 'string', 'max:50', 'unique:clients,telephone'],
             'email' => ['nullable', 'email', 'max:255'],
             'source' => ['sometimes', Rule::in(['en_ligne', 'physique'])],
+            'nombre_reservations_terminees' => ['sometimes', 'integer', 'min:0', 'max:100000'],
+            'fidelite_disponible' => ['sometimes', 'boolean'],
         ]);
 
         $client = Client::query()->create($data);
-        $client->preferences()->create([]);
+        $client->preferences()->create([
+            'notifications_whatsapp' => true,
+            'notifications_promos' => true,
+        ]);
 
         return response()->json([
             'message' => 'Client cree.',
@@ -54,7 +62,7 @@ class ClientController extends Controller
     public function show(Client $client): JsonResponse
     {
         return response()->json([
-            'data' => $client->load(['user.role', 'preferences', 'listeNoire']),
+            'data' => $client->load(['user.role', 'preferences', 'blacklistActive', 'listeNoire']),
         ]);
     }
 
@@ -66,7 +74,7 @@ class ClientController extends Controller
             'telephone' => ['sometimes', 'string', 'max:50', Rule::unique('clients', 'telephone')->ignore($client->id)],
             'email' => ['nullable', 'email', 'max:255'],
             'source' => ['sometimes', Rule::in(['en_ligne', 'physique'])],
-            'nombre_reservations_terminees' => ['sometimes', 'integer', 'min:0'],
+            'nombre_reservations_terminees' => ['sometimes', 'integer', 'min:0', 'max:100000'],
             'fidelite_disponible' => ['sometimes', 'boolean'],
         ]);
 
@@ -88,7 +96,7 @@ class ClientController extends Controller
     public function blacklist(Request $request, Client $client): JsonResponse
     {
         $data = $request->validate([
-            'raison' => ['nullable', 'string'],
+            'raison' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $client->listeNoire()->where('actif', true)->update([
@@ -121,7 +129,7 @@ class ClientController extends Controller
 
         return response()->json([
             'message' => 'Client retire de la liste noire.',
-            'data' => $client->load(['preferences', 'listeNoire']),
+            'data' => $client->load(['preferences', 'blacklistActive', 'listeNoire']),
         ]);
     }
 }
