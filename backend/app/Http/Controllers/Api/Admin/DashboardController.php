@@ -13,8 +13,20 @@ use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
+    /**
+     * @var array<string, bool>
+     */
+    private array $tableExists = [];
+
     public function __invoke(): JsonResponse
     {
+        $chiffreAffaires = $this->chiffreAffaires();
+        $reservationsDuJour = $this->reservationsDuJour();
+        $clientsTotal = ['available' => true, 'value' => Client::query()->count()];
+        $acompteRecu = $this->acompteRecu();
+        $clientsRecents = $this->clientsRecents();
+        $depensesRecentes = $this->depensesRecentes();
+
         return response()->json([
             'generated_at' => now()->toISOString(),
             'period' => [
@@ -22,10 +34,10 @@ class DashboardController extends Controller
                 'label' => now()->translatedFormat('d F Y'),
             ],
             'cards' => [
-                $this->card('chiffre_affaires', 'Chiffre d affaires', $this->chiffreAffaires(), 'money', '#e91e63', '$'),
-                $this->card('reservations', 'Reservations', $this->reservationsDuJour(), 'number', '#b719c9', 'R'),
-                $this->card('clients', 'Clients', ['available' => true, 'value' => Client::query()->count()], 'number', '#f51b7a', 'C'),
-                $this->card('acompte_recu', 'Acompte recu', $this->acompteRecu(), 'money', '#f5a623', '$'),
+                $this->card('chiffre_affaires', 'Chiffre d affaires', $chiffreAffaires, 'money', '#e91e63', '$'),
+                $this->card('reservations', 'Reservations', $reservationsDuJour, 'number', '#b719c9', 'R'),
+                $this->card('clients', 'Clients', $clientsTotal, 'number', '#f51b7a', 'C'),
+                $this->card('acompte_recu', 'Acompte recu', $acompteRecu, 'money', '#f5a623', '$'),
             ],
             'charts' => [
                 'chiffre_affaires' => $this->chiffreAffairesSemaine(),
@@ -35,25 +47,22 @@ class DashboardController extends Controller
                 'reservations_du_jour' => $this->reservationsDuJourListe(),
                 'dernieres_reservations' => $this->dernieresReservations(),
                 'activite_recente' => $this->activiteRecente(),
-                'depenses_recentes' => $this->depensesRecentes(),
-                'clients_recents' => $this->clientsRecents(),
+                'depenses_recentes' => $depensesRecentes,
+                'clients_recents' => $clientsRecents,
             ],
             'payments' => [
                 'repartition' => $this->repartitionPaiements(),
             ],
             'quick_payment' => [
-                'available' => Schema::hasTable('paiements'),
-                'message' => Schema::hasTable('paiements') ? null : 'Module paiements non implemente.',
+                'available' => $this->hasTable('paiements'),
+                'message' => $this->hasTable('paiements') ? null : 'Module paiements non implemente.',
                 'methods' => ['especes', 'wave', 'orange_money', 'carte_bancaire'],
             ],
             'promo' => $this->promoPrincipale(),
             'kpis' => [
-                'chiffre_affaires' => $this->chiffreAffaires(),
-                'reservations_du_jour' => $this->reservationsDuJour(),
-                'clients_total' => [
-                    'available' => true,
-                    'value' => Client::query()->count(),
-                ],
+                'chiffre_affaires' => $chiffreAffaires,
+                'reservations_du_jour' => $reservationsDuJour,
+                'clients_total' => $clientsTotal,
                 'coiffures_total' => [
                     'available' => true,
                     'value' => Coiffure::query()->count(),
@@ -65,10 +74,10 @@ class DashboardController extends Controller
             ],
             'sections' => [
                 'paiements_recents' => $this->paiementsRecents(),
-                'clients_recents' => $this->clientsRecents(),
+                'clients_recents' => $clientsRecents,
                 'coiffures_plus_demandees' => $this->coiffuresPlusDemandees(),
                 'coiffeuses_plus_productives' => $this->coiffeusesPlusProductives(),
-                'depenses_recentes' => $this->depensesRecentes(),
+                'depenses_recentes' => $depensesRecentes,
             ],
             'modules_en_attente' => $this->modulesEnAttente(),
         ]);
@@ -79,7 +88,7 @@ class DashboardController extends Controller
      */
     private function chiffreAffaires(): array
     {
-        if (! Schema::hasTable('paiements')) {
+        if (! $this->hasTable('paiements')) {
             return $this->unavailable('Module paiements non implemente.');
         }
 
@@ -98,7 +107,7 @@ class DashboardController extends Controller
      */
     private function acompteRecu(): array
     {
-        if (! Schema::hasTable('paiements')) {
+        if (! $this->hasTable('paiements')) {
             return $this->unavailable('Module paiements non implemente.');
         }
 
@@ -118,7 +127,7 @@ class DashboardController extends Controller
      */
     private function reservationsDuJour(): array
     {
-        if (! Schema::hasTable('reservations')) {
+        if (! $this->hasTable('reservations')) {
             return $this->unavailable('Module reservations non implemente.');
         }
 
@@ -135,7 +144,7 @@ class DashboardController extends Controller
      */
     private function paiementsRecents(): array
     {
-        if (! Schema::hasTable('paiements')) {
+        if (! $this->hasTable('paiements')) {
             return $this->unavailable('Module paiements non implemente.');
         }
 
@@ -153,7 +162,7 @@ class DashboardController extends Controller
      */
     private function chiffreAffairesSemaine(): array
     {
-        if (! Schema::hasTable('paiements')) {
+        if (! $this->hasTable('paiements')) {
             return $this->unavailable('Module paiements non implemente.');
         }
 
@@ -184,7 +193,7 @@ class DashboardController extends Controller
      */
     private function topCoiffuresReservees(): array
     {
-        if (! Schema::hasTable('details_reservations')) {
+        if (! $this->hasTable('details_reservations')) {
             return $this->unavailable('Module details reservations non implemente.');
         }
 
@@ -213,7 +222,7 @@ class DashboardController extends Controller
      */
     private function reservationsDuJourListe(): array
     {
-        if (! Schema::hasTable('reservations')) {
+        if (! $this->hasTable('reservations')) {
             return $this->unavailable('Module reservations non implemente.');
         }
 
@@ -232,7 +241,7 @@ class DashboardController extends Controller
      */
     private function dernieresReservations(): array
     {
-        if (! Schema::hasTable('reservations')) {
+        if (! $this->hasTable('reservations')) {
             return $this->unavailable('Module reservations non implemente.');
         }
 
@@ -250,7 +259,7 @@ class DashboardController extends Controller
      */
     private function repartitionPaiements(): array
     {
-        if (! Schema::hasTable('paiements')) {
+        if (! $this->hasTable('paiements')) {
             return $this->unavailable('Module paiements non implemente.');
         }
 
@@ -291,7 +300,7 @@ class DashboardController extends Controller
      */
     private function activiteRecente(): array
     {
-        if (! Schema::hasTable('logs_systeme')) {
+        if (! $this->hasTable('logs_systeme')) {
             return $this->unavailable('Module logs systeme non implemente.');
         }
 
@@ -309,7 +318,7 @@ class DashboardController extends Controller
      */
     private function coiffuresPlusDemandees(): array
     {
-        if (! Schema::hasTable('details_reservations')) {
+        if (! $this->hasTable('details_reservations')) {
             return $this->unavailable('Module details reservations non implemente.');
         }
 
@@ -330,7 +339,7 @@ class DashboardController extends Controller
      */
     private function coiffeusesPlusProductives(): array
     {
-        if (! Schema::hasTable('reservations')) {
+        if (! $this->hasTable('reservations')) {
             return $this->unavailable('Module reservations non implemente.');
         }
 
@@ -352,7 +361,7 @@ class DashboardController extends Controller
      */
     private function depensesRecentes(): array
     {
-        if (! Schema::hasTable('depenses')) {
+        if (! $this->hasTable('depenses')) {
             return $this->unavailable('Module depenses non implemente.');
         }
 
@@ -372,15 +381,15 @@ class DashboardController extends Controller
     {
         $modules = [];
 
-        if (! Schema::hasTable('reservations')) {
+        if (! $this->hasTable('reservations')) {
             $modules[] = 'reservations';
         }
 
-        if (! Schema::hasTable('paiements')) {
+        if (! $this->hasTable('paiements')) {
             $modules[] = 'paiements';
         }
 
-        if (! Schema::hasTable('depenses')) {
+        if (! $this->hasTable('depenses')) {
             $modules[] = 'depenses';
         }
 
@@ -411,7 +420,7 @@ class DashboardController extends Controller
      */
     private function promoPrincipale(): array
     {
-        if (! Schema::hasTable('codes_promo')) {
+        if (! $this->hasTable('codes_promo')) {
             return $this->unavailable('Module codes promo non implemente.');
         }
 
@@ -425,6 +434,11 @@ class DashboardController extends Controller
             'data' => $promo,
             'message' => $promo ? null : 'Aucun code promo actif.',
         ];
+    }
+
+    private function hasTable(string $table): bool
+    {
+        return $this->tableExists[$table] ??= Schema::hasTable($table);
     }
 
     /**

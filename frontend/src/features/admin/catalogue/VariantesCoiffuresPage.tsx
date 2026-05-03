@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import CatalogueLayout from './components/CatalogueLayout'
 import {
   EmptyState,
@@ -44,23 +44,19 @@ function VariantesCoiffuresPage() {
 
   const variantes = useMemo(() => items?.data ?? [], [items])
 
-  const loadPage = async (nextPage: number) => {
+  const loadPage = useCallback(async (nextPage: number) => {
     setLoading(true)
     setError(null)
     try {
-      const [variantesResponse, coiffuresResponse] = await Promise.all([
-        getVariantesCoiffures({ page: nextPage }),
-        getCoiffures(),
-      ])
+      const variantesResponse = await getVariantesCoiffures({ page: nextPage })
       setItems(variantesResponse)
-      setCoiffuresList(coiffuresResponse.data)
       setPage(nextPage)
     } catch {
       setError('Impossible de charger les variantes.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     Promise.all([getVariantesCoiffures({ page: 1 }), getCoiffures()])

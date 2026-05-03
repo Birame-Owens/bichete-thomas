@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   CheckCircle,
   Edit,
@@ -75,30 +75,26 @@ function CoiffuresPage() {
 
   const coiffures = useMemo(() => items?.data ?? [], [items])
 
-  const loadPage = async (nextPage: number, nextSearch = search, nextCategory = categoryFilter, nextStatus = statusFilter) => {
+  const filtersReady = useRef(false)
+
+  const loadPage = useCallback(async (nextPage: number, nextSearch: string, nextCategory: string, nextStatus: string) => {
     setLoading(true)
     setError(null)
     try {
-      const [coiffuresResponse, categoriesResponse, optionsResponse] = await Promise.all([
-        getCoiffures({
-          page: nextPage,
-          search: nextSearch || undefined,
-          categorie_coiffure_id: nextCategory || undefined,
-          actif: nextStatus === 'all' ? undefined : nextStatus === 'active',
-        }),
-        getCategoriesCoiffures(),
-        getOptionsCoiffures(),
-      ])
+      const coiffuresResponse = await getCoiffures({
+        page: nextPage,
+        search: nextSearch || undefined,
+        categorie_coiffure_id: nextCategory || undefined,
+        actif: nextStatus === 'all' ? undefined : nextStatus === 'active',
+      })
       setItems(coiffuresResponse)
-      setCategories(categoriesResponse.data)
-      setOptions(optionsResponse.data)
       setPage(nextPage)
     } catch {
       setError('Impossible de charger les coiffures.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     Promise.all([getCoiffures({ page: 1 }), getCategoriesCoiffures(), getOptionsCoiffures()])
@@ -111,6 +107,19 @@ function CoiffuresPage() {
       .catch(() => setError('Impossible de charger les coiffures.'))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!filtersReady.current) {
+      filtersReady.current = true
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void loadPage(1, search, categoryFilter, statusFilter)
+    }, 300)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [categoryFilter, loadPage, search, statusFilter])
 
   const resetForm = () => {
     setForm(emptyForm)
@@ -130,7 +139,7 @@ function CoiffuresPage() {
         await createCoiffure(form)
       }
       resetForm()
-      await loadPage(1)
+      await loadPage(1, search, categoryFilter, statusFilter)
     } catch {
       setError('Enregistrement impossible. Verifiez la categorie, les photos et les variantes.')
     } finally {
@@ -200,7 +209,7 @@ function CoiffuresPage() {
             actif: variante.actif,
           })) ?? [],
       })
-      await loadPage(page)
+      await loadPage(page, search, categoryFilter, statusFilter)
     } catch {
       setError('Changement de statut impossible.')
     }
@@ -213,14 +222,10 @@ function CoiffuresPage() {
 
     try {
       await deleteCoiffure(coiffure.id)
-      await loadPage(page)
+      await loadPage(page, search, categoryFilter, statusFilter)
     } catch {
       setError('Suppression impossible.')
     }
-  }
-
-  const submitFilters = (nextSearch = search, nextCategory = categoryFilter, nextStatus = statusFilter) => {
-    void loadPage(1, nextSearch, nextCategory, nextStatus)
   }
 
   return (
@@ -228,7 +233,7 @@ function CoiffuresPage() {
       title="Coiffures"
       subtitle="Gerez les prestations, photos, prix et variantes du salon."
       action={
-        <button type="button" onClick={() => openModal()} className={`${primaryButtonClass} inline-flex items-center gap-2`}>
+        <button type="button" onClick={() => openModal()} className={`${primaryButtonClass} inline-flex w-full items-center justify-center gap-2 sm:w-auto`}>
           <Plus className="h-4 w-4" />
           Ajouter coiffure
         </button>
@@ -240,10 +245,7 @@ function CoiffuresPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                submitFilters(event.target.value)
-              }}
+              onChange={(event) => setSearch(event.target.value)}
               className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-4 text-sm font-semibold outline-none focus:border-[#e91e63] focus:ring-4 focus:ring-[#e91e63]/10"
               placeholder="Rechercher une coiffure..."
             />
@@ -251,11 +253,8 @@ function CoiffuresPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <select
               value={categoryFilter}
-              onChange={(event) => {
-                setCategoryFilter(event.target.value)
-                submitFilters(search, event.target.value)
-              }}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-700"
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-700 sm:w-auto"
             >
               <option value="">Toutes les categories</option>
               {categories.map((category) => (
@@ -266,17 +265,14 @@ function CoiffuresPage() {
             </select>
             <select
               value={statusFilter}
-              onChange={(event) => {
-                setStatusFilter(event.target.value)
-                submitFilters(search, categoryFilter, event.target.value)
-              }}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-700"
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-700 sm:w-auto"
             >
               <option value="all">Tous les statuts</option>
               <option value="active">Actives</option>
               <option value="inactive">Inactives</option>
             </select>
-            <button type="button" onClick={() => void loadPage(page)} className={secondaryButtonClass} title="Actualiser">
+            <button type="button" onClick={() => void loadPage(page, search, categoryFilter, statusFilter)} className={`${secondaryButtonClass} justify-center`} title="Actualiser">
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
@@ -290,10 +286,10 @@ function CoiffuresPage() {
       {error && <ErrorState label={error} />}
 
       {loading ? (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:gap-6 2xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <div key={index} className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-              <div className="h-52 animate-pulse bg-gray-100" />
+              <div className="aspect-[4/3] animate-pulse bg-gray-100 sm:aspect-[16/11]" />
               <div className="space-y-3 p-4">
                 <div className="h-4 w-2/3 animate-pulse rounded bg-gray-100" />
                 <div className="h-3 w-full animate-pulse rounded bg-gray-100" />
@@ -305,13 +301,13 @@ function CoiffuresPage() {
       ) : coiffures.length === 0 ? (
         <EmptyState label="Aucune coiffure ne correspond aux filtres." />
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:gap-6 2xl:grid-cols-3">
           {coiffures.map((coiffure) => (
             <article
               key={coiffure.id}
               className="group overflow-hidden rounded-xl border border-gray-100 bg-white shadow-[0_18px_36px_-32px_rgba(20,20,43,0.55)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_42px_-30px_rgba(20,20,43,0.7)]"
             >
-              <div className="relative h-52 overflow-hidden bg-[#fff2f7]">
+              <div className="relative aspect-[4/3] overflow-hidden bg-[#fff2f7] sm:aspect-[16/11]">
                 {coiffure.image ? (
                   <img
                     src={coiffure.image}
@@ -409,8 +405,8 @@ function CoiffuresPage() {
           page={page}
           lastPage={items.last_page}
           total={items.total}
-          onPrevious={() => void loadPage(page - 1)}
-          onNext={() => void loadPage(page + 1)}
+          onPrevious={() => void loadPage(page - 1, search, categoryFilter, statusFilter)}
+          onNext={() => void loadPage(page + 1, search, categoryFilter, statusFilter)}
         />
       )}
 
@@ -478,7 +474,7 @@ function CoiffuresPage() {
                   <p className="mt-1 text-xs font-bold text-gray-400">PNG, JPG, WEBP. La premiere photo est principale.</p>
                 </div>
                 {imagePreviews.length > 0 && (
-                  <div className="mt-4 grid grid-cols-4 gap-2">
+                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {imagePreviews.slice(0, 4).map((preview, index) => (
                       <div key={`${preview}-${index}`} className="relative">
                         <img src={preview} alt={`Apercu ${index + 1}`} className="h-20 w-full rounded-lg object-cover" />
@@ -593,7 +589,7 @@ function CoiffuresPage() {
               </section>
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
+            <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
               <button type="button" onClick={resetForm} className={secondaryButtonClass}>
                 Annuler
               </button>

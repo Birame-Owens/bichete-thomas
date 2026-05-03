@@ -40,12 +40,20 @@ class AuthenticateApiToken
             ], 403);
         }
 
-        $accessToken->forceFill(['last_used_at' => now()])->save();
+        if ($this->shouldRefreshLastUsedAt($accessToken)) {
+            $accessToken->forceFill(['last_used_at' => now()])->save();
+        }
 
         Auth::setUser($accessToken->user);
         $request->setUserResolver(fn () => $accessToken->user);
         $request->attributes->set('access_token', $accessToken);
 
         return $next($request);
+    }
+
+    private function shouldRefreshLastUsedAt(PersonalAccessToken $accessToken): bool
+    {
+        return $accessToken->last_used_at === null
+            || $accessToken->last_used_at->lt(now()->subMinutes(5));
     }
 }

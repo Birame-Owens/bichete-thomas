@@ -1,4 +1,5 @@
 import { apiClient } from '../../../lib/apiClient'
+import { apiAssetUrl } from '../../../lib/apiAssets'
 import type {
   ApiCollection,
   ApiItem,
@@ -24,8 +25,37 @@ function cleanText(value: string) {
   return value.trim() === '' ? null : value.trim()
 }
 
-function collection<T>(payload: ApiCollection<T>): LaravelPaginated<T> {
-  return payload.data
+function collection<T>(payload: ApiCollection<T>, normalize: (item: T) => T): LaravelPaginated<T> {
+  return {
+    ...payload.data,
+    data: payload.data.data.map(normalize),
+  }
+}
+
+function normalizeCategorie(category: CategorieCoiffure): CategorieCoiffure {
+  return {
+    ...category,
+    image: apiAssetUrl(category.image),
+  }
+}
+
+function normalizeCoiffure(coiffure: Coiffure): Coiffure {
+  return {
+    ...coiffure,
+    image: apiAssetUrl(coiffure.image),
+    categorie: coiffure.categorie ? normalizeCategorie(coiffure.categorie) : coiffure.categorie,
+    images: coiffure.images?.map((image) => ({
+      ...image,
+      url: apiAssetUrl(image.url) ?? image.url,
+    })),
+  }
+}
+
+function normalizeVariante(variante: VarianteCoiffure): VarianteCoiffure {
+  return {
+    ...variante,
+    coiffure: variante.coiffure ? normalizeCoiffure(variante.coiffure) : variante.coiffure,
+  }
 }
 
 function appendBoolean(formData: FormData, key: string, value: boolean) {
@@ -79,7 +109,7 @@ export async function getCategoriesCoiffures(params?: QueryParams) {
     params,
   })
 
-  return collection(response.data)
+  return collection(response.data, normalizeCategorie)
 }
 
 export async function createCategorieCoiffure(form: CategorieForm) {
@@ -88,7 +118,7 @@ export async function createCategorieCoiffure(form: CategorieForm) {
     categoryFormData(form),
   )
 
-  return response.data.data
+  return normalizeCategorie(response.data.data)
 }
 
 export async function updateCategorieCoiffure(id: number, form: CategorieForm) {
@@ -96,7 +126,7 @@ export async function updateCategorieCoiffure(id: number, form: CategorieForm) {
   formData.append('_method', 'PUT')
   const response = await apiClient.post<ApiItem<CategorieCoiffure>>(`/admin/categories-coiffures/${id}`, formData)
 
-  return response.data.data
+  return normalizeCategorie(response.data.data)
 }
 
 export async function deleteCategorieCoiffure(id: number) {
@@ -108,7 +138,7 @@ export async function getOptionsCoiffures(params?: QueryParams) {
     params,
   })
 
-  return collection(response.data)
+  return collection(response.data, (item) => item)
 }
 
 export async function createOptionCoiffure(form: OptionForm) {
@@ -140,13 +170,13 @@ export async function getCoiffures(params?: QueryParams) {
     params,
   })
 
-  return collection(response.data)
+  return collection(response.data, normalizeCoiffure)
 }
 
 export async function createCoiffure(form: CoiffureForm) {
   const response = await apiClient.post<ApiItem<Coiffure>>('/admin/coiffures', coiffureFormData(form))
 
-  return response.data.data
+  return normalizeCoiffure(response.data.data)
 }
 
 export async function updateCoiffure(id: number, form: CoiffureForm) {
@@ -154,7 +184,7 @@ export async function updateCoiffure(id: number, form: CoiffureForm) {
   formData.append('_method', 'PUT')
   const response = await apiClient.post<ApiItem<Coiffure>>(`/admin/coiffures/${id}`, formData)
 
-  return response.data.data
+  return normalizeCoiffure(response.data.data)
 }
 
 export async function deleteCoiffure(id: number) {
@@ -166,7 +196,7 @@ export async function getVariantesCoiffures(params?: QueryParams) {
     params,
   })
 
-  return collection(response.data)
+  return collection(response.data, normalizeVariante)
 }
 
 export async function createVarianteCoiffure(form: VarianteForm) {
@@ -178,7 +208,7 @@ export async function createVarianteCoiffure(form: VarianteForm) {
     actif: form.actif,
   })
 
-  return response.data.data
+  return normalizeVariante(response.data.data)
 }
 
 export async function updateVarianteCoiffure(id: number, form: VarianteForm) {
@@ -190,7 +220,7 @@ export async function updateVarianteCoiffure(id: number, form: VarianteForm) {
     actif: form.actif,
   })
 
-  return response.data.data
+  return normalizeVariante(response.data.data)
 }
 
 export async function deleteVarianteCoiffure(id: number) {

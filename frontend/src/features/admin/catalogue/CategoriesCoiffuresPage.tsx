@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   ArrowUpDown,
   Edit,
@@ -49,7 +49,9 @@ function CategoriesCoiffuresPage() {
 
   const categories = useMemo(() => items?.data ?? [], [items])
 
-  const loadPage = async (nextPage: number, nextSearch = search, nextStatus = statusFilter) => {
+  const filtersReady = useRef(false)
+
+  const loadPage = useCallback(async (nextPage: number, nextSearch: string, nextStatus: string) => {
     setLoading(true)
     setError(null)
     try {
@@ -66,7 +68,7 @@ function CategoriesCoiffuresPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     getCategoriesCoiffures({ page: 1 })
@@ -77,6 +79,19 @@ function CategoriesCoiffuresPage() {
       .catch(() => setError('Impossible de charger les categories.'))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!filtersReady.current) {
+      filtersReady.current = true
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void loadPage(1, search, statusFilter)
+    }, 300)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [loadPage, search, statusFilter])
 
   const resetForm = () => {
     setForm(emptyForm)
@@ -96,7 +111,7 @@ function CategoriesCoiffuresPage() {
         await createCategorieCoiffure(form)
       }
       resetForm()
-      await loadPage(1)
+      await loadPage(1, search, statusFilter)
     } catch {
       setError('Enregistrement impossible. Verifiez les champs.')
     } finally {
@@ -135,7 +150,7 @@ function CategoriesCoiffuresPage() {
         actif: !category.actif,
         image: null,
       })
-      await loadPage(page)
+      await loadPage(page, search, statusFilter)
     } catch {
       setError('Changement de statut impossible.')
     }
@@ -148,14 +163,10 @@ function CategoriesCoiffuresPage() {
 
     try {
       await deleteCategorieCoiffure(category.id)
-      await loadPage(page)
+      await loadPage(page, search, statusFilter)
     } catch {
       setError('Suppression impossible. Cette categorie contient peut-etre deja des coiffures.')
     }
-  }
-
-  const submitFilters = (nextSearch = search, nextStatus = statusFilter) => {
-    void loadPage(1, nextSearch, nextStatus)
   }
 
   return (
@@ -163,7 +174,7 @@ function CategoriesCoiffuresPage() {
       title="Categories coiffures"
       subtitle="Gerez les familles du catalogue avec photo, statut et nombre de coiffures."
       action={
-        <button type="button" onClick={() => openModal()} className={`${primaryButtonClass} inline-flex items-center gap-2`}>
+        <button type="button" onClick={() => openModal()} className={`${primaryButtonClass} inline-flex w-full items-center justify-center gap-2 sm:w-auto`}>
           <Plus className="h-4 w-4" />
           Nouvelle categorie
         </button>
@@ -175,28 +186,22 @@ function CategoriesCoiffuresPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                submitFilters(event.target.value)
-              }}
+              onChange={(event) => setSearch(event.target.value)}
               className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-4 text-sm font-semibold outline-none focus:border-[#e91e63] focus:ring-4 focus:ring-[#e91e63]/10"
               placeholder="Rechercher une categorie..."
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <select
               value={statusFilter}
-              onChange={(event) => {
-                setStatusFilter(event.target.value)
-                submitFilters(search, event.target.value)
-              }}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-700"
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-700 sm:w-auto"
             >
               <option value="all">Tous les statuts</option>
               <option value="active">Actives</option>
               <option value="inactive">Inactives</option>
             </select>
-            <button type="button" onClick={() => void loadPage(page)} className={secondaryButtonClass} title="Actualiser">
+            <button type="button" onClick={() => void loadPage(page, search, statusFilter)} className={`${secondaryButtonClass} justify-center`} title="Actualiser">
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
@@ -206,7 +211,92 @@ function CategoriesCoiffuresPage() {
 
       {error && <ErrorState label={error} />}
 
-      <section className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-[0_18px_36px_-32px_rgba(20,20,43,0.5)]">
+      <section className="grid gap-3 lg:hidden">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, index) => (
+            <article key={index} className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+              <div className="flex gap-3">
+                <div className="h-20 w-20 shrink-0 animate-pulse rounded-lg bg-gray-100" />
+                <div className="min-w-0 flex-1 space-y-3 py-1">
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-gray-100" />
+                  <div className="h-3 w-full animate-pulse rounded bg-gray-100" />
+                  <div className="h-3 w-1/2 animate-pulse rounded bg-gray-100" />
+                </div>
+              </div>
+            </article>
+          ))
+        ) : categories.length === 0 ? (
+          <EmptyState label="Aucune categorie trouvee." />
+        ) : (
+          categories.map((category) => (
+            <article key={category.id} className="rounded-xl border border-gray-100 bg-white p-3 shadow-[0_14px_30px_-28px_rgba(20,20,43,0.55)]">
+              <div className="flex gap-3">
+                {category.image ? (
+                  <img src={category.image} alt={category.nom} className="h-20 w-20 shrink-0 rounded-lg object-cover" />
+                ) : (
+                  <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                    <Image className="h-6 w-6 text-gray-400" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="truncate text-base font-black text-gray-950">{category.nom}</h2>
+                      <p className="text-xs font-bold text-gray-400">#{category.id}</p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${
+                        category.actif ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                      }`}
+                    >
+                      {category.actif ? 'Actif' : 'Inactif'}
+                    </span>
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-sm font-medium text-gray-500">
+                    {category.description || 'Aucune description'}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <span className="inline-flex items-center gap-2 text-sm font-black text-[#c41468]">
+                      <Package className="h-4 w-4" />
+                      {category.coiffures_count ?? 0} coiffure(s)
+                    </span>
+                    <div className="flex justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => void toggleActive(category)}
+                        className="rounded-lg p-2 text-gray-600 transition hover:bg-gray-100"
+                        title={category.actif ? 'Desactiver' : 'Activer'}
+                      >
+                        {category.actif ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openModal(category)}
+                        className="rounded-lg p-2 text-indigo-600 transition hover:bg-indigo-50"
+                        title="Modifier"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      {(category.coiffures_count ?? 0) === 0 && (
+                        <button
+                          type="button"
+                          onClick={() => void remove(category)}
+                          className="rounded-lg p-2 text-red-600 transition hover:bg-red-50"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))
+        )}
+      </section>
+
+      <section className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-[0_18px_36px_-32px_rgba(20,20,43,0.5)] lg:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[840px] text-left text-sm">
             <thead className="bg-gray-50 text-xs font-black uppercase tracking-[0.12em] text-gray-500">
@@ -321,8 +411,8 @@ function CategoriesCoiffuresPage() {
           page={page}
           lastPage={items.last_page}
           total={items.total}
-          onPrevious={() => void loadPage(page - 1)}
-          onNext={() => void loadPage(page + 1)}
+          onPrevious={() => void loadPage(page - 1, search, statusFilter)}
+          onNext={() => void loadPage(page + 1, search, statusFilter)}
         />
       )}
 
@@ -385,7 +475,7 @@ function CategoriesCoiffuresPage() {
               </section>
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
+            <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
               <button type="button" onClick={resetForm} className={secondaryButtonClass}>
                 Annuler
               </button>

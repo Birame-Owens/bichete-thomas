@@ -24,10 +24,10 @@ function CatalogueLayout({ title, subtitle, children, action }: CatalogueLayoutP
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e91e63]">
             Module catalogue
           </p>
-          <h1 className="mt-2 text-3xl font-black text-[#111018]">{title}</h1>
+          <h1 className="mt-2 text-2xl font-black text-[#111018] sm:text-3xl">{title}</h1>
           <p className="mt-2 max-w-3xl text-sm font-medium text-gray-500">{subtitle}</p>
         </div>
-        {action}
+        {action && <div className="flex w-full sm:w-auto">{action}</div>}
       </div>
 
       <div className="mb-5 flex gap-2 overflow-x-auto rounded-xl border border-[#f1e7ee] bg-white p-1 shadow-[0_14px_32px_-28px_rgba(20,20,43,0.55)]">
