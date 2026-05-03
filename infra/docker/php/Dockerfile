@@ -27,4 +27,13 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+COPY infra/docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache-recommended.ini
+
+COPY backend/composer.json backend/composer.lock ./
+RUN composer install \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader \
+    --no-scripts
+
 CMD ["php-fpm"]

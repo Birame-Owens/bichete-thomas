@@ -2,6 +2,11 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import AdminDashboardPage from './features/admin/dashboard/AdminDashboardPage'
 import RequireAuth from './features/auth/RequireAuth'
+import CatalogueOverviewPage from './features/admin/catalogue/CatalogueOverviewPage'
+import CategoriesCoiffuresPage from './features/admin/catalogue/CategoriesCoiffuresPage'
+import CoiffuresPage from './features/admin/catalogue/CoiffuresPage'
+import OptionsCoiffuresPage from './features/admin/catalogue/OptionsCoiffuresPage'
+import VariantesCoiffuresPage from './features/admin/catalogue/VariantesCoiffuresPage'
 
 function ManagerDashboard() {
   return (
@@ -35,6 +40,46 @@ function App() {
         element={
           <RequireAuth role="admin">
             <AdminDashboardPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/catalogue"
+        element={
+          <RequireAuth role="admin">
+            <CatalogueOverviewPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/catalogue/categories-coiffures"
+        element={
+          <RequireAuth role="admin">
+            <CategoriesCoiffuresPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/catalogue/coiffures"
+        element={
+          <RequireAuth role="admin">
+            <CoiffuresPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/catalogue/variantes"
+        element={
+          <RequireAuth role="admin">
+            <VariantesCoiffuresPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/catalogue/options"
+        element={
+          <RequireAuth role="admin">
+            <OptionsCoiffuresPage />
           </RequireAuth>
         }
       />

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['nom', 'description', 'actif'])]
+#[Fillable(['nom', 'description', 'image', 'actif'])]
 class CategorieCoiffure extends Model
 {
     use HasFactory;

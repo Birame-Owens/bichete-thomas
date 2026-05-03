@@ -1,11 +1,13 @@
 services:
   backend:
     build:
-      context: ./infra/docker/php
+      context: .
+      dockerfile: infra/docker/php/Dockerfile
     container_name: bichette_backend
     working_dir: /var/www/html
     volumes:
       - ./backend:/var/www/html
+      - backend_vendor:/var/www/html/vendor
     depends_on:
       - postgres
       - redis
@@ -58,6 +60,7 @@ services:
 
 volumes:
   postgres_data:
+  backend_vendor:
 
 networks:
   bichette_network:
