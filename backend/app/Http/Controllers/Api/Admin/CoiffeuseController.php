@@ -12,14 +12,14 @@ class CoiffeuseController extends Controller
     public function index(Request $request): JsonResponse
     {
         $coiffeuses = Coiffeuse::query()
-            ->when($request->boolean('actif'), fn ($query) => $query->where('actif', true))
+            ->when($request->has('actif'), fn ($query) => $query->where('actif', $request->boolean('actif')))
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $search = $request->string('search')->toString();
 
                 $query->where(function ($query) use ($search): void {
-                    $query->where('nom', 'like', "%{$search}%")
-                        ->orWhere('prenom', 'like', "%{$search}%")
-                        ->orWhere('telephone', 'like', "%{$search}%");
+                    $query->where('nom', 'ilike', "%{$search}%")
+                        ->orWhere('prenom', 'ilike', "%{$search}%")
+                        ->orWhere('telephone', 'ilike', "%{$search}%");
                 });
             })
             ->orderBy('nom')

@@ -1,0 +1,55 @@
+import type { ReactNode } from 'react'
+import { NavLink } from 'react-router-dom'
+import AdminLayout from '../../../../layouts/AdminLayout'
+
+const tabs = [
+  { label: 'Vue personnel', path: '/admin/personnel' },
+  { label: 'Gerantes', path: '/admin/personnel/gerantes' },
+  { label: 'Coiffeuses', path: '/admin/personnel/coiffeuses' },
+]
+
+type PersonnelLayoutProps = {
+  title: string
+  subtitle: string
+  children: ReactNode
+  action?: ReactNode
+}
+
+function PersonnelLayout({ title, subtitle, children, action }: PersonnelLayoutProps) {
+  return (
+    <AdminLayout>
+      <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e91e63]">
+            Module personnel
+          </p>
+          <h1 className="mt-2 text-2xl font-black text-[#111018] sm:text-3xl">{title}</h1>
+          <p className="mt-2 max-w-3xl text-sm font-medium text-gray-500">{subtitle}</p>
+        </div>
+        {action && <div className="flex w-full sm:w-auto">{action}</div>}
+      </div>
+
+      <div className="mb-5 flex gap-2 overflow-x-auto rounded-xl border border-[#f1e7ee] bg-white p-1 shadow-[0_14px_32px_-28px_rgba(20,20,43,0.55)]">
+        {tabs.map((tab) => (
+          <NavLink
+            key={tab.path}
+            to={tab.path}
+            end={tab.path === '/admin/personnel'}
+            className={({ isActive }) =>
+              [
+                'whitespace-nowrap rounded-lg px-4 py-2 text-sm font-bold transition',
+                isActive ? 'bg-[#e91e63] text-white' : 'text-gray-500 hover:bg-[#fff2f7] hover:text-[#c41468]',
+              ].join(' ')
+            }
+          >
+            {tab.label}
+          </NavLink>
+        ))}
+      </div>
+
+      {children}
+    </AdminLayout>
+  )
+}
+
+export default PersonnelLayout

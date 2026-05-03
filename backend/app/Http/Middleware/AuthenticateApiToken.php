@@ -34,6 +34,12 @@ class AuthenticateApiToken
             ], 401);
         }
 
+        if (! $accessToken->user->actif) {
+            return response()->json([
+                'message' => 'Compte desactive.',
+            ], 403);
+        }
+
         if (! $accessToken->user->hasRole('admin', 'gerante')) {
             return response()->json([
                 'message' => 'Acces reserve aux administrateurs et gerantes.',

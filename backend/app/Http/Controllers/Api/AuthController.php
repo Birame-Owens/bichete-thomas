@@ -27,6 +27,12 @@ class AuthController extends Controller
             ], 401);
         }
 
+        if (! $user->actif) {
+            return response()->json([
+                'message' => 'Compte desactive.',
+            ], 403);
+        }
+
         if (! $user->hasRole('admin', 'gerante')) {
             return response()->json([
                 'message' => 'Acces reserve aux administrateurs et gerantes.',
