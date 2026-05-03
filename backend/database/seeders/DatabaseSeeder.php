@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\CategorieDepense;
 use App\Models\ParametreSysteme;
+use App\Models\RegleFidelite;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -58,6 +59,13 @@ class DatabaseSeeder extends Seeder
             CategorieDepense::query()->updateOrCreate(
                 ['nom' => $category['nom']],
                 $category
+            );
+        }
+
+        foreach ($this->defaultLoyaltyRules() as $rule) {
+            RegleFidelite::query()->updateOrCreate(
+                ['nom' => $rule['nom']],
+                $rule
             );
         }
     }
@@ -155,6 +163,22 @@ class DatabaseSeeder extends Seeder
             ['nom' => 'transport', 'description' => 'Frais de transport et livraison', 'actif' => true],
             ['nom' => 'salaire', 'description' => 'Salaires et avances', 'actif' => true],
             ['nom' => 'materiel', 'description' => 'Materiel et equipements du salon', 'actif' => true],
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function defaultLoyaltyRules(): array
+    {
+        return [
+            [
+                'nom' => 'Reduction 10e reservation',
+                'nombre_reservations_requis' => 9,
+                'type_recompense' => 'pourcentage',
+                'valeur_recompense' => 10,
+                'actif' => true,
+            ],
         ];
     }
 }

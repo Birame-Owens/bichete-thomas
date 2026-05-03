@@ -11,6 +11,7 @@ import PersonnelOverviewPage from './features/admin/personnel/PersonnelOverviewP
 import GerantesPage from './features/admin/personnel/GerantesPage'
 import CoiffeusesPage from './features/admin/personnel/CoiffeusesPage'
 import SettingsPage from './features/admin/settings/SettingsPage'
+import PromotionsPage from './features/admin/promotions/PromotionsPage'
 import RequireAuth from './features/auth/RequireAuth'
 
 function ManagerDashboard() {
@@ -65,6 +66,7 @@ function App() {
       <Route path="/admin/personnel" element={<AdminRoute><PersonnelOverviewPage /></AdminRoute>} />
       <Route path="/admin/personnel/gerantes" element={<AdminRoute><GerantesPage /></AdminRoute>} />
       <Route path="/admin/personnel/coiffeuses" element={<AdminRoute><CoiffeusesPage /></AdminRoute>} />
+      <Route path="/admin/promotions" element={<AdminRoute><PromotionsPage /></AdminRoute>} />
       <Route path="/admin/parametres" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       <Route
         path="/manager/dashboard"
