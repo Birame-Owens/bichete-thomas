@@ -11,11 +11,26 @@ class ListeNoireClientController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $perPage = max(1, min($request->integer('per_page', 15), 100));
+
         $items = ListeNoireClient::query()
             ->with('client')
             ->when($request->has('actif'), fn ($query) => $query->where('actif', $request->boolean('actif')))
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $search = trim($request->string('search')->toString());
+
+                $query->where(function ($subQuery) use ($search): void {
+                    $subQuery->where('raison', 'ilike', "%{$search}%")
+                        ->orWhereHas('client', function ($clientQuery) use ($search): void {
+                            $clientQuery->where('nom', 'ilike', "%{$search}%")
+                                ->orWhere('prenom', 'ilike', "%{$search}%")
+                                ->orWhere('telephone', 'ilike', "%{$search}%")
+                                ->orWhere('email', 'ilike', "%{$search}%");
+                        });
+                });
+            })
             ->latest()
-            ->paginate(15);
+            ->paginate($perPage);
 
         return response()->json(['data' => $items]);
     }
@@ -30,9 +45,16 @@ class ListeNoireClientController extends Controller
     public function update(Request $request, ListeNoireClient $listeNoireClient): JsonResponse
     {
         $data = $request->validate([
-            'raison' => ['nullable', 'string'],
+            'raison' => ['nullable', 'string', 'max:2000'],
             'actif' => ['sometimes', 'boolean'],
         ]);
+
+        if (array_key_exists('actif', $data) && $data['actif'] === true) {
+            if (! $listeNoireClient->blackliste_at) {
+                $data['blackliste_at'] = now();
+            }
+            $data['retire_at'] = null;
+        }
 
         if (array_key_exists('actif', $data) && $data['actif'] === false) {
             $data['retire_at'] = now();
