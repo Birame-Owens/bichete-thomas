@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Admin\CategorieDepenseController;
 use App\Http\Controllers\Api\Admin\ClientController;
 use App\Http\Controllers\Api\Admin\DepenseController;
 use App\Http\Controllers\Api\Admin\EvenementAnalyticsController;
+use App\Http\Controllers\Api\Admin\GeranteController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
 use App\Http\Controllers\Api\Admin\ListeNoireClientController;
 use App\Http\Controllers\Api\Admin\LogSystemeController;
@@ -57,6 +58,8 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
             ->parameters(['images-coiffures' => 'imageCoiffure']);
         Route::apiResource('coiffeuses', CoiffeuseController::class)
             ->parameters(['coiffeuses' => 'coiffeuse']);
+        Route::apiResource('gerantes', GeranteController::class)
+            ->parameters(['gerantes' => 'gerante']);
         Route::apiResource('parametres-systeme', ParametreSystemeController::class)
             ->parameters(['parametres-systeme' => 'parametreSysteme']);
         Route::apiResource('regles-fidelite', RegleFideliteController::class)
