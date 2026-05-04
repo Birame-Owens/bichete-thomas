@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage'
 import AdminDashboardPage from './features/admin/dashboard/AdminDashboardPage'
 import ClientsPage from './features/admin/clients/ClientsPage'
 import ReservationsPage from './features/admin/reservations/ReservationsPage'
+import PaymentsPage from './features/admin/payments/PaymentsPage'
 import CatalogueOverviewPage from './features/admin/catalogue/CatalogueOverviewPage'
 import CategoriesCoiffuresPage from './features/admin/catalogue/CategoriesCoiffuresPage'
 import CoiffuresPage from './features/admin/catalogue/CoiffuresPage'
@@ -62,6 +63,7 @@ function App() {
       />
       <Route path="/admin/clients" element={<AdminRoute><ClientsPage /></AdminRoute>} />
       <Route path="/admin/reservations" element={<AdminRoute><ReservationsPage /></AdminRoute>} />
+      <Route path="/admin/paiements" element={<AdminRoute><PaymentsPage /></AdminRoute>} />
       <Route path="/admin/catalogue" element={<AdminRoute><CatalogueOverviewPage /></AdminRoute>} />
       <Route path="/admin/catalogue/categories-coiffures" element={<AdminRoute><CategoriesCoiffuresPage /></AdminRoute>} />
       <Route path="/admin/catalogue/coiffures" element={<AdminRoute><CoiffuresPage /></AdminRoute>} />

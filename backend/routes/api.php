@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\Admin\LogSystemeController;
 use App\Http\Controllers\Api\Admin\MouvementCaisseController;
 use App\Http\Controllers\Api\Admin\OptionCoiffureController;
 use App\Http\Controllers\Api\Admin\PageSeoController;
+use App\Http\Controllers\Api\Admin\PaiementController;
 use App\Http\Controllers\Api\Admin\ParametreSystemeController;
 use App\Http\Controllers\Api\Admin\PreferenceClientController;
 use App\Http\Controllers\Api\Admin\ReservationController;
@@ -69,6 +70,10 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
             ->parameters(['codes-promo' => 'codePromo']);
         Route::patch('reservations/{reservation}/statut', [ReservationController::class, 'updateStatus'])->name('reservations.status');
         Route::apiResource('reservations', ReservationController::class);
+        Route::get('paiements/{paiement}/recu', [PaiementController::class, 'receipt'])->name('paiements.receipt');
+        Route::patch('paiements/{paiement}/annuler', [PaiementController::class, 'cancel'])->name('paiements.cancel');
+        Route::patch('paiements/{paiement}/recu-envoye', [PaiementController::class, 'markReceiptSent'])->name('paiements.receipt-sent');
+        Route::apiResource('paiements', PaiementController::class);
         Route::apiResource('categories-depenses', CategorieDepenseController::class)
             ->parameters(['categories-depenses' => 'categorieDepense']);
         Route::apiResource('depenses', DepenseController::class);
