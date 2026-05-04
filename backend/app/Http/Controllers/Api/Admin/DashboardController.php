@@ -228,11 +228,13 @@ class DashboardController extends Controller
 
         return [
             'available' => true,
-            'data' => DB::table('reservations')
+            'data' => $this->reservationPreviewQuery()
                 ->whereDate('date_reservation', now()->toDateString())
-                ->latest()
+                ->orderBy('reservations.heure_debut')
                 ->limit(4)
-                ->get(),
+                ->get()
+                ->map(fn ($reservation): array => $this->formatReservationPreview($reservation))
+                ->values(),
         ];
     }
 
@@ -247,10 +249,12 @@ class DashboardController extends Controller
 
         return [
             'available' => true,
-            'data' => DB::table('reservations')
-                ->latest()
+            'data' => $this->reservationPreviewQuery()
+                ->orderByDesc('reservations.created_at')
                 ->limit(5)
-                ->get(),
+                ->get()
+                ->map(fn ($reservation): array => $this->formatReservationPreview($reservation))
+                ->values(),
         ];
     }
 
@@ -411,7 +415,57 @@ class DashboardController extends Controller
             'format' => $format,
             'color' => $color,
             'icon' => $icon,
-            'trend' => $source['available'] ? 'Donnee API' : ($source['message'] ?? 'Module non implemente.'),
+            'trend' => $source['available'] ? null : ($source['message'] ?? 'Module non implemente.'),
+        ];
+    }
+
+    private function reservationPreviewQuery(): \Illuminate\Database\Query\Builder
+    {
+        $firstDetails = DB::table('details_reservations')
+            ->select('reservation_id', DB::raw('MIN(id) as detail_id'))
+            ->groupBy('reservation_id');
+
+        return DB::table('reservations')
+            ->leftJoin('clients', 'reservations.client_id', '=', 'clients.id')
+            ->leftJoinSub($firstDetails, 'first_details', function ($join): void {
+                $join->on('reservations.id', '=', 'first_details.reservation_id');
+            })
+            ->leftJoin('details_reservations', 'first_details.detail_id', '=', 'details_reservations.id')
+            ->select([
+                'reservations.id',
+                'reservations.date_reservation',
+                'reservations.heure_debut',
+                'reservations.statut',
+                'reservations.montant_total',
+                'reservations.devise',
+                'clients.nom as client_nom',
+                'clients.prenom as client_prenom',
+                'clients.telephone as client_telephone',
+                'details_reservations.coiffure_nom',
+                'details_reservations.variante_nom',
+            ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatReservationPreview(object $reservation): array
+    {
+        $clientName = trim(sprintf('%s %s', $reservation->client_prenom ?? '', $reservation->client_nom ?? ''));
+
+        return [
+            'id' => $reservation->id,
+            'date_reservation' => $reservation->date_reservation,
+            'heure_debut' => substr((string) $reservation->heure_debut, 0, 5),
+            'statut' => $reservation->statut,
+            'montant_total' => (float) $reservation->montant_total,
+            'devise' => $reservation->devise ?? 'FCFA',
+            'client_nom' => $reservation->client_nom,
+            'client_prenom' => $reservation->client_prenom,
+            'client_telephone' => $reservation->client_telephone,
+            'client' => $clientName !== '' ? $clientName : 'Client supprime',
+            'coiffure' => $reservation->coiffure_nom ?? 'Prestation',
+            'variante' => $reservation->variante_nom,
         ];
     }
 

@@ -1,7 +1,7 @@
 type KpiCardProps = {
   label: string
   value: string
-  trend: string
+  trend?: string | null
   icon: string
   accent: string
   unavailable?: boolean
@@ -20,9 +20,13 @@ function KpiCard({ label, value, trend, icon, accent, unavailable = false }: Kpi
           <p className="mt-4 text-[21px] font-extrabold leading-none text-[#111018]">
             {value}
           </p>
-          <p className={`mt-3 text-[12px] font-semibold ${unavailable ? 'text-[#9b174f]' : 'text-emerald-600'}`}>
-            {trend}
-          </p>
+          {trend ? (
+            <p className={`mt-3 text-[12px] font-semibold ${unavailable ? 'text-[#9b174f]' : 'text-emerald-600'}`}>
+              {trend}
+            </p>
+          ) : (
+            <div className="mt-3 h-[15px]" />
+          )}
         </div>
         <div
           className="flex h-11 w-11 items-center justify-center rounded-full text-base font-extrabold"
