@@ -9,6 +9,11 @@ type KpiCardProps = {
 
 function KpiCard({ label, value, trend, icon, accent, unavailable = false }: KpiCardProps) {
   const stroke = unavailable ? '#f4c9da' : accent
+  const trendClass = unavailable
+    ? 'text-[#9b174f]'
+    : trend?.trim().startsWith('-')
+      ? 'text-red-600'
+      : 'text-emerald-600'
 
   return (
     <article className="h-[116px] rounded-[10px] border border-[#f3edf1] bg-white px-4 py-3 shadow-[0_15px_30px_-25px_rgba(20,20,43,0.45)]">
@@ -21,7 +26,7 @@ function KpiCard({ label, value, trend, icon, accent, unavailable = false }: Kpi
             {value}
           </p>
           {trend ? (
-            <p className={`mt-3 text-[12px] font-semibold ${unavailable ? 'text-[#9b174f]' : 'text-emerald-600'}`}>
+            <p className={`mt-3 text-[12px] font-semibold ${trendClass}`}>
               {trend}
             </p>
           ) : (
