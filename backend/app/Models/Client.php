@@ -65,6 +65,14 @@ class Client extends Model
     }
 
     /**
+     * @return HasMany<Paiement, $this>
+     */
+    public function paiements(): HasMany
+    {
+        return $this->hasMany(Paiement::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

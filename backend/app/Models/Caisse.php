@@ -20,6 +20,14 @@ class Caisse extends Model
         return $this->hasMany(MouvementCaisse::class);
     }
 
+    /**
+     * @return HasMany<Paiement, $this>
+     */
+    public function paiements(): HasMany
+    {
+        return $this->hasMany(Paiement::class);
+    }
+
     public function totalEntrees(): float
     {
         return (float) $this->mouvements()->where('type', 'entree')->sum('montant');

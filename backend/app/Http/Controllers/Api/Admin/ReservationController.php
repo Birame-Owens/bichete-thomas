@@ -162,7 +162,13 @@ class ReservationController extends Controller
     private function validatedReservationData(Request $request, ?Reservation $reservation = null): array
     {
         $data = $request->validate([
-            'client_id' => [$reservation ? 'sometimes' : 'required', 'integer', 'exists:clients,id'],
+            'client_id' => ['nullable', 'integer', 'exists:clients,id'],
+            'client' => ['nullable', 'array'],
+            'client.nom' => ['required_with:client', 'string', 'max:255'],
+            'client.prenom' => ['required_with:client', 'string', 'max:255'],
+            'client.telephone' => ['required_with:client', 'string', 'max:50'],
+            'client.email' => ['nullable', 'email', 'max:255'],
+            'client.source' => ['sometimes', Rule::in(['en_ligne', 'physique'])],
             'coiffeuse_id' => ['nullable', 'integer', Rule::exists('coiffeuses', 'id')->where('actif', true)],
             'date_reservation' => [$reservation ? 'sometimes' : 'required', 'date'],
             'heure_debut' => [$reservation ? 'sometimes' : 'required', 'date_format:H:i'],
@@ -184,13 +190,13 @@ class ReservationController extends Controller
         $clientId = $data['client_id'] ?? $reservation?->client_id;
         $client = Client::query()->find($clientId);
 
-        if (! $client) {
+        if (! $client && empty($data['client'])) {
             throw ValidationException::withMessages([
-                'client_id' => 'Client introuvable.',
+                'client_id' => 'Selectionnez un client ou renseignez un nouveau client.',
             ]);
         }
 
-        if ($client->est_blackliste) {
+        if ($client?->est_blackliste) {
             throw ValidationException::withMessages([
                 'client_id' => 'Ce client est dans la liste noire.',
             ]);
@@ -230,6 +236,10 @@ class ReservationController extends Controller
             'devise' => $data['devise'] ?? $reservation?->devise ?? 'FCFA',
             'notes' => array_key_exists('notes', $data) ? $data['notes'] : $reservation?->notes,
         ];
+
+        if (! $current['client_id'] && ! empty($data['client'])) {
+            $current['client_id'] = $this->findOrCreateClient($data['client'])->id;
+        }
 
         $computed = $this->computeReservation($current, $data['details'], $reservation);
 
@@ -496,6 +506,40 @@ class ReservationController extends Controller
         }
 
         return min($fallback, $total);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function findOrCreateClient(array $data): Client
+    {
+        $telephone = trim((string) $data['telephone']);
+        $client = Client::query()->where('telephone', $telephone)->first();
+
+        if ($client) {
+            if ($client->est_blackliste) {
+                throw ValidationException::withMessages([
+                    'client.telephone' => 'Ce telephone appartient a un client dans la liste noire.',
+                ]);
+            }
+
+            return $client;
+        }
+
+        $client = Client::query()->create([
+            'nom' => trim((string) $data['nom']),
+            'prenom' => trim((string) $data['prenom']),
+            'telephone' => $telephone,
+            'email' => $data['email'] ?? null,
+            'source' => $data['source'] ?? 'physique',
+        ]);
+
+        $client->preferences()->create([
+            'notifications_whatsapp' => true,
+            'notifications_promos' => true,
+        ]);
+
+        return $client;
     }
 
     private function settingValue(string $key, mixed $default): mixed

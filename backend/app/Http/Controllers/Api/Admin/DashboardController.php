@@ -107,14 +107,16 @@ class DashboardController extends Controller
         return [
             'available' => true,
             'value' => $today = (float) DB::table('paiements')
-                ->whereDate('created_at', now()->toDateString())
+                ->whereDate('date_paiement', now()->toDateString())
                 ->where('statut', 'valide')
+                ->whereIn('type', ['acompte', 'solde', 'complet', 'ajustement'])
                 ->sum('montant'),
             'trend' => $this->trendLabel(
                 $today,
                 (float) DB::table('paiements')
-                    ->whereDate('created_at', now()->subDay()->toDateString())
+                    ->whereDate('date_paiement', now()->subDay()->toDateString())
                     ->where('statut', 'valide')
+                    ->whereIn('type', ['acompte', 'solde', 'complet', 'ajustement'])
                     ->sum('montant')
             ),
             'currency' => 'FCFA',
@@ -144,14 +146,14 @@ class DashboardController extends Controller
         return [
             'available' => true,
             'value' => $today = (float) DB::table('paiements')
-                ->whereDate('created_at', now()->toDateString())
+                ->whereDate('date_paiement', now()->toDateString())
                 ->where('type', 'acompte')
                 ->where('statut', 'valide')
                 ->sum('montant'),
             'trend' => $this->trendLabel(
                 $today,
                 (float) DB::table('paiements')
-                    ->whereDate('created_at', now()->subDay()->toDateString())
+                    ->whereDate('date_paiement', now()->subDay()->toDateString())
                     ->where('type', 'acompte')
                     ->where('statut', 'valide')
                     ->sum('montant')
@@ -212,7 +214,24 @@ class DashboardController extends Controller
         return [
             'available' => true,
             'data' => DB::table('paiements')
-                ->latest()
+                ->leftJoin('clients', 'paiements.client_id', '=', 'clients.id')
+                ->leftJoin('reservations', 'paiements.reservation_id', '=', 'reservations.id')
+                ->select([
+                    'paiements.id',
+                    'paiements.numero_recu',
+                    'paiements.type',
+                    'paiements.mode_paiement',
+                    'paiements.montant',
+                    'paiements.devise',
+                    'paiements.statut',
+                    'paiements.date_paiement',
+                    'paiements.reservation_id',
+                    'clients.nom as client_nom',
+                    'clients.prenom as client_prenom',
+                    'reservations.date_reservation',
+                ])
+                ->orderByDesc('paiements.date_paiement')
+                ->orderByDesc('paiements.id')
                 ->limit(5)
                 ->get(),
         ];
@@ -229,9 +248,10 @@ class DashboardController extends Controller
 
         $start = now()->startOfWeek();
         $rows = DB::table('paiements')
-            ->selectRaw('DATE(created_at) as date, SUM(montant) as total')
+            ->selectRaw('DATE(date_paiement) as date, SUM(montant) as total')
             ->where('statut', 'valide')
-            ->whereBetween('created_at', [$start, now()->endOfWeek()])
+            ->whereIn('type', ['acompte', 'solde', 'complet', 'ajustement'])
+            ->whereBetween('date_paiement', [$start, now()->endOfWeek()])
             ->groupBy('date')
             ->pluck('total', 'date');
 
@@ -331,6 +351,7 @@ class DashboardController extends Controller
         $rows = DB::table('paiements')
             ->select('mode_paiement', DB::raw('SUM(montant) as total'))
             ->where('statut', 'valide')
+            ->whereIn('type', ['acompte', 'solde', 'complet', 'ajustement'])
             ->groupBy('mode_paiement')
             ->get();
 
@@ -339,7 +360,8 @@ class DashboardController extends Controller
         return [
             'available' => true,
             'data' => $rows->map(fn ($row): array => [
-                'method' => $row->mode_paiement,
+                'method' => $this->paymentMethodLabel($row->mode_paiement),
+                'key' => $row->mode_paiement,
                 'amount' => (float) $row->total,
                 'percent' => round(((float) $row->total / $total) * 100),
             ]),
@@ -543,6 +565,18 @@ class DashboardController extends Controller
             ->sum('montant_acompte');
     }
 
+    private function paymentMethodLabel(string $method): string
+    {
+        return [
+            'especes' => 'Especes',
+            'wave' => 'Wave',
+            'orange_money' => 'Orange Money',
+            'carte_bancaire' => 'Carte bancaire',
+            'virement' => 'Virement',
+            'autre' => 'Autre',
+        ][$method] ?? ucfirst(str_replace('_', ' ', $method));
+    }
+
     private function activityDescription(LogSysteme $log): string
     {
         $path = (string) ($log->metadata['path'] ?? $log->description ?? '');
@@ -580,6 +614,23 @@ class DashboardController extends Controller
             };
         }
 
+        if ($resource === 'paiements') {
+            if ($subAction === 'annuler' && $id) {
+                return "Paiement #{$id} annule";
+            }
+
+            if ($subAction === 'recu-envoye' && $id) {
+                return "Recu du paiement #{$id} marque comme envoye";
+            }
+
+            return match ($method) {
+                'POST' => 'Paiement encaisse et recu genere',
+                'PUT', 'PATCH' => $id ? "Paiement #{$id} mis a jour" : 'Paiement mis a jour',
+                'DELETE' => $id ? "Paiement #{$id} supprime" : 'Paiement supprime',
+                default => $id ? "Paiement #{$id} mis a jour" : 'Paiement mis a jour',
+            };
+        }
+
         $labels = [
             'clients' => ['singular' => 'Client', 'created' => 'Nouveau client cree'],
             'coiffeuses' => ['singular' => 'Coiffeuse', 'created' => 'Nouvelle coiffeuse creee'],
@@ -589,6 +640,7 @@ class DashboardController extends Controller
             'options-coiffures' => ['singular' => 'Option coiffure', 'created' => 'Nouvelle option coiffure creee'],
             'codes-promo' => ['singular' => 'Code promo', 'created' => 'Nouveau code promo cree'],
             'regles-fidelite' => ['singular' => 'Regle fidelite', 'created' => 'Nouvelle regle fidelite creee'],
+            'paiements' => ['singular' => 'Paiement', 'created' => 'Paiement encaisse'],
             'parametres-systeme' => ['singular' => 'Parametre', 'created' => 'Parametre cree'],
         ];
 

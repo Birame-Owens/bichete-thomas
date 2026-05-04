@@ -298,19 +298,26 @@ function PaymentSplit({ split }: { split: AvailabilityValue<PaymentMethod[]> }) 
 }
 
 function QuickPayment({ available, message }: { available: boolean; message?: string | null }) {
+  const navigate = useNavigate()
+
   return (
     <Card title="Encaissement rapide">
-      <div className="space-y-3">
-        <input className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm" placeholder="Nom / Prenom du client" disabled={!available} />
-        <input className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm" placeholder="Montant paye" disabled={!available} />
-        <select className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm" disabled={!available}>
-          <option>Methode de paiement</option>
-        </select>
-        <button className="w-full rounded-lg bg-[#e91e63] px-5 py-3 text-sm font-bold text-white disabled:opacity-60" disabled={!available}>
-          Enregistrer paiement
-        </button>
-      </div>
-      {!available && <p className="mt-3 text-xs font-semibold text-[#a91550]">{message}</p>}
+      {available ? (
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-gray-500">
+            Encaissez un acompte, un solde ou un paiement complet et generez le recu client.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/paiements')}
+            className="w-full rounded-lg bg-[#e91e63] px-5 py-3 text-sm font-bold text-white"
+          >
+            Ouvrir les paiements
+          </button>
+        </div>
+      ) : (
+        <p className="text-xs font-semibold text-[#a91550]">{message}</p>
+      )}
     </Card>
   )
 }

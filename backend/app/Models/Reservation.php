@@ -74,6 +74,14 @@ class Reservation extends Model
     }
 
     /**
+     * @return HasMany<Paiement, $this>
+     */
+    public function paiements(): HasMany
+    {
+        return $this->hasMany(Paiement::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
