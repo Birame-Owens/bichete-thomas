@@ -48,9 +48,21 @@ function nullableText(value: string) {
 }
 
 function paymentPayload(form: PaymentForm) {
+  const client =
+    form.nouveau_client && form.client_id.trim() === '' && form.reservation_id.trim() === ''
+      ? {
+          nom: form.client_nom.trim(),
+          prenom: form.client_prenom.trim(),
+          telephone: form.client_telephone.trim(),
+          email: nullableText(form.client_email),
+          source: 'physique',
+        }
+      : null
+
   return {
     reservation_id: nullableNumber(form.reservation_id),
     client_id: nullableNumber(form.client_id),
+    client,
     type: form.type,
     mode_paiement: form.mode_paiement,
     montant: Number(form.montant),

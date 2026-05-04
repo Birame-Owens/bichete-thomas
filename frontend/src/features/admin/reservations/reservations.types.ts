@@ -162,6 +162,11 @@ export type ReservationDetailForm = {
 
 export type ReservationForm = {
   client_id: string
+  nouveau_client: boolean
+  client_nom: string
+  client_prenom: string
+  client_telephone: string
+  client_email: string
   coiffeuse_id: string
   date_reservation: string
   heure_debut: string

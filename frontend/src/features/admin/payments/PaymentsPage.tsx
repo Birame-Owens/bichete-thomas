@@ -84,6 +84,11 @@ function nowInputValue() {
 const emptyForm = (): PaymentForm => ({
   reservation_id: '',
   client_id: '',
+  nouveau_client: false,
+  client_nom: '',
+  client_prenom: '',
+  client_telephone: '',
+  client_email: '',
   type: 'acompte',
   mode_paiement: 'especes',
   montant: '',
@@ -214,6 +219,11 @@ function paymentToForm(payment: Paiement): PaymentForm {
   return {
     reservation_id: payment.reservation_id ? String(payment.reservation_id) : '',
     client_id: payment.client_id ? String(payment.client_id) : '',
+    nouveau_client: false,
+    client_nom: '',
+    client_prenom: '',
+    client_telephone: '',
+    client_email: '',
     type: payment.type,
     mode_paiement: payment.mode_paiement,
     montant: String(payment.montant ?? ''),
@@ -240,8 +250,12 @@ function suggestedAmount(reservation: Reservation, type: PaymentType) {
 function validateForm(form: PaymentForm, reservation: Reservation | null) {
   const amount = Number(form.montant)
 
-  if (!form.reservation_id && !form.client_id) {
-    return 'Selectionnez une reservation ou un client.'
+  if (!form.reservation_id && !form.client_id && !form.nouveau_client) {
+    return 'Selectionnez une reservation, un client ou renseignez un nouveau client.'
+  }
+
+  if (form.nouveau_client && (!form.client_nom.trim() || !form.client_prenom.trim() || !form.client_telephone.trim())) {
+    return 'Nom, prenom et telephone du nouveau client sont obligatoires.'
   }
 
   if (Number.isNaN(amount) || amount <= 0) {
@@ -400,6 +414,7 @@ function PaymentsPage() {
     setForm((current) => ({
       ...current,
       reservation_id: reservationId,
+      nouveau_client: false,
       client_id: reservation?.client_id ? String(reservation.client_id) : current.client_id,
       montant: reservation ? String(suggestedAmount(reservation, current.type) || current.montant) : current.montant,
     }))
@@ -774,7 +789,12 @@ function PaymentsPage() {
                 </select>
               </FormField>
               <FormField label="Client">
-                <select className={inputClass} value={form.client_id} onChange={(event) => setForm((current) => ({ ...current, client_id: event.target.value }))} disabled={form.reservation_id !== ''}>
+                <select
+                  className={inputClass}
+                  value={form.client_id}
+                  onChange={(event) => setForm((current) => ({ ...current, client_id: event.target.value, nouveau_client: false }))}
+                  disabled={form.reservation_id !== '' || form.nouveau_client}
+                >
                   <option value="">Selectionner client</option>
                   {lookups.clients.map((client) => (
                     <option key={client.id} value={client.id}>
@@ -783,6 +803,37 @@ function PaymentsPage() {
                   ))}
                 </select>
               </FormField>
+              <label className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3 text-sm font-bold lg:self-end">
+                <input
+                  type="checkbox"
+                  checked={form.nouveau_client}
+                  disabled={form.reservation_id !== ''}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      nouveau_client: event.target.checked,
+                      client_id: event.target.checked ? '' : current.client_id,
+                    }))
+                  }
+                />
+                Nouveau client
+              </label>
+              {form.nouveau_client && (
+                <div className="grid gap-4 rounded-xl border border-[#f1e7ee] bg-[#fff8fb] p-4 lg:col-span-3 lg:grid-cols-4">
+                  <FormField label="Prenom">
+                    <input className={inputClass} value={form.client_prenom} onChange={(event) => setForm((current) => ({ ...current, client_prenom: event.target.value }))} placeholder="Awa" />
+                  </FormField>
+                  <FormField label="Nom">
+                    <input className={inputClass} value={form.client_nom} onChange={(event) => setForm((current) => ({ ...current, client_nom: event.target.value }))} placeholder="Ndiaye" />
+                  </FormField>
+                  <FormField label="Telephone">
+                    <input className={inputClass} value={form.client_telephone} onChange={(event) => setForm((current) => ({ ...current, client_telephone: event.target.value }))} placeholder="+221 77 000 00 00" />
+                  </FormField>
+                  <FormField label="Email">
+                    <input className={inputClass} type="email" value={form.client_email} onChange={(event) => setForm((current) => ({ ...current, client_email: event.target.value }))} placeholder="cliente@example.com" />
+                  </FormField>
+                </div>
+              )}
               <FormField label="Type">
                 <select className={inputClass} value={form.type} onChange={(event) => updateType(event.target.value as PaymentType)}>
                   {typeOptions.map((option) => (
@@ -798,7 +849,7 @@ function PaymentsPage() {
                 </select>
               </FormField>
               <FormField label="Montant">
-                <input className={inputClass} type="number" min="1" step="100" value={form.montant} onChange={(event) => setForm((current) => ({ ...current, montant: event.target.value }))} placeholder="25000" />
+                <input className={inputClass} type="number" min="1" step="1" value={form.montant} onChange={(event) => setForm((current) => ({ ...current, montant: event.target.value }))} placeholder="25000" />
               </FormField>
               <FormField label="Statut">
                 <select className={inputClass} value={form.statut} onChange={(event) => setForm((current) => ({ ...current, statut: event.target.value as PaymentStatus }))}>

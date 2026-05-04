@@ -41,8 +41,20 @@ function nullableText(value: string) {
 }
 
 function reservationPayload(form: ReservationForm) {
+  const client =
+    form.nouveau_client && form.client_id.trim() === ''
+      ? {
+          nom: form.client_nom.trim(),
+          prenom: form.client_prenom.trim(),
+          telephone: form.client_telephone.trim(),
+          email: nullableText(form.client_email),
+          source: form.source === 'en_ligne' ? 'en_ligne' : 'physique',
+        }
+      : null
+
   return {
-    client_id: Number(form.client_id),
+    client_id: nullableNumber(form.client_id),
+    client,
     coiffeuse_id: nullableNumber(form.coiffeuse_id),
     date_reservation: form.date_reservation,
     heure_debut: form.heure_debut,

@@ -65,6 +65,11 @@ const emptyDetail: ReservationDetailForm = {
 
 const emptyForm: ReservationForm = {
   client_id: '',
+  nouveau_client: false,
+  client_nom: '',
+  client_prenom: '',
+  client_telephone: '',
+  client_email: '',
   coiffeuse_id: '',
   date_reservation: new Date().toISOString().slice(0, 10),
   heure_debut: '09:00',
@@ -161,6 +166,11 @@ function formatDate(value: string) {
 function reservationToForm(reservation: Reservation): ReservationForm {
   return {
     client_id: reservation.client_id ? String(reservation.client_id) : '',
+    nouveau_client: false,
+    client_nom: '',
+    client_prenom: '',
+    client_telephone: '',
+    client_email: '',
     coiffeuse_id: reservation.coiffeuse_id ? String(reservation.coiffeuse_id) : '',
     date_reservation: dateInput(reservation.date_reservation),
     heure_debut: reservation.heure_debut.slice(0, 5),
@@ -361,8 +371,12 @@ function ReservationsPage() {
   }
 
   const validateForm = () => {
-    if (!form.client_id) {
-      return 'Selectionnez un client.'
+    if (!form.client_id && !form.nouveau_client) {
+      return 'Selectionnez un client ou renseignez un nouveau client.'
+    }
+
+    if (form.nouveau_client && (!form.client_nom.trim() || !form.client_prenom.trim() || !form.client_telephone.trim())) {
+      return 'Nom, prenom et telephone du nouveau client sont obligatoires.'
     }
 
     if (!form.date_reservation || !form.heure_debut) {
@@ -692,13 +706,43 @@ function ReservationsPage() {
               <section className="space-y-4 rounded-xl bg-gray-50 p-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField label="Client">
-                    <select className={inputClass} value={form.client_id} onChange={(event) => setForm((current) => ({ ...current, client_id: event.target.value }))} required>
+                    <select className={inputClass} value={form.client_id} onChange={(event) => setForm((current) => ({ ...current, client_id: event.target.value, nouveau_client: false }))} disabled={form.nouveau_client}>
                       <option value="">Selectionner</option>
                       {lookups.clients.map((client) => (
                         <option key={client.id} value={client.id}>{client.prenom} {client.nom} - {client.telephone}</option>
                       ))}
                     </select>
                   </FormField>
+                  <label className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 text-sm font-bold sm:self-end">
+                    <input
+                      type="checkbox"
+                      checked={form.nouveau_client}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          nouveau_client: event.target.checked,
+                          client_id: event.target.checked ? '' : current.client_id,
+                        }))
+                      }
+                    />
+                    Nouveau client
+                  </label>
+                  {form.nouveau_client && (
+                    <div className="grid gap-4 rounded-xl border border-[#f1e7ee] bg-white p-4 sm:col-span-2 sm:grid-cols-2">
+                      <FormField label="Prenom">
+                        <input className={inputClass} value={form.client_prenom} onChange={(event) => setForm((current) => ({ ...current, client_prenom: event.target.value }))} placeholder="Awa" />
+                      </FormField>
+                      <FormField label="Nom">
+                        <input className={inputClass} value={form.client_nom} onChange={(event) => setForm((current) => ({ ...current, client_nom: event.target.value }))} placeholder="Ndiaye" />
+                      </FormField>
+                      <FormField label="Telephone">
+                        <input className={inputClass} value={form.client_telephone} onChange={(event) => setForm((current) => ({ ...current, client_telephone: event.target.value }))} placeholder="+221 77 000 00 00" />
+                      </FormField>
+                      <FormField label="Email">
+                        <input className={inputClass} type="email" value={form.client_email} onChange={(event) => setForm((current) => ({ ...current, client_email: event.target.value }))} placeholder="cliente@example.com" />
+                      </FormField>
+                    </div>
+                  )}
                   <FormField label="Coiffeuse">
                     <select className={inputClass} value={form.coiffeuse_id} onChange={(event) => setForm((current) => ({ ...current, coiffeuse_id: event.target.value }))}>
                       <option value="">Non assignee</option>
@@ -746,7 +790,7 @@ function ReservationsPage() {
                     </select>
                   </FormField>
                   <FormField label="Acompte" hint="Vide = calcul automatique">
-                    <input className={inputClass} type="number" min="0" step="100" value={form.montant_acompte} onChange={(event) => setForm((current) => ({ ...current, montant_acompte: event.target.value }))} />
+                    <input className={inputClass} type="number" min="0" step="1" value={form.montant_acompte} onChange={(event) => setForm((current) => ({ ...current, montant_acompte: event.target.value }))} />
                   </FormField>
                 </div>
                 <FormField label="Notes">

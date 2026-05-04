@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Caisse;
+use App\Models\Client;
 use App\Models\MouvementCaisse;
 use App\Models\Paiement;
 use App\Models\ParametreSysteme;
@@ -213,6 +214,12 @@ class PaiementController extends Controller
         $validated = $request->validate([
             'reservation_id' => ['nullable', 'integer', 'exists:reservations,id'],
             'client_id' => ['nullable', 'integer', 'exists:clients,id'],
+            'client' => ['nullable', 'array'],
+            'client.nom' => ['required_with:client', 'string', 'max:255'],
+            'client.prenom' => ['required_with:client', 'string', 'max:255'],
+            'client.telephone' => ['required_with:client', 'string', 'max:50'],
+            'client.email' => ['nullable', 'email', 'max:255'],
+            'client.source' => ['sometimes', Rule::in(['en_ligne', 'physique'])],
             'type' => [$paiement ? 'sometimes' : 'required', Rule::in(self::TYPES)],
             'mode_paiement' => [$paiement ? 'sometimes' : 'required', Rule::in(self::METHODS)],
             'montant' => [$paiement ? 'sometimes' : 'required', 'numeric', 'min:1'],
@@ -236,13 +243,14 @@ class PaiementController extends Controller
             'reference' => array_key_exists('reference', $validated) ? $validated['reference'] : $paiement?->reference,
             'notes' => array_key_exists('notes', $validated) ? $validated['notes'] : $paiement?->notes,
             'recu_envoye' => array_key_exists('recu_envoye', $validated) ? (bool) $validated['recu_envoye'] : (bool) ($paiement?->recu_envoye ?? false),
+            'client' => $validated['client'] ?? null,
         ];
 
         $reservation = $data['reservation_id'] ? Reservation::query()->find((int) $data['reservation_id']) : null;
 
-        if (! $reservation && ! $data['client_id']) {
+        if (! $reservation && ! $data['client_id'] && empty($data['client'])) {
             throw ValidationException::withMessages([
-                'client_id' => 'Selectionnez une reservation ou un client.',
+                'client_id' => 'Selectionnez une reservation, un client ou renseignez un nouveau client.',
             ]);
         }
 
@@ -254,6 +262,14 @@ class PaiementController extends Controller
             }
 
             $data['client_id'] = $reservation->client_id;
+        }
+
+        $client = $data['client_id'] ? Client::query()->find((int) $data['client_id']) : null;
+
+        if ($client?->est_blackliste) {
+            throw ValidationException::withMessages([
+                'client_id' => 'Ce client est dans la liste noire.',
+            ]);
         }
 
         if ($reservation && in_array($reservation->statut, ['annulee', 'absence'], true) && in_array($data['type'], self::INCOMING_TYPES, true)) {
@@ -303,6 +319,12 @@ class PaiementController extends Controller
         if ($paiement) {
             $this->ensureCashMovementCanChange($paiement);
         }
+
+        if (! $data['client_id'] && ! empty($data['client'])) {
+            $data['client_id'] = $this->findOrCreateClient($data['client'])->id;
+        }
+
+        unset($data['client']);
 
         $paymentDate = Carbon::parse($data['date_paiement']);
         $paiement ??= new Paiement();
@@ -474,6 +496,40 @@ class PaiementController extends Controller
             ->sum('montant');
 
         return max((float) $incoming - (float) $refunds, 0);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function findOrCreateClient(array $data): Client
+    {
+        $telephone = trim((string) $data['telephone']);
+        $client = Client::query()->where('telephone', $telephone)->first();
+
+        if ($client) {
+            if ($client->est_blackliste) {
+                throw ValidationException::withMessages([
+                    'client.telephone' => 'Ce telephone appartient a un client dans la liste noire.',
+                ]);
+            }
+
+            return $client;
+        }
+
+        $client = Client::query()->create([
+            'nom' => trim((string) $data['nom']),
+            'prenom' => trim((string) $data['prenom']),
+            'telephone' => $telephone,
+            'email' => $data['email'] ?? null,
+            'source' => $data['source'] ?? 'physique',
+        ]);
+
+        $client->preferences()->create([
+            'notifications_whatsapp' => true,
+            'notifications_promos' => true,
+        ]);
+
+        return $client;
     }
 
     /**

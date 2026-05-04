@@ -105,6 +105,11 @@ export type PaymentSummary = {
 export type PaymentForm = {
   reservation_id: string
   client_id: string
+  nouveau_client: boolean
+  client_nom: string
+  client_prenom: string
+  client_telephone: string
+  client_email: string
   type: PaymentType
   mode_paiement: PaymentMethod
   montant: string
