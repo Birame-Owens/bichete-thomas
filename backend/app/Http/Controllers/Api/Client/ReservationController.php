@@ -6,12 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\CodePromo;
 use App\Models\Coiffure;
+use App\Models\Paiement;
 use App\Models\ParametreSysteme;
 use App\Models\Reservation;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ReservationController extends Controller
@@ -23,6 +27,7 @@ class ReservationController extends Controller
         'en_cours',
         'terminee',
     ];
+    private const ONLINE_PAYMENT_METHODS = ['wave', 'orange_money', 'carte_bancaire'];
 
     public function store(Request $request): JsonResponse
     {
@@ -40,21 +45,32 @@ class ReservationController extends Controller
             'heure_debut' => ['required', 'date_format:H:i'],
             'code_promo' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'mode_paiement' => ['required', Rule::in(self::ONLINE_PAYMENT_METHODS)],
+            'reference_paiement' => ['nullable', 'string', 'max:255'],
+            'success_url' => ['nullable', 'url', 'max:2048'],
+            'cancel_url' => ['nullable', 'url', 'max:2048'],
         ]);
 
-        $reservation = DB::transaction(fn (): Reservation => $this->createReservation($data));
+        $result = DB::transaction(fn (): array => $this->createReservation($data));
 
         return response()->json([
-            'message' => 'Reservation recue. Nous vous contacterons pour confirmation.',
-            'data' => $reservation,
+            'message' => $result['message'],
+            'data' => $result['reservation'],
+            'payment' => $result['payment'],
+            'checkout_url' => $result['checkout_url'],
+            'requires_redirect' => $result['requires_redirect'],
         ], 201);
     }
 
     /**
      * @param array<string, mixed> $data
+     *
+     * @return array<string, mixed>
      */
-    private function createReservation(array $data): Reservation
+    private function createReservation(array $data): array
     {
+        $this->ensurePaymentReference($data);
+
         $client = $this->findOrCreateClient($data['client']);
         $coiffure = Coiffure::query()
             ->with(['variantes', 'options'])
@@ -146,7 +162,43 @@ class ReservationController extends Controller
             $promo->increment('nombre_utilisations');
         }
 
-        return $reservation->load(['client', 'details', 'codePromo']);
+        $payment = $this->createPendingPayment(
+            $reservation,
+            $client,
+            (string) $data['mode_paiement'],
+            $data['reference_paiement'] ?? null,
+            $deposit > 0 ? $deposit : $total,
+            $total
+        );
+        $checkoutUrl = null;
+
+        if ($payment->mode_paiement === 'carte_bancaire') {
+            $checkoutUrl = $this->createStripeCheckoutSession($payment, $reservation, $data);
+        }
+
+        return [
+            'message' => $checkoutUrl
+                ? 'Reservation creee. Continuez vers Stripe pour payer l acompte.'
+                : 'Paiement enregistre. Le salon validera la transaction avant confirmation.',
+            'reservation' => $reservation->load(['client', 'details', 'codePromo']),
+            'payment' => $payment->fresh(['reservation', 'client']),
+            'checkout_url' => $checkoutUrl,
+            'requires_redirect' => $checkoutUrl !== null,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function ensurePaymentReference(array $data): void
+    {
+        if (in_array($data['mode_paiement'] ?? null, ['wave', 'orange_money'], true)
+            && trim((string) ($data['reference_paiement'] ?? '')) === ''
+        ) {
+            throw ValidationException::withMessages([
+                'reference_paiement' => 'Renseignez la reference de transaction Wave ou Orange Money.',
+            ]);
+        }
     }
 
     /**
@@ -230,6 +282,120 @@ class ReservationController extends Controller
                 'heure_debut' => 'Ce creneau est deja complet.',
             ]);
         }
+    }
+
+    private function createPendingPayment(
+        Reservation $reservation,
+        Client $client,
+        string $method,
+        ?string $reference,
+        float $amount,
+        float $reservationTotal
+    ): Paiement {
+        $amount = max($amount, 1);
+        $paymentDate = now();
+        $payment = Paiement::query()->create([
+            'reservation_id' => $reservation->id,
+            'client_id' => $client->id,
+            'numero_recu' => 'TEMP-' . Str::uuid()->toString(),
+            'type' => $amount >= $reservationTotal ? 'complet' : 'acompte',
+            'mode_paiement' => $method,
+            'montant' => round($amount, 2),
+            'devise' => 'FCFA',
+            'statut' => 'en_attente',
+            'date_paiement' => $paymentDate,
+            'reference' => $reference ? trim($reference) : null,
+            'notes' => $method === 'carte_bancaire'
+                ? 'Paiement carte bancaire initie depuis l espace client via Stripe.'
+                : 'Paiement mobile money initie depuis l espace client, a valider dans l administration.',
+            'recu_envoye' => false,
+        ]);
+
+        $payment->forceFill([
+            'numero_recu' => $this->receiptNumberForPayment($paymentDate, $payment->id),
+        ])->save();
+
+        return $payment;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function createStripeCheckoutSession(Paiement $payment, Reservation $reservation, array $data): string
+    {
+        $secret = config('services.stripe.secret');
+
+        if (! $secret) {
+            throw ValidationException::withMessages([
+                'mode_paiement' => 'Le paiement par carte bancaire n est pas encore configure.',
+            ]);
+        }
+
+        $successUrl = $data['success_url']
+            ?? config('services.stripe.success_url')
+            ?? config('app.url') . '/client?paiement=stripe_success&stripe_session_id={CHECKOUT_SESSION_ID}';
+        $cancelUrl = $data['cancel_url']
+            ?? config('services.stripe.cancel_url')
+            ?? config('app.url') . '/client?paiement=stripe_cancel';
+
+        $payload = [
+            'mode' => 'payment',
+            'payment_method_types' => ['card'],
+            'client_reference_id' => (string) $reservation->id,
+            'success_url' => $successUrl,
+            'cancel_url' => $cancelUrl,
+            'line_items' => [[
+                'quantity' => 1,
+                'price_data' => [
+                    'currency' => config('services.stripe.currency', 'xof'),
+                    'unit_amount' => (int) round((float) $payment->montant),
+                    'product_data' => [
+                        'name' => "Acompte reservation #{$reservation->id}",
+                        'description' => 'Bichette Thomas - Salon de Coiffure',
+                    ],
+                ],
+            ]],
+            'metadata' => [
+                'reservation_id' => (string) $reservation->id,
+                'paiement_id' => (string) $payment->id,
+                'numero_recu' => $payment->numero_recu,
+            ],
+        ];
+
+        if ($reservation->client?->email) {
+            $payload['customer_email'] = $reservation->client->email;
+        }
+
+        $response = Http::asForm()
+            ->withToken((string) $secret)
+            ->post('https://api.stripe.com/v1/checkout/sessions', $payload);
+
+        if ($response->failed()) {
+            throw ValidationException::withMessages([
+                'mode_paiement' => 'Stripe n a pas pu initialiser le paiement carte.',
+            ]);
+        }
+
+        $session = $response->json();
+        $checkoutUrl = $session['url'] ?? null;
+        $sessionId = $session['id'] ?? null;
+
+        if (! $checkoutUrl || ! $sessionId) {
+            throw ValidationException::withMessages([
+                'mode_paiement' => 'Stripe n a pas retourne de lien de paiement.',
+            ]);
+        }
+
+        $payment->forceFill([
+            'reference' => $sessionId,
+        ])->save();
+
+        return $checkoutUrl;
+    }
+
+    private function receiptNumberForPayment(Carbon $date, int $paymentId): string
+    {
+        return 'BT-' . $date->format('Ymd') . '-' . str_pad((string) $paymentId, 4, '0', STR_PAD_LEFT);
     }
 
     private function findPromo(?string $code, float $subtotal, Carbon $startsAt): ?CodePromo

@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\Admin\VarianteCoiffureController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Client\CatalogueController as ClientCatalogueController;
+use App\Http\Controllers\Api\Client\PaymentController as ClientPaymentController;
 use App\Http\Controllers\Api\Client\ReservationAvailabilityController as ClientReservationAvailabilityController;
 use App\Http\Controllers\Api\Client\ReservationController as ClientReservationController;
 use App\Http\Controllers\Api\DocumentationController;
@@ -43,6 +44,8 @@ Route::prefix('client')->name('client.')->group(function (): void {
     Route::get('/catalogue/{coiffure}', [ClientCatalogueController::class, 'show'])->name('catalogue.show');
     Route::get('/reservations/disponibilites', ClientReservationAvailabilityController::class)->name('reservations.availability');
     Route::post('/reservations', [ClientReservationController::class, 'store'])->name('reservations.store');
+    Route::post('/paiements/stripe/confirmer', [ClientPaymentController::class, 'confirmStripeCheckout'])->name('payments.stripe.confirm');
+    Route::post('/paiements/stripe/webhook', [ClientPaymentController::class, 'stripeWebhook'])->name('payments.stripe.webhook');
 });
 
 Route::prefix('auth')->group(function (): void {

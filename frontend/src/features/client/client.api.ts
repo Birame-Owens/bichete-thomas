@@ -6,8 +6,9 @@ import type {
   ClientCatalogue,
   ClientCategory,
   ClientCoiffure,
-  ClientReservation,
   ClientReservationPayload,
+  ClientReservationResponse,
+  ClientStripeConfirmation,
 } from './client.types'
 
 type CatalogueParams = {
@@ -67,7 +68,15 @@ export async function getClientAvailability(date: string, intervalMinutes = 60) 
 }
 
 export async function createClientReservation(payload: ClientReservationPayload) {
-  const response = await apiClient.post<ClientApiItem<ClientReservation>>('/client/reservations', payload)
+  const response = await apiClient.post<ClientReservationResponse>('/client/reservations', payload)
+
+  return response.data
+}
+
+export async function confirmStripeCheckout(sessionId: string) {
+  const response = await apiClient.post<ClientStripeConfirmation>('/client/paiements/stripe/confirmer', {
+    session_id: sessionId,
+  })
 
   return response.data
 }

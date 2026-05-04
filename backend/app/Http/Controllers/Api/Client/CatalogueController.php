@@ -66,6 +66,11 @@ class CatalogueController extends Controller
                     'pourcentage_acompte' => $this->settingValue('pourcentage_acompte', 0),
                     'limite_reservations_par_jour' => $this->settingValue('limite_reservations_par_jour', 15),
                     'limite_reservations_par_creneau' => $this->settingValue('limite_reservations_par_creneau', 3),
+                    'paiements_en_ligne' => [
+                        'wave' => true,
+                        'orange_money' => true,
+                        'carte_bancaire' => filled(config('services.stripe.secret')),
+                    ],
                 ],
             ],
         ]);

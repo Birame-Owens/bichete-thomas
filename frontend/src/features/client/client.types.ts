@@ -65,6 +65,11 @@ export type ClientSettings = {
   pourcentage_acompte: number
   limite_reservations_par_jour: number
   limite_reservations_par_creneau: number
+  paiements_en_ligne: {
+    wave: boolean
+    orange_money: boolean
+    carte_bancaire: boolean
+  }
 }
 
 export type ClientCatalogue = {
@@ -107,6 +112,25 @@ export type ClientReservationPayload = {
   heure_debut: string
   code_promo: string | null
   notes: string | null
+  mode_paiement: ClientPaymentMethod
+  reference_paiement: string | null
+  success_url: string | null
+  cancel_url: string | null
+}
+
+export type ClientPaymentMethod = 'wave' | 'orange_money' | 'carte_bancaire'
+
+export type ClientPayment = {
+  id: number
+  reservation_id: number | null
+  client_id: number | null
+  numero_recu: string
+  type: 'acompte' | 'solde' | 'complet' | 'remboursement' | 'ajustement'
+  mode_paiement: ClientPaymentMethod
+  montant: number | string
+  devise: string
+  statut: 'en_attente' | 'valide' | 'annule' | 'rembourse'
+  reference: string | null
 }
 
 export type ClientReservation = {
@@ -120,4 +144,17 @@ export type ClientReservation = {
   montant_acompte: number | string
   montant_restant: number | string
   devise: string
+}
+
+export type ClientReservationResponse = {
+  message?: string
+  data: ClientReservation
+  payment: ClientPayment
+  checkout_url: string | null
+  requires_redirect: boolean
+}
+
+export type ClientStripeConfirmation = {
+  message?: string
+  data: ClientPayment
 }

@@ -27,6 +27,7 @@ import type { LucideIcon } from 'lucide-react'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import heroImage from '../../assets/hero.jpg'
 import {
+  confirmStripeCheckout,
   createClientReservation,
   getClientAvailability,
   getClientCatalogue,
@@ -38,6 +39,7 @@ import type {
   ClientCategory,
   ClientCoiffure,
   ClientCoiffureOption,
+  ClientPaymentMethod,
   ClientPromotion,
   ClientReservation,
   ClientReservationPayload,
@@ -55,6 +57,8 @@ type BookingForm = {
   optionIds: number[]
   code_promo: string
   notes: string
+  paymentMethod: ClientPaymentMethod
+  paymentReference: string
 }
 
 type SubmitState = {
@@ -81,6 +85,17 @@ const benefits: Array<{ label: string; detail: string; icon: LucideIcon }> = [
   { label: 'Produits', detail: 'Selection premium', icon: Sparkles },
   { label: 'Paiement', detail: 'Acompte clair', icon: CreditCard },
   { label: 'Satisfaction', detail: 'Suivi attentif', icon: ShieldCheck },
+]
+
+const paymentMethods: Array<{
+  value: ClientPaymentMethod
+  label: string
+  detail: string
+  icon: LucideIcon
+}> = [
+  { value: 'wave', label: 'Wave', detail: 'Reference transaction Wave', icon: Phone },
+  { value: 'orange_money', label: 'Orange Money', detail: 'Reference transaction OM', icon: Phone },
+  { value: 'carte_bancaire', label: 'Carte bancaire', detail: 'Paiement securise Stripe', icon: CreditCard },
 ]
 
 const emptyCategories: ClientCategory[] = []
@@ -110,6 +125,8 @@ function createBookingForm(coiffure?: ClientCoiffure): BookingForm {
     optionIds: [],
     code_promo: '',
     notes: '',
+    paymentMethod: 'wave',
+    paymentReference: '',
   }
 }
 
@@ -207,6 +224,7 @@ function ClientHomePage() {
   const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitState, setSubmitState] = useState<SubmitState>(null)
+  const [pageNotice, setPageNotice] = useState<SubmitState>(null)
   const [submittedReservation, setSubmittedReservation] = useState<ClientReservation | null>(null)
 
   useEffect(() => {
@@ -233,6 +251,38 @@ function ClientHomePage() {
     return () => {
       ignore = true
     }
+  }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const sessionId = params.get('stripe_session_id')
+    const paymentStatus = params.get('paiement')
+
+    if (paymentStatus === 'stripe_cancel') {
+      window.setTimeout(() => {
+        setPageNotice({ type: 'error', message: 'Paiement carte annule. La reservation reste en attente.' })
+      }, 0)
+      return
+    }
+
+    if (!sessionId) {
+      return
+    }
+
+    confirmStripeCheckout(sessionId)
+      .then((response) => {
+        setPageNotice({
+          type: 'success',
+          message: response.message ?? 'Paiement carte valide. Votre reservation est securisee.',
+        })
+        window.history.replaceState({}, '', window.location.pathname)
+      })
+      .catch(() => {
+        setPageNotice({
+          type: 'error',
+          message: 'Stripe n a pas encore confirme ce paiement. Il restera visible en attente dans l admin.',
+        })
+      })
   }, [])
 
   useEffect(() => {
@@ -314,6 +364,7 @@ function ClientHomePage() {
   const discount = discountAmount(selectedPromo, subtotal)
   const total = Math.max(subtotal - discount, 0)
   const deposit = depositAmount(total, settings)
+  const selectedPaymentMethod = paymentMethods.find((method) => method.value === bookingForm.paymentMethod)
 
   function updateBookingField<K extends keyof BookingForm>(key: K, value: BookingForm[K]) {
     setBookingForm((current) => ({
@@ -384,6 +435,11 @@ function ClientHomePage() {
       return
     }
 
+    if (bookingForm.paymentMethod !== 'carte_bancaire' && bookingForm.paymentReference.trim() === '') {
+      setSubmitState({ type: 'error', message: 'Renseignez la reference de transaction Wave ou Orange Money.' })
+      return
+    }
+
     const payload: ClientReservationPayload = {
       client: {
         nom: bookingForm.nom.trim(),
@@ -398,6 +454,10 @@ function ClientHomePage() {
       heure_debut: bookingForm.heure_debut,
       code_promo: bookingForm.code_promo.trim() === '' ? null : bookingForm.code_promo.trim(),
       notes: bookingForm.notes.trim() === '' ? null : bookingForm.notes.trim(),
+      mode_paiement: bookingForm.paymentMethod,
+      reference_paiement: bookingForm.paymentMethod === 'carte_bancaire' ? null : bookingForm.paymentReference.trim(),
+      success_url: `${window.location.origin}${window.location.pathname}?paiement=stripe_success&stripe_session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${window.location.origin}${window.location.pathname}?paiement=stripe_cancel`,
     }
 
     setSubmitting(true)
@@ -405,10 +465,15 @@ function ClientHomePage() {
 
     try {
       const response = await createClientReservation(payload)
+      if (response.requires_redirect && response.checkout_url) {
+        window.location.href = response.checkout_url
+        return
+      }
+
       setSubmittedReservation(response.data)
       setSubmitState({
         type: 'success',
-        message: response.message ?? 'Reservation envoyee. Le salon vous contactera pour confirmer.',
+        message: response.message ?? 'Paiement enregistre. Le salon validera la transaction.',
       })
     } catch (error) {
       setSubmitState({ type: 'error', message: extractApiError(error) })
@@ -487,6 +552,15 @@ function ClientHomePage() {
         </header>
 
         <main className="mt-5">
+          {pageNotice ? (
+            <div
+              className={`mb-5 rounded-3xl px-5 py-4 text-sm font-bold ${
+                pageNotice.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+              }`}
+            >
+              {pageNotice.message}
+            </div>
+          ) : null}
 
           <section className="relative mt-3 overflow-hidden rounded-[28px] bg-[#f31976] text-white shadow-lg">
             <div className="absolute inset-y-0 right-0 hidden w-1/2 sm:block">
@@ -896,6 +970,59 @@ function ClientHomePage() {
                 </div>
               </div>
 
+              <div className="mt-6">
+                <p className="text-sm font-black text-slate-950">Paiement de l acompte</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  {paymentMethods.map((method) => {
+                    const Icon = method.icon
+                    const checked = bookingForm.paymentMethod === method.value
+                    const disabled =
+                      method.value === 'carte_bancaire'
+                      && settings?.paiements_en_ligne?.carte_bancaire === false
+
+                    return (
+                      <button
+                        key={method.value}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => updateBookingField('paymentMethod', method.value)}
+                        className={`rounded-3xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                          checked ? 'border-[#f31976] bg-[#fff0f6]' : 'border-slate-200 bg-white'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 text-sm font-black text-slate-950">
+                          <Icon className="h-5 w-5 text-[#f31976]" />
+                          {method.label}
+                        </span>
+                        <span className="mt-2 block text-xs font-bold text-slate-500">
+                          {disabled ? 'Stripe non configure' : method.detail}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {bookingForm.paymentMethod !== 'carte_bancaire' ? (
+                  <label className="mt-4 block">
+                    <span className="text-xs font-black uppercase text-slate-500">Reference transaction</span>
+                    <input
+                      value={bookingForm.paymentReference}
+                      onChange={(event) => updateBookingField('paymentReference', event.target.value)}
+                      placeholder={bookingForm.paymentMethod === 'wave' ? 'Reference Wave' : 'Reference Orange Money'}
+                      required
+                      className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                    />
+                    <span className="mt-2 block text-xs font-bold text-slate-500">
+                      Ce paiement apparaitra dans l admin en attente de validation.
+                    </span>
+                  </label>
+                ) : (
+                  <div className="mt-4 rounded-3xl bg-[#fff0f6] p-4 text-sm font-bold text-[#b01258]">
+                    Vous serez redirigee vers Stripe pour payer par carte bancaire. Le paiement sera valide automatiquement au retour.
+                  </div>
+                )}
+              </div>
+
               <div className="mt-6 grid gap-4 sm:grid-cols-[1fr_1.2fr]">
                 <label className="block">
                   <span className="text-xs font-black uppercase text-slate-500">Code promo</span>
@@ -934,6 +1061,10 @@ function ClientHomePage() {
                   <span>Acompte estime</span>
                   <span>{formatCurrency(deposit, devise)}</span>
                 </div>
+                <div className="mt-2 flex items-center justify-between gap-4 text-sm font-bold text-white/70">
+                  <span>Moyen de paiement</span>
+                  <span>{selectedPaymentMethod?.label ?? 'Wave'}</span>
+                </div>
               </div>
 
               {submitState ? (
@@ -957,7 +1088,7 @@ function ClientHomePage() {
                 className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 py-4 text-base font-black text-white shadow-lg transition disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CalendarCheck className="h-5 w-5" />}
-                Envoyer la reservation
+                {bookingForm.paymentMethod === 'carte_bancaire' ? 'Continuer vers Stripe' : 'Payer et reserver'}
               </button>
             </form>
           </div>
