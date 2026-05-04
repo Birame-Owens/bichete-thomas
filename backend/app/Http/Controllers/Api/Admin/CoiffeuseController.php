@@ -11,6 +11,8 @@ class CoiffeuseController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $perPage = max(1, min($request->integer('per_page', 15), 100));
+
         $coiffeuses = Coiffeuse::query()
             ->when($request->has('actif'), fn ($query) => $query->where('actif', $request->boolean('actif')))
             ->when($request->filled('search'), function ($query) use ($request): void {
@@ -24,7 +26,7 @@ class CoiffeuseController extends Controller
             })
             ->orderBy('nom')
             ->orderBy('prenom')
-            ->paginate(15);
+            ->paginate($perPage);
 
         return response()->json([
             'data' => $coiffeuses,
