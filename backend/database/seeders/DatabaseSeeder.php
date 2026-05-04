@@ -140,6 +140,20 @@ class DatabaseSeeder extends Seeder
                 'modifiable' => true,
             ],
             [
+                'cle' => 'limite_reservations_par_jour',
+                'valeur' => ['value' => 15],
+                'type' => 'integer',
+                'description' => 'Nombre maximum de reservations que le salon peut prendre par jour.',
+                'modifiable' => true,
+            ],
+            [
+                'cle' => 'limite_reservations_par_creneau',
+                'valeur' => ['value' => 3],
+                'type' => 'integer',
+                'description' => 'Nombre maximum de reservations autorisees sur la meme heure de debut.',
+                'modifiable' => true,
+            ],
+            [
                 'cle' => 'nombre_reservations_fidelite',
                 'valeur' => ['value' => 9],
                 'type' => 'integer',

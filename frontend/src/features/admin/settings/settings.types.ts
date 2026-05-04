@@ -52,4 +52,6 @@ export type ReservationSettingsForm = {
   delai_annulation_heures: string
   seuil_retard_minutes: string
   seuil_absence_minutes: string
+  limite_reservations_par_jour: string
+  limite_reservations_par_creneau: string
 }

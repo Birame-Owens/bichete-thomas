@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   BadgePercent,
+  CalendarDays,
   Clock3,
   MessageCircle,
   RefreshCw,
@@ -31,6 +32,8 @@ const settingKeys = [
   'delai_annulation_heures',
   'seuil_retard_minutes',
   'seuil_absence_minutes',
+  'limite_reservations_par_jour',
+  'limite_reservations_par_creneau',
 ] as const
 
 const emptyForm: ReservationSettingsForm = {
@@ -43,6 +46,8 @@ const emptyForm: ReservationSettingsForm = {
   delai_annulation_heures: '24',
   seuil_retard_minutes: '15',
   seuil_absence_minutes: '30',
+  limite_reservations_par_jour: '15',
+  limite_reservations_par_creneau: '3',
 }
 
 type SettingKey = (typeof settingKeys)[number]
@@ -64,6 +69,8 @@ function buildSettingsForm(items: Record<string, SystemSetting>): ReservationSet
     delai_annulation_heures: rawSettingValue(items.delai_annulation_heures) || emptyForm.delai_annulation_heures,
     seuil_retard_minutes: rawSettingValue(items.seuil_retard_minutes) || emptyForm.seuil_retard_minutes,
     seuil_absence_minutes: rawSettingValue(items.seuil_absence_minutes) || emptyForm.seuil_absence_minutes,
+    limite_reservations_par_jour: rawSettingValue(items.limite_reservations_par_jour) || emptyForm.limite_reservations_par_jour,
+    limite_reservations_par_creneau: rawSettingValue(items.limite_reservations_par_creneau) || emptyForm.limite_reservations_par_creneau,
   }
 }
 
@@ -159,6 +166,14 @@ function SettingsPage() {
         value: `${Number(form.delai_annulation_heures || 0).toLocaleString('fr-FR')} h`,
       },
       {
+        label: 'Journee',
+        value: `${Number(form.limite_reservations_par_jour || 0).toLocaleString('fr-FR')} reservations`,
+      },
+      {
+        label: 'Meme heure',
+        value: `${Number(form.limite_reservations_par_creneau || 0).toLocaleString('fr-FR')} reservations`,
+      },
+      {
         label: 'Retard',
         value: minutesLabel(form.seuil_retard_minutes),
       },
@@ -216,13 +231,23 @@ function SettingsPage() {
     const cancelHours = Number(form.delai_annulation_heures)
     const lateMinutes = Number(form.seuil_retard_minutes)
     const absenceMinutes = Number(form.seuil_absence_minutes)
+    const dailyLimit = Number(form.limite_reservations_par_jour)
+    const slotLimit = Number(form.limite_reservations_par_creneau)
 
-    if ([amount, percent, cancelHours, lateMinutes, absenceMinutes].some((value) => Number.isNaN(value))) {
+    if ([amount, percent, cancelHours, lateMinutes, absenceMinutes, dailyLimit, slotLimit].some((value) => Number.isNaN(value))) {
       return 'Les valeurs numeriques doivent etre valides.'
     }
 
     if (amount < 0 || percent < 0 || percent > 100 || cancelHours < 0 || lateMinutes < 0 || absenceMinutes < 0) {
       return 'Les valeurs doivent rester dans des limites positives et coherentes.'
+    }
+
+    if (!Number.isInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 200) {
+      return 'La limite de reservations par jour doit etre entre 1 et 200.'
+    }
+
+    if (!Number.isInteger(slotLimit) || slotLimit < 1 || slotLimit > 50) {
+      return 'La limite de reservations par heure doit etre entre 1 et 50.'
     }
 
     if (form.heure_ouverture >= form.heure_fermeture) {
@@ -332,7 +357,7 @@ function SettingsPage() {
           </div>
         )}
 
-        <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {summary.map((item) => (
             <div key={item.label} className="rounded-xl border border-[#f1e7ee] bg-white px-4 py-3 shadow-[0_14px_30px_-28px_rgba(20,20,43,0.5)]">
               <p className="text-xs font-black uppercase tracking-[0.08em] text-gray-400">{item.label}</p>
@@ -447,6 +472,36 @@ function SettingsPage() {
                   onChange={(event) => setField('seuil_absence_minutes', event.target.value)}
                 />
               </Field>
+            </div>
+          </Panel>
+
+          <Panel title="Capacite reservations" icon={<CalendarDays className="h-5 w-5" />}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Reservations par jour" hint="Exemple : 10 ou 15 reservations maximum sur une journee">
+                <input
+                  className={inputClass}
+                  type="number"
+                  min="1"
+                  max="200"
+                  step="1"
+                  value={form.limite_reservations_par_jour}
+                  onChange={(event) => setField('limite_reservations_par_jour', event.target.value)}
+                />
+              </Field>
+              <Field label="Reservations meme heure" hint="Exemple : 2 ou 3 clientes possibles a la meme heure">
+                <input
+                  className={inputClass}
+                  type="number"
+                  min="1"
+                  max="50"
+                  step="1"
+                  value={form.limite_reservations_par_creneau}
+                  onChange={(event) => setField('limite_reservations_par_creneau', event.target.value)}
+                />
+              </Field>
+            </div>
+            <div className="mt-4 rounded-xl bg-[#fff8fb] px-4 py-3 text-sm font-bold text-[#9b174f]">
+              Ces limites servent a fermer automatiquement les heures pleines cote client et a bloquer les surreservations cote admin.
             </div>
           </Panel>
         </div>

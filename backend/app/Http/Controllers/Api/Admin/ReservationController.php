@@ -297,6 +297,7 @@ class ReservationController extends Controller
         }
 
         $this->ensureWithinBusinessHours($startsAt, $endsAt);
+        $this->ensureSalonCapacity($reservationData, $reservation);
         $this->ensureNoPlanningConflict($reservationData, $endsAt->format('H:i'), $reservation);
 
         $promoDiscount = $this->computePromoDiscount($reservationData['code_promo_id'], $subtotal, $startsAt, $reservation);
@@ -423,6 +424,44 @@ class ReservationController extends Controller
         if ($exists) {
             throw ValidationException::withMessages([
                 'coiffeuse_id' => 'Cette coiffeuse a deja une reservation sur ce creneau.',
+            ]);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $reservationData
+     */
+    private function ensureSalonCapacity(array $reservationData, ?Reservation $reservation): void
+    {
+        if (! in_array($reservationData['statut'], self::BLOCKING_STATUSES, true)) {
+            return;
+        }
+
+        $dailyLimit = max(1, (int) $this->settingValue('limite_reservations_par_jour', 15));
+        $slotLimit = max(1, (int) $this->settingValue('limite_reservations_par_creneau', 3));
+
+        $dailyCount = Reservation::query()
+            ->whereDate('date_reservation', $reservationData['date_reservation'])
+            ->whereIn('statut', self::BLOCKING_STATUSES)
+            ->when($reservation, fn ($query) => $query->where('id', '!=', $reservation->id))
+            ->count();
+
+        if ($dailyCount >= $dailyLimit) {
+            throw ValidationException::withMessages([
+                'date_reservation' => "Le quota de {$dailyLimit} reservation(s) pour cette journee est atteint.",
+            ]);
+        }
+
+        $slotCount = Reservation::query()
+            ->whereDate('date_reservation', $reservationData['date_reservation'])
+            ->whereTime('heure_debut', $reservationData['heure_debut'])
+            ->whereIn('statut', self::BLOCKING_STATUSES)
+            ->when($reservation, fn ($query) => $query->where('id', '!=', $reservation->id))
+            ->count();
+
+        if ($slotCount >= $slotLimit) {
+            throw ValidationException::withMessages([
+                'heure_debut' => "Ce creneau est complet: {$slotLimit} reservation(s) deja programmee(s) a {$reservationData['heure_debut']}.",
             ]);
         }
     }

@@ -61,6 +61,18 @@ class ParametreSystemeController extends Controller
             'max' => 240,
             'description' => 'Nombre de minutes apres lequel le retard devient une absence.',
         ],
+        'limite_reservations_par_jour' => [
+            'type' => 'integer',
+            'min' => 1,
+            'max' => 200,
+            'description' => 'Nombre maximum de reservations que le salon peut prendre par jour.',
+        ],
+        'limite_reservations_par_creneau' => [
+            'type' => 'integer',
+            'min' => 1,
+            'max' => 50,
+            'description' => 'Nombre maximum de reservations autorisees sur la meme heure de debut.',
+        ],
     ];
 
     public function index(Request $request): JsonResponse
