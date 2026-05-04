@@ -72,6 +72,27 @@ class PaymentController extends Controller
         return response()->json(['received' => true]);
     }
 
+    public function paytechWebhook(Request $request): JsonResponse
+    {
+        if (! $this->paytechSignatureIsValid($request)) {
+            return response()->json(['message' => 'IPN PayTech invalide.'], 403);
+        }
+
+        $payment = $this->paymentFromPaytechPayload($request);
+        $event = $request->string('type_event')->toString();
+        $reference = $request->string('token')->toString()
+            ?: $request->string('ref_command')->toString()
+            ?: (string) $payment->reference;
+
+        if ($event === 'sale_complete') {
+            $this->markPaymentAsPaid($payment, $reference);
+        } elseif ($event === 'sale_canceled') {
+            $this->markPaymentAsCanceled($payment, $reference);
+        }
+
+        return response()->json(['received' => true]);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -145,6 +166,71 @@ class PaymentController extends Controller
         return hash_equals($expected, (string) $signature);
     }
 
+    private function paytechSignatureIsValid(Request $request): bool
+    {
+        $apiKey = config('services.paytech.api_key');
+        $apiSecret = config('services.paytech.api_secret');
+
+        if (! $apiKey || ! $apiSecret) {
+            return false;
+        }
+
+        $hmac = $request->string('hmac_compute')->toString();
+
+        if ($hmac !== '') {
+            $amount = $request->input('final_item_price', $request->input('item_price'));
+            $refCommand = $request->string('ref_command')->toString();
+            $expected = hash_hmac('sha256', "{$amount}|{$refCommand}|{$apiKey}", (string) $apiSecret);
+
+            return hash_equals($expected, $hmac);
+        }
+
+        return hash_equals(hash('sha256', (string) $apiKey), $request->string('api_key_sha256')->toString())
+            && hash_equals(hash('sha256', (string) $apiSecret), $request->string('api_secret_sha256')->toString());
+    }
+
+    private function paymentFromPaytechPayload(Request $request): Paiement
+    {
+        $custom = $this->decodePaytechCustomField($request->string('custom_field')->toString());
+        $paymentId = $custom['paiement_id'] ?? null;
+        $token = $request->string('token')->toString();
+        $refCommand = $request->string('ref_command')->toString();
+
+        $payment = Paiement::query()
+            ->when($paymentId, fn (Builder $query) => $query->whereKey((int) $paymentId))
+            ->when(! $paymentId && $token !== '', fn (Builder $query) => $query->where('reference', $token))
+            ->when(! $paymentId && $token === '' && $refCommand !== '', fn (Builder $query) => $query->where('notes', 'ilike', "%{$refCommand}%"))
+            ->first();
+
+        if (! $payment) {
+            throw ValidationException::withMessages([
+                'ref_command' => 'Paiement PayTech introuvable.',
+            ]);
+        }
+
+        return $payment;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodePaytechCustomField(string $customField): array
+    {
+        foreach ([$customField, base64_decode($customField, true) ?: ''] as $candidate) {
+            if ($candidate === '') {
+                continue;
+            }
+
+            $decoded = json_decode($candidate, true);
+
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return [];
+    }
+
     private function markPaymentAsPaid(Paiement $payment, string $reference): void
     {
         $payment->forceFill([
@@ -154,6 +240,28 @@ class PaymentController extends Controller
         ])->save();
 
         $this->syncReservationPaymentState($payment->reservation_id);
+    }
+
+    private function markPaymentAsCanceled(Paiement $payment, string $reference): void
+    {
+        $payment->forceFill([
+            'statut' => 'annule',
+            'reference' => $reference,
+            'date_paiement' => now(),
+        ])->save();
+
+        $reservation = $payment->reservation_id ? Reservation::query()->find($payment->reservation_id) : null;
+
+        if ($reservation && in_array($reservation->statut, ['en_attente', 'confirmee'], true)) {
+            $paid = $this->reservationPaidAmount($reservation->id);
+
+            if ($paid <= 0) {
+                $reservation->forceFill([
+                    'statut' => 'annulee',
+                    'annulee_at' => now(),
+                ])->save();
+            }
+        }
     }
 
     private function syncReservationPaymentState(?int $reservationId): void

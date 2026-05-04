@@ -46,6 +46,7 @@ Route::prefix('client')->name('client.')->group(function (): void {
     Route::post('/reservations', [ClientReservationController::class, 'store'])->name('reservations.store');
     Route::post('/paiements/stripe/confirmer', [ClientPaymentController::class, 'confirmStripeCheckout'])->name('payments.stripe.confirm');
     Route::post('/paiements/stripe/webhook', [ClientPaymentController::class, 'stripeWebhook'])->name('payments.stripe.webhook');
+    Route::post('/paiements/paytech/ipn', [ClientPaymentController::class, 'paytechWebhook'])->name('payments.paytech.ipn');
 });
 
 Route::prefix('auth')->group(function (): void {

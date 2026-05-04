@@ -69,8 +69,6 @@ class ReservationController extends Controller
      */
     private function createReservation(array $data): array
     {
-        $this->ensurePaymentReference($data);
-
         $client = $this->findOrCreateClient($data['client']);
         $coiffure = Coiffure::query()
             ->with(['variantes', 'options'])
@@ -174,31 +172,21 @@ class ReservationController extends Controller
 
         if ($payment->mode_paiement === 'carte_bancaire') {
             $checkoutUrl = $this->createStripeCheckoutSession($payment, $reservation, $data);
+        } elseif (in_array($payment->mode_paiement, ['wave', 'orange_money'], true)) {
+            $checkoutUrl = $this->createPaytechCheckoutSession($payment, $reservation, $client, $data);
         }
 
         return [
-            'message' => $checkoutUrl
-                ? 'Reservation creee. Continuez vers Stripe pour payer l acompte.'
-                : 'Paiement enregistre. Le salon validera la transaction avant confirmation.',
+            'message' => match ($payment->mode_paiement) {
+                'carte_bancaire' => 'Reservation creee. Continuez vers Stripe pour payer l acompte.',
+                'wave', 'orange_money' => 'Reservation creee. Continuez vers PayTech pour payer l acompte.',
+                default => 'Paiement enregistre. Le salon validera la transaction avant confirmation.',
+            },
             'reservation' => $reservation->load(['client', 'details', 'codePromo']),
             'payment' => $payment->fresh(['reservation', 'client']),
             'checkout_url' => $checkoutUrl,
             'requires_redirect' => $checkoutUrl !== null,
         ];
-    }
-
-    /**
-     * @param array<string, mixed> $data
-     */
-    private function ensurePaymentReference(array $data): void
-    {
-        if (in_array($data['mode_paiement'] ?? null, ['wave', 'orange_money'], true)
-            && trim((string) ($data['reference_paiement'] ?? '')) === ''
-        ) {
-            throw ValidationException::withMessages([
-                'reference_paiement' => 'Renseignez la reference de transaction Wave ou Orange Money.',
-            ]);
-        }
     }
 
     /**
@@ -305,9 +293,11 @@ class ReservationController extends Controller
             'statut' => 'en_attente',
             'date_paiement' => $paymentDate,
             'reference' => $reference ? trim($reference) : null,
-            'notes' => $method === 'carte_bancaire'
-                ? 'Paiement carte bancaire initie depuis l espace client via Stripe.'
-                : 'Paiement mobile money initie depuis l espace client, a valider dans l administration.',
+            'notes' => match ($method) {
+                'carte_bancaire' => 'Paiement carte bancaire initie depuis l espace client via Stripe.',
+                'wave', 'orange_money' => 'Paiement mobile money initie depuis l espace client via PayTech.',
+                default => 'Paiement initie depuis l espace client.',
+            },
             'recu_envoye' => false,
         ]);
 
@@ -391,6 +381,129 @@ class ReservationController extends Controller
         ])->save();
 
         return $checkoutUrl;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function createPaytechCheckoutSession(Paiement $payment, Reservation $reservation, Client $client, array $data): string
+    {
+        $apiKey = config('services.paytech.api_key');
+        $apiSecret = config('services.paytech.api_secret');
+
+        if (! $apiKey || ! $apiSecret) {
+            throw ValidationException::withMessages([
+                'mode_paiement' => 'PayTech n est pas encore configure.',
+            ]);
+        }
+
+        $targetPayment = $this->paytechTargetPayment($payment->mode_paiement);
+        $refCommand = 'BT-PAY-' . $payment->id . '-' . Str::upper(Str::random(8));
+        $successUrl = $this->appendQuery(
+            $data['success_url'] ?? config('services.paytech.success_url') ?? config('app.url') . '/client?paiement=paytech_success',
+            ['paiement_id' => $payment->id]
+        );
+        $cancelUrl = $this->appendQuery(
+            $data['cancel_url'] ?? config('services.paytech.cancel_url') ?? config('app.url') . '/client?paiement=paytech_cancel',
+            ['paiement_id' => $payment->id]
+        );
+        $ipnUrl = config('services.paytech.ipn_url') ?? config('app.url') . '/api/client/paiements/paytech/ipn';
+
+        $response = Http::asForm()
+            ->withHeaders([
+                'Accept' => 'application/json',
+                'API_KEY' => (string) $apiKey,
+                'API_SECRET' => (string) $apiSecret,
+            ])
+            ->post(rtrim((string) config('services.paytech.base_url'), '/') . '/payment/request-payment', [
+                'item_name' => "Acompte reservation #{$reservation->id}",
+                'item_price' => (int) round((float) $payment->montant),
+                'currency' => 'XOF',
+                'ref_command' => $refCommand,
+                'command_name' => "Acompte reservation #{$reservation->id} - Bichette Thomas",
+                'env' => config('services.paytech.env', 'test'),
+                'target_payment' => $targetPayment,
+                'ipn_url' => $ipnUrl,
+                'success_url' => $successUrl,
+                'cancel_url' => $cancelUrl,
+                'custom_field' => json_encode([
+                    'reservation_id' => $reservation->id,
+                    'paiement_id' => $payment->id,
+                    'ref_command' => $refCommand,
+                    'mode_paiement' => $payment->mode_paiement,
+                    'email' => $client->email,
+                ], JSON_THROW_ON_ERROR),
+            ]);
+
+        if ($response->failed()) {
+            throw ValidationException::withMessages([
+                'mode_paiement' => 'PayTech n a pas pu initialiser le paiement.',
+            ]);
+        }
+
+        $payload = $response->json();
+        $checkoutUrl = $payload['redirect_url'] ?? $payload['redirectUrl'] ?? null;
+        $token = $payload['token'] ?? null;
+
+        if (($payload['success'] ?? null) !== 1 || ! $checkoutUrl || ! $token) {
+            throw ValidationException::withMessages([
+                'mode_paiement' => $payload['message'] ?? 'PayTech n a pas retourne de lien de paiement.',
+            ]);
+        }
+
+        $payment->forceFill([
+            'reference' => (string) $token,
+            'notes' => trim(($payment->notes ? "{$payment->notes}\n" : '') . "Reference commande PayTech: {$refCommand}"),
+        ])->save();
+
+        return $this->appendQuery($checkoutUrl, [
+            'pn' => $this->internationalPhone($client->telephone),
+            'nn' => $this->nationalPhone($client->telephone),
+            'fn' => trim("{$client->prenom} {$client->nom}"),
+            'tp' => $targetPayment,
+            'nac' => '1',
+        ]);
+    }
+
+    private function paytechTargetPayment(string $method): string
+    {
+        return match ($method) {
+            'wave' => 'Wave',
+            'orange_money' => 'Orange Money',
+            default => 'Orange Money',
+        };
+    }
+
+    /**
+     * @param array<string, int|string> $params
+     */
+    private function appendQuery(string $url, array $params): string
+    {
+        $separator = str_contains($url, '?') ? '&' : '?';
+
+        return $url . $separator . http_build_query($params);
+    }
+
+    private function internationalPhone(string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', $phone) ?? '';
+
+        if (str_starts_with($digits, '221')) {
+            return '+' . $digits;
+        }
+
+        return '+221' . ltrim($digits, '0');
+    }
+
+    private function nationalPhone(string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', $phone) ?? '';
+
+        if (str_starts_with($digits, '221')) {
+            return substr($digits, 3);
+        }
+
+        return ltrim($digits, '0');
     }
 
     private function receiptNumberForPayment(Carbon $date, int $paymentId): string

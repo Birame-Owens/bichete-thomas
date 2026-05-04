@@ -58,7 +58,6 @@ type BookingForm = {
   code_promo: string
   notes: string
   paymentMethod: ClientPaymentMethod
-  paymentReference: string
 }
 
 type SubmitState = {
@@ -92,9 +91,10 @@ const paymentMethods: Array<{
   label: string
   detail: string
   icon: LucideIcon
+  logo?: string
 }> = [
-  { value: 'wave', label: 'Wave', detail: 'Reference transaction Wave', icon: Phone },
-  { value: 'orange_money', label: 'Orange Money', detail: 'Reference transaction OM', icon: Phone },
+  { value: 'wave', label: 'Wave', detail: 'Paiement securise via PayTech', icon: Phone, logo: '/wave logo.webp' },
+  { value: 'orange_money', label: 'Orange Money', detail: 'Paiement securise via PayTech', icon: Phone, logo: '/om logo.webp' },
   { value: 'carte_bancaire', label: 'Carte bancaire', detail: 'Paiement securise Stripe', icon: CreditCard },
 ]
 
@@ -126,7 +126,6 @@ function createBookingForm(coiffure?: ClientCoiffure): BookingForm {
     code_promo: '',
     notes: '',
     paymentMethod: 'wave',
-    paymentReference: '',
   }
 }
 
@@ -261,6 +260,24 @@ function ClientHomePage() {
     if (paymentStatus === 'stripe_cancel') {
       window.setTimeout(() => {
         setPageNotice({ type: 'error', message: 'Paiement carte annule. La reservation reste en attente.' })
+      }, 0)
+      return
+    }
+
+    if (paymentStatus === 'paytech_cancel') {
+      window.setTimeout(() => {
+        setPageNotice({ type: 'error', message: 'Paiement PayTech annule. Le creneau ne sera pas confirme.' })
+      }, 0)
+      return
+    }
+
+    if (paymentStatus === 'paytech_success') {
+      window.setTimeout(() => {
+        setPageNotice({
+          type: 'success',
+          message: 'Paiement PayTech recu. La confirmation automatique sera appliquee par notification IPN.',
+        })
+        window.history.replaceState({}, '', window.location.pathname)
       }, 0)
       return
     }
@@ -435,11 +452,7 @@ function ClientHomePage() {
       return
     }
 
-    if (bookingForm.paymentMethod !== 'carte_bancaire' && bookingForm.paymentReference.trim() === '') {
-      setSubmitState({ type: 'error', message: 'Renseignez la reference de transaction Wave ou Orange Money.' })
-      return
-    }
-
+    const isCardPayment = bookingForm.paymentMethod === 'carte_bancaire'
     const payload: ClientReservationPayload = {
       client: {
         nom: bookingForm.nom.trim(),
@@ -455,9 +468,11 @@ function ClientHomePage() {
       code_promo: bookingForm.code_promo.trim() === '' ? null : bookingForm.code_promo.trim(),
       notes: bookingForm.notes.trim() === '' ? null : bookingForm.notes.trim(),
       mode_paiement: bookingForm.paymentMethod,
-      reference_paiement: bookingForm.paymentMethod === 'carte_bancaire' ? null : bookingForm.paymentReference.trim(),
-      success_url: `${window.location.origin}${window.location.pathname}?paiement=stripe_success&stripe_session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${window.location.origin}${window.location.pathname}?paiement=stripe_cancel`,
+      reference_paiement: null,
+      success_url: isCardPayment
+        ? `${window.location.origin}${window.location.pathname}?paiement=stripe_success&stripe_session_id={CHECKOUT_SESSION_ID}`
+        : `${window.location.origin}${window.location.pathname}?paiement=paytech_success`,
+      cancel_url: `${window.location.origin}${window.location.pathname}?paiement=${isCardPayment ? 'stripe_cancel' : 'paytech_cancel'}`,
     }
 
     setSubmitting(true)
@@ -978,7 +993,8 @@ function ClientHomePage() {
                     const checked = bookingForm.paymentMethod === method.value
                     const disabled =
                       method.value === 'carte_bancaire'
-                      && settings?.paiements_en_ligne?.carte_bancaire === false
+                        ? settings?.paiements_en_ligne?.carte_bancaire === false
+                        : settings?.paiements_en_ligne?.[method.value] === false
 
                     return (
                       <button
@@ -991,11 +1007,15 @@ function ClientHomePage() {
                         }`}
                       >
                         <span className="flex items-center gap-2 text-sm font-black text-slate-950">
-                          <Icon className="h-5 w-5 text-[#f31976]" />
+                          {method.logo ? (
+                            <img src={method.logo} alt="" className="h-7 w-7 rounded-full object-contain" />
+                          ) : (
+                            <Icon className="h-5 w-5 text-[#f31976]" />
+                          )}
                           {method.label}
                         </span>
                         <span className="mt-2 block text-xs font-bold text-slate-500">
-                          {disabled ? 'Stripe non configure' : method.detail}
+                          {disabled ? (method.value === 'carte_bancaire' ? 'Stripe non configure' : 'PayTech non configure') : method.detail}
                         </span>
                       </button>
                     )
@@ -1003,19 +1023,9 @@ function ClientHomePage() {
                 </div>
 
                 {bookingForm.paymentMethod !== 'carte_bancaire' ? (
-                  <label className="mt-4 block">
-                    <span className="text-xs font-black uppercase text-slate-500">Reference transaction</span>
-                    <input
-                      value={bookingForm.paymentReference}
-                      onChange={(event) => updateBookingField('paymentReference', event.target.value)}
-                      placeholder={bookingForm.paymentMethod === 'wave' ? 'Reference Wave' : 'Reference Orange Money'}
-                      required
-                      className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
-                    />
-                    <span className="mt-2 block text-xs font-bold text-slate-500">
-                      Ce paiement apparaitra dans l admin en attente de validation.
-                    </span>
-                  </label>
+                  <div className="mt-4 rounded-3xl bg-[#fff0f6] p-4 text-sm font-bold text-[#b01258]">
+                    Vous serez redirigee vers PayTech pour payer par {selectedPaymentMethod?.label}. Le paiement sera valide automatiquement par IPN.
+                  </div>
                 ) : (
                   <div className="mt-4 rounded-3xl bg-[#fff0f6] p-4 text-sm font-bold text-[#b01258]">
                     Vous serez redirigee vers Stripe pour payer par carte bancaire. Le paiement sera valide automatiquement au retour.
@@ -1088,7 +1098,7 @@ function ClientHomePage() {
                 className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 py-4 text-base font-black text-white shadow-lg transition disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CalendarCheck className="h-5 w-5" />}
-                {bookingForm.paymentMethod === 'carte_bancaire' ? 'Continuer vers Stripe' : 'Payer et reserver'}
+                {bookingForm.paymentMethod === 'carte_bancaire' ? 'Continuer vers Stripe' : 'Continuer vers PayTech'}
               </button>
             </form>
           </div>

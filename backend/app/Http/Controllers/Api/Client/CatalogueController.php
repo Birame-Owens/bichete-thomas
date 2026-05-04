@@ -16,6 +16,7 @@ class CatalogueController extends Controller
     {
         $categoryId = $request->integer('categorie_id') ?: null;
         $search = trim($request->string('search')->toString());
+        $paytechEnabled = filled(config('services.paytech.api_key')) && filled(config('services.paytech.api_secret'));
 
         $categories = CategorieCoiffure::query()
             ->where('actif', true)
@@ -67,8 +68,8 @@ class CatalogueController extends Controller
                     'limite_reservations_par_jour' => $this->settingValue('limite_reservations_par_jour', 15),
                     'limite_reservations_par_creneau' => $this->settingValue('limite_reservations_par_creneau', 3),
                     'paiements_en_ligne' => [
-                        'wave' => true,
-                        'orange_money' => true,
+                        'wave' => $paytechEnabled,
+                        'orange_money' => $paytechEnabled,
                         'carte_bancaire' => filled(config('services.stripe.secret')),
                     ],
                 ],
