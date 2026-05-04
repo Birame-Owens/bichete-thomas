@@ -25,8 +25,10 @@ use App\Http\Controllers\Api\Admin\RegleFideliteController;
 use App\Http\Controllers\Api\Admin\VarianteCoiffureController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\Client\CatalogueController as ClientCatalogueController;
+use App\Http\Controllers\Api\Client\ReservationAvailabilityController as ClientReservationAvailabilityController;
+use App\Http\Controllers\Api\Client\ReservationController as ClientReservationController;
 use App\Http\Controllers\Api\DocumentationController;
-use App\Http\Controllers\Api\ReservationAvailabilityController;
 use App\Http\Controllers\Api\SeoController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,7 +36,14 @@ Route::get('/documentation', [DocumentationController::class, 'ui']);
 Route::get('/openapi.json', [DocumentationController::class, 'openApi']);
 Route::get('/seo/{slug?}', [SeoController::class, 'show'])->where('slug', '.*');
 Route::post('/analytics/events', [AnalyticsController::class, 'store']);
-Route::get('/reservations/disponibilites', ReservationAvailabilityController::class);
+Route::get('/reservations/disponibilites', ClientReservationAvailabilityController::class);
+
+Route::prefix('client')->name('client.')->group(function (): void {
+    Route::get('/catalogue', [ClientCatalogueController::class, 'index'])->name('catalogue.index');
+    Route::get('/catalogue/{coiffure}', [ClientCatalogueController::class, 'show'])->name('catalogue.show');
+    Route::get('/reservations/disponibilites', ClientReservationAvailabilityController::class)->name('reservations.availability');
+    Route::post('/reservations', [ClientReservationController::class, 'store'])->name('reservations.store');
+});
 
 Route::prefix('auth')->group(function (): void {
     Route::post('/login', [AuthController::class, 'login']);

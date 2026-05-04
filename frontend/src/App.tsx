@@ -16,6 +16,7 @@ import CoiffeusesPage from './features/admin/personnel/CoiffeusesPage'
 import SettingsPage from './features/admin/settings/SettingsPage'
 import PromotionsPage from './features/admin/promotions/PromotionsPage'
 import RequireAuth from './features/auth/RequireAuth'
+import ClientHomePage from './features/client/ClientHomePage'
 
 function ManagerDashboard() {
   return (
@@ -50,7 +51,8 @@ function AdminRoute({ children }: { children: ReactNode }) {
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<ClientHomePage />} />
+      <Route path="/client" element={<ClientHomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
       <Route

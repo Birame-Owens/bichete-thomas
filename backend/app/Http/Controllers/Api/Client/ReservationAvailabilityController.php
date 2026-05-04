@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\ParametreSysteme;
@@ -47,19 +47,21 @@ class ReservationAvailabilityController extends Controller
 
         $startsAt = Carbon::createFromFormat('Y-m-d H:i', "{$date} {$opening}");
         $endsAt = Carbon::createFromFormat('Y-m-d H:i', "{$date} {$closing}");
+        $now = now();
         $slots = [];
 
         for ($cursor = $startsAt->copy(); $cursor->lt($endsAt); $cursor->addMinutes($interval)) {
             $hour = $cursor->format('H:i');
             $count = (int) ($slotCounts[$hour] ?? 0);
-            $available = ! $dayFull && $count < $slotLimit;
+            $pastSlot = $cursor->lt($now);
+            $available = ! $pastSlot && ! $dayFull && $count < $slotLimit;
 
             $slots[] = [
                 'heure' => $hour,
                 'reservations' => $count,
                 'limite' => $slotLimit,
                 'disponible' => $available,
-                'raison' => $available ? null : ($dayFull ? 'jour_complet' : 'creneau_complet'),
+                'raison' => $available ? null : ($pastSlot ? 'heure_passee' : ($dayFull ? 'jour_complet' : 'creneau_complet')),
             ];
         }
 
