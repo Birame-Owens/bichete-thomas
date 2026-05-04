@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Admin\OptionCoiffureController;
 use App\Http\Controllers\Api\Admin\PageSeoController;
 use App\Http\Controllers\Api\Admin\ParametreSystemeController;
 use App\Http\Controllers\Api\Admin\PreferenceClientController;
+use App\Http\Controllers\Api\Admin\ReservationController;
 use App\Http\Controllers\Api\Admin\RegleFideliteController;
 use App\Http\Controllers\Api\Admin\VarianteCoiffureController;
 use App\Http\Controllers\Api\AnalyticsController;
@@ -66,6 +67,8 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
             ->parameters(['regles-fidelite' => 'regleFidelite']);
         Route::apiResource('codes-promo', CodePromoController::class)
             ->parameters(['codes-promo' => 'codePromo']);
+        Route::patch('reservations/{reservation}/statut', [ReservationController::class, 'updateStatus'])->name('reservations.status');
+        Route::apiResource('reservations', ReservationController::class);
         Route::apiResource('categories-depenses', CategorieDepenseController::class)
             ->parameters(['categories-depenses' => 'categorieDepense']);
         Route::apiResource('depenses', DepenseController::class);

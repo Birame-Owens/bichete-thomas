@@ -85,7 +85,7 @@ export type DashboardCard = {
   format: 'money' | 'number'
   color: string
   icon: string
-  trend: string
+  trend?: string | null
 }
 
 export type RevenuePoint = {
@@ -103,7 +103,18 @@ export type TopCoiffure = {
 
 export type DashboardReservation = {
   id: number
-  [key: string]: unknown
+  date_reservation?: string
+  heure_debut?: string
+  statut?: string
+  montant_total?: number | string
+  devise?: string
+  client?: string
+  client_nom?: string | null
+  client_prenom?: string | null
+  client_telephone?: string | null
+  coiffure?: string
+  variante?: string | null
+  created_at?: string
 }
 
 export type PaymentMethod = {

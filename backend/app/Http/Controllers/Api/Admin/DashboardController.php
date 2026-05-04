@@ -8,6 +8,7 @@ use App\Models\Coiffeuse;
 use App\Models\Coiffure;
 use App\Models\LogSysteme;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -22,7 +23,7 @@ class DashboardController extends Controller
     {
         $chiffreAffaires = $this->chiffreAffaires();
         $reservationsDuJour = $this->reservationsDuJour();
-        $clientsTotal = ['available' => true, 'value' => Client::query()->count()];
+        $clientsTotal = $this->clientsTotal();
         $acompteRecu = $this->acompteRecu();
         $clientsRecents = $this->clientsRecents();
         $depensesRecentes = $this->depensesRecentes();
@@ -89,15 +90,33 @@ class DashboardController extends Controller
     private function chiffreAffaires(): array
     {
         if (! $this->hasTable('paiements')) {
-            return $this->unavailable('Module paiements non implemente.');
+            if (! $this->hasTable('reservations')) {
+                return $this->unavailable('Module reservations non implemente.');
+            }
+
+            $today = $this->reservationRevenueForDate(now()->toDateString());
+
+            return [
+                'available' => true,
+                'value' => $today,
+                'trend' => $this->trendLabel($today, $this->reservationRevenueForDate(now()->subDay()->toDateString())),
+                'currency' => 'FCFA',
+            ];
         }
 
         return [
             'available' => true,
-            'value' => (float) DB::table('paiements')
+            'value' => $today = (float) DB::table('paiements')
                 ->whereDate('created_at', now()->toDateString())
                 ->where('statut', 'valide')
                 ->sum('montant'),
+            'trend' => $this->trendLabel(
+                $today,
+                (float) DB::table('paiements')
+                    ->whereDate('created_at', now()->subDay()->toDateString())
+                    ->where('statut', 'valide')
+                    ->sum('montant')
+            ),
             'currency' => 'FCFA',
         ];
     }
@@ -108,16 +127,35 @@ class DashboardController extends Controller
     private function acompteRecu(): array
     {
         if (! $this->hasTable('paiements')) {
-            return $this->unavailable('Module paiements non implemente.');
+            if (! $this->hasTable('reservations')) {
+                return $this->unavailable('Module reservations non implemente.');
+            }
+
+            $today = $this->reservationDepositsForDate(now()->toDateString());
+
+            return [
+                'available' => true,
+                'value' => $today,
+                'trend' => $this->trendLabel($today, $this->reservationDepositsForDate(now()->subDay()->toDateString())),
+                'currency' => 'FCFA',
+            ];
         }
 
         return [
             'available' => true,
-            'value' => (float) DB::table('paiements')
+            'value' => $today = (float) DB::table('paiements')
                 ->whereDate('created_at', now()->toDateString())
                 ->where('type', 'acompte')
                 ->where('statut', 'valide')
                 ->sum('montant'),
+            'trend' => $this->trendLabel(
+                $today,
+                (float) DB::table('paiements')
+                    ->whereDate('created_at', now()->subDay()->toDateString())
+                    ->where('type', 'acompte')
+                    ->where('statut', 'valide')
+                    ->sum('montant')
+            ),
             'currency' => 'FCFA',
         ];
     }
@@ -133,9 +171,32 @@ class DashboardController extends Controller
 
         return [
             'available' => true,
-            'value' => DB::table('reservations')
+            'value' => $today = DB::table('reservations')
                 ->whereDate('date_reservation', now()->toDateString())
                 ->count(),
+            'trend' => $this->trendLabel(
+                (float) $today,
+                (float) DB::table('reservations')
+                    ->whereDate('date_reservation', now()->subDay()->toDateString())
+                    ->count()
+            ),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function clientsTotal(): array
+    {
+        $todayStart = now()->startOfDay();
+
+        return [
+            'available' => true,
+            'value' => $total = Client::query()->count(),
+            'trend' => $this->trendLabel(
+                (float) $total,
+                (float) Client::query()->where('created_at', '<', $todayStart)->count()
+            ),
         ];
     }
 
@@ -228,11 +289,13 @@ class DashboardController extends Controller
 
         return [
             'available' => true,
-            'data' => DB::table('reservations')
+            'data' => $this->reservationPreviewQuery()
                 ->whereDate('date_reservation', now()->toDateString())
-                ->latest()
+                ->orderBy('reservations.heure_debut')
                 ->limit(4)
-                ->get(),
+                ->get()
+                ->map(fn ($reservation): array => $this->formatReservationPreview($reservation))
+                ->values(),
         ];
     }
 
@@ -247,10 +310,12 @@ class DashboardController extends Controller
 
         return [
             'available' => true,
-            'data' => DB::table('reservations')
-                ->latest()
+            'data' => $this->reservationPreviewQuery()
+                ->orderByDesc('reservations.created_at')
                 ->limit(5)
-                ->get(),
+                ->get()
+                ->map(fn ($reservation): array => $this->formatReservationPreview($reservation))
+                ->values(),
         ];
     }
 
@@ -309,7 +374,15 @@ class DashboardController extends Controller
             'data' => LogSysteme::query()
                 ->latest('created_at')
                 ->limit(5)
-                ->get(['id', 'action', 'module', 'description', 'created_at']),
+                ->get(['id', 'action', 'module', 'description', 'metadata', 'created_at'])
+                ->map(fn (LogSysteme $log): array => [
+                    'id' => $log->id,
+                    'action' => $log->action,
+                    'module' => $log->module,
+                    'description' => $this->activityDescription($log),
+                    'created_at' => $log->created_at?->toISOString(),
+                ])
+                ->values(),
         ];
     }
 
@@ -411,7 +484,144 @@ class DashboardController extends Controller
             'format' => $format,
             'color' => $color,
             'icon' => $icon,
-            'trend' => $source['available'] ? 'Donnee API' : ($source['message'] ?? 'Module non implemente.'),
+            'trend' => $source['available'] ? ($source['trend'] ?? null) : ($source['message'] ?? 'Module non implemente.'),
+        ];
+    }
+
+    private function reservationPreviewQuery(): Builder
+    {
+        $firstDetails = DB::table('details_reservations')
+            ->select('reservation_id', DB::raw('MIN(id) as detail_id'))
+            ->groupBy('reservation_id');
+
+        return DB::table('reservations')
+            ->leftJoin('clients', 'reservations.client_id', '=', 'clients.id')
+            ->leftJoinSub($firstDetails, 'first_details', function ($join): void {
+                $join->on('reservations.id', '=', 'first_details.reservation_id');
+            })
+            ->leftJoin('details_reservations', 'first_details.detail_id', '=', 'details_reservations.id')
+            ->select([
+                'reservations.id',
+                'reservations.date_reservation',
+                'reservations.heure_debut',
+                'reservations.statut',
+                'reservations.montant_total',
+                'reservations.devise',
+                'clients.nom as client_nom',
+                'clients.prenom as client_prenom',
+                'clients.telephone as client_telephone',
+                'details_reservations.coiffure_nom',
+                'details_reservations.variante_nom',
+            ]);
+    }
+
+    private function trendLabel(float $current, float $previous): string
+    {
+        if ($previous <= 0.0) {
+            return $current > 0.0 ? '+100% vs hier' : '0% vs hier';
+        }
+
+        $percent = (($current - $previous) / $previous) * 100;
+        $prefix = $percent > 0 ? '+' : '';
+
+        return sprintf('%s%s%% vs hier', $prefix, rtrim(rtrim(number_format($percent, 1, '.', ''), '0'), '.'));
+    }
+
+    private function reservationRevenueForDate(string $date): float
+    {
+        return (float) DB::table('reservations')
+            ->whereDate('date_reservation', $date)
+            ->whereNotIn('statut', ['annulee', 'absence'])
+            ->sum('montant_total');
+    }
+
+    private function reservationDepositsForDate(string $date): float
+    {
+        return (float) DB::table('reservations')
+            ->whereDate('date_reservation', $date)
+            ->whereIn('statut', ['acompte_paye', 'en_cours', 'terminee'])
+            ->sum('montant_acompte');
+    }
+
+    private function activityDescription(LogSysteme $log): string
+    {
+        $path = (string) ($log->metadata['path'] ?? $log->description ?? '');
+        $method = strtoupper((string) ($log->metadata['method'] ?? ''));
+
+        if ($method === '' && preg_match('/^(POST|PUT|PATCH|DELETE)\s+(.+)$/', $path, $matches) === 1) {
+            $method = $matches[1];
+            $path = $matches[2];
+        }
+
+        $segments = array_values(array_filter(explode('/', trim($path, '/'))));
+
+        if (($segments[0] ?? null) === 'api') {
+            array_shift($segments);
+        }
+
+        if (($segments[0] ?? null) === 'admin') {
+            array_shift($segments);
+        }
+
+        $resource = $segments[0] ?? $log->module ?? 'action';
+        $id = $segments[1] ?? null;
+        $subAction = $segments[2] ?? null;
+
+        if ($resource === 'reservations') {
+            if ($subAction === 'statut' && $id) {
+                return "Statut de la reservation #{$id} mis a jour";
+            }
+
+            return match ($method) {
+                'POST' => 'Nouvelle reservation creee',
+                'PUT', 'PATCH' => $id ? "Reservation #{$id} modifiee" : 'Reservation modifiee',
+                'DELETE' => $id ? "Reservation #{$id} supprimee" : 'Reservation supprimee',
+                default => $id ? "Reservation #{$id} mise a jour" : 'Reservation mise a jour',
+            };
+        }
+
+        $labels = [
+            'clients' => ['singular' => 'Client', 'created' => 'Nouveau client cree'],
+            'coiffeuses' => ['singular' => 'Coiffeuse', 'created' => 'Nouvelle coiffeuse creee'],
+            'gerantes' => ['singular' => 'Gerante', 'created' => 'Nouvelle gerante creee'],
+            'coiffures' => ['singular' => 'Coiffure', 'created' => 'Nouvelle coiffure creee'],
+            'categories-coiffures' => ['singular' => 'Categorie coiffure', 'created' => 'Nouvelle categorie coiffure creee'],
+            'options-coiffures' => ['singular' => 'Option coiffure', 'created' => 'Nouvelle option coiffure creee'],
+            'codes-promo' => ['singular' => 'Code promo', 'created' => 'Nouveau code promo cree'],
+            'regles-fidelite' => ['singular' => 'Regle fidelite', 'created' => 'Nouvelle regle fidelite creee'],
+            'parametres-systeme' => ['singular' => 'Parametre', 'created' => 'Parametre cree'],
+        ];
+
+        $label = $labels[$resource] ?? ['singular' => ucfirst(str_replace('-', ' ', $resource)), 'created' => 'Nouvelle action admin'];
+
+        return match ($method) {
+            'POST' => $label['created'],
+            'PUT', 'PATCH' => $id ? "{$label['singular']} #{$id} mis a jour" : "{$label['singular']} mis a jour",
+            'DELETE' => $id ? "{$label['singular']} #{$id} supprime" : "{$label['singular']} supprime",
+            default => $log->description ?? 'Action admin effectuee',
+        };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatReservationPreview(object $reservation): array
+    {
+        $clientName = trim(sprintf('%s %s', $reservation->client_prenom ?? '', $reservation->client_nom ?? ''));
+
+        return [
+            'id' => $reservation->id,
+            'date_reservation' => $reservation->date_reservation,
+            'heure_debut' => substr((string) $reservation->heure_debut, 0, 5),
+            'statut' => $reservation->statut,
+            'montant_total' => (float) $reservation->montant_total,
+            'devise' => $reservation->devise ?? 'FCFA',
+            'client_nom' => $reservation->client_nom,
+            'client_prenom' => $reservation->client_prenom,
+            'client_telephone' => $reservation->client_telephone,
+            'client' => $clientName !== '' ? $clientName : 'Client supprime',
+            'coiffure' => $reservation->coiffure_nom ?? 'Prestation',
+            'variante' => $reservation->variante_nom,
         ];
     }
 

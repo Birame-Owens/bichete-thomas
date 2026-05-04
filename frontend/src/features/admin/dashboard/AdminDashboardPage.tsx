@@ -23,6 +23,62 @@ function money(value?: number | string | null) {
   return `${numeric.toLocaleString('fr-FR')} FCFA`
 }
 
+function reservationStatusLabel(status?: string) {
+  const labels: Record<string, string> = {
+    en_attente: 'En attente',
+    confirmee: 'Confirmee',
+    acompte_paye: 'Acompte paye',
+    en_cours: 'En cours',
+    terminee: 'Terminee',
+    annulee: 'Annulee',
+    absence: 'Absence',
+  }
+
+  return status ? labels[status] ?? status : '-'
+}
+
+function reservationStatusClass(status?: string) {
+  if (status === 'terminee' || status === 'confirmee') {
+    return 'bg-emerald-50 text-emerald-700'
+  }
+
+  if (status === 'annulee' || status === 'absence') {
+    return 'bg-red-50 text-red-700'
+  }
+
+  if (status === 'acompte_paye') {
+    return 'bg-[#e7f7eb] text-emerald-700'
+  }
+
+  if (status === 'en_cours') {
+    return 'bg-[#fff2f7] text-[#c41468]'
+  }
+
+  return 'bg-amber-50 text-amber-700'
+}
+
+function formatReservationDate(value?: string) {
+  if (!value) {
+    return '-'
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date)
+}
+
+function reservationServiceLabel(reservation: DashboardReservation) {
+  return [reservation.coiffure, reservation.variante].filter(Boolean).join(' - ') || 'Prestation'
+}
+
 function cardValue(card: DashboardCard) {
   if (!card.available) {
     return 'Indisponible'
@@ -152,9 +208,20 @@ function ReservationsToday({ list }: { list: AvailabilityValue<DashboardReservat
       ) : (
         <div className="space-y-3">
           {(list.data ?? []).slice(0, 4).map((reservation) => (
-            <div key={reservation.id} className="rounded-xl border border-gray-100 px-3 py-2 text-xs">
-              <p className="font-bold">Reservation #{reservation.id}</p>
-              <p className="text-gray-500">{String(reservation.statut ?? '')}</p>
+            <div key={reservation.id} className="rounded-xl border border-gray-100 px-3 py-3 text-xs">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-bold text-gray-950">{reservation.client ?? 'Client supprime'}</p>
+                  <p className="mt-1 line-clamp-1 text-gray-500">{reservationServiceLabel(reservation)}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="font-bold text-gray-950">{reservation.heure_debut ?? '--:--'}</p>
+                  <p className="mt-1 text-gray-500">{money(reservation.montant_total)}</p>
+                </div>
+              </div>
+              <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${reservationStatusClass(reservation.statut)}`}>
+                {reservationStatusLabel(reservation.statut)}
+              </span>
             </div>
           ))}
         </div>
@@ -175,17 +242,25 @@ function RecentReservations({ list }: { list: AvailabilityValue<DashboardReserva
           <table className="w-full text-left text-xs">
             <thead className="bg-[#fbf8fa] uppercase text-gray-500">
               <tr>
-                <th className="px-3 py-2">Reference</th>
+                <th className="px-3 py-2">Client</th>
+                <th className="px-3 py-2">Coiffure</th>
                 <th className="px-3 py-2">Date</th>
                 <th className="px-3 py-2">Statut</th>
+                <th className="px-3 py-2">Montant</th>
               </tr>
             </thead>
             <tbody>
               {(list.data ?? []).slice(0, 5).map((reservation) => (
                 <tr key={reservation.id} className="border-t border-gray-100">
-                  <td className="px-3 py-3 font-bold">#{reservation.id}</td>
-                  <td className="px-3 py-3 text-gray-600">{String(reservation.date_reservation ?? reservation.created_at ?? '-')}</td>
-                  <td className="px-3 py-3 text-gray-600">{String(reservation.statut ?? '-')}</td>
+                  <td className="px-3 py-3 font-bold text-gray-950">{reservation.client ?? 'Client supprime'}</td>
+                  <td className="px-3 py-3 text-gray-600">{reservationServiceLabel(reservation)}</td>
+                  <td className="px-3 py-3 text-gray-600">{formatReservationDate(reservation.date_reservation ?? reservation.created_at)}</td>
+                  <td className="px-3 py-3">
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${reservationStatusClass(reservation.statut)}`}>
+                      {reservationStatusLabel(reservation.statut)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 font-semibold text-gray-700">{money(reservation.montant_total)}</td>
                 </tr>
               ))}
             </tbody>

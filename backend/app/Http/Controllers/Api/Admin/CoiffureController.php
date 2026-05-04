@@ -15,6 +15,8 @@ class CoiffureController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $perPage = max(1, min($request->integer('per_page', 15), 100));
+
         return response()->json([
             'data' => Coiffure::query()
                 ->with(['categorie', 'variantes', 'options', 'images'])
@@ -32,7 +34,7 @@ class CoiffureController extends Controller
                     $query->where('actif', $request->boolean('actif'));
                 })
                 ->latest()
-                ->paginate(15),
+                ->paginate($perPage),
         ]);
     }
 
