@@ -419,85 +419,74 @@ function ClientHomePage() {
 
   return (
     <div className="min-h-screen bg-[#fbf8fa] text-slate-950">
-      <div className="mx-auto flex w-full max-w-[1500px] px-3 pb-24 pt-3 sm:px-5 lg:px-6 lg:pb-8">
-        <aside className="sticky top-4 hidden h-[calc(100vh-2rem)] w-64 shrink-0 flex-col rounded-[28px] bg-[#090915] p-5 text-white shadow-xl lg:flex">
-          <div className="flex items-center gap-3">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#f31976] text-lg font-black">BT</div>
-            <div>
-              <p className="font-display text-3xl leading-7 text-[#ff4f9a]">Bichette</p>
-              <p className="font-display text-3xl leading-7">Thomas</p>
-              <p className="mt-1 text-xs text-white/70">Salon de Coiffure</p>
-            </div>
-          </div>
-
-          <nav className="mt-9 space-y-2">
-            {clientNavItems.map((item) => {
-              const Icon = item.icon
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => scrollToSection(item.id)}
-                  className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold text-white/80 transition hover:bg-white/10 hover:text-white"
-                >
-                  <Icon className="h-5 w-5" />
-                  {item.label}
-                </button>
-              )
-            })}
-          </nav>
-
-          <div className="mt-auto rounded-3xl bg-[#f31976] p-4">
-            <p className="text-sm font-black">Besoin d aide ?</p>
-            <p className="mt-1 text-xs text-white/80">Le salon peut confirmer votre reservation sur WhatsApp.</p>
-            <a
-              href={settings?.telephone_whatsapp ? `https://wa.me/${settings.telephone_whatsapp.replace(/\D/g, '')}` : '#contact'}
-              className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#d80f63]"
-            >
-              <MessageCircle className="h-4 w-4" />
-              WhatsApp
-            </a>
-          </div>
-        </aside>
-
-        <main className="min-w-0 flex-1 lg:pl-7">
-          <header id="accueil" className="flex flex-col gap-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-bold text-slate-500">Bonjour</p>
-              <h1 className="text-3xl font-black tracking-normal text-slate-950 sm:text-4xl">Bienvenue chez Bichette Thomas</h1>
-              <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-slate-600">
-                <MapPin className="h-4 w-4 text-[#f31976]" />
-                Dakar, Senegal
-              </p>
+      <div className="mx-auto w-full max-w-[1320px] px-3 pb-12 pt-3 sm:px-5 lg:px-6">
+        <header
+          id="accueil"
+          className="sticky top-3 z-30 rounded-[28px] border border-slate-100 bg-white/95 p-3 shadow-sm backdrop-blur"
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex min-w-[220px] flex-1 items-center gap-3">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#f31976] text-sm font-black text-white">
+                BT
+              </div>
+              <div className="min-w-0">
+                <p className="font-display text-2xl leading-6 text-slate-950">
+                  Bichette <span className="text-[#f31976]">Thomas</span>
+                </p>
+                <p className="mt-1 flex items-center gap-1 text-xs font-bold text-slate-500">
+                  <MapPin className="h-3.5 w-3.5 text-[#f31976]" />
+                  Dakar, Senegal
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <label className="relative flex h-12 min-w-0 flex-1 items-center sm:w-72">
-                <Search className="pointer-events-none absolute left-4 h-5 w-5 text-slate-400" />
+            <nav className="order-3 flex w-full gap-2 overflow-x-auto pt-1 lg:order-none lg:w-auto lg:flex-none lg:pt-0">
+              {clientNavItems.map((item) => {
+                const Icon = item.icon
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => scrollToSection(item.id)}
+                    className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-black text-slate-600 transition hover:bg-[#fff0f6] hover:text-[#f31976]"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </button>
+                )
+              })}
+            </nav>
+
+            <div className="flex w-full items-center gap-2 sm:w-auto lg:ml-auto">
+              <label className="relative flex h-11 min-w-0 flex-1 items-center sm:w-64 sm:flex-none">
+                <Search className="pointer-events-none absolute left-4 h-4 w-4 text-slate-400" />
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Rechercher une coiffure"
-                  className="h-full w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-bold outline-none transition focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                  placeholder="Rechercher"
+                  className="h-full w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-sm font-bold outline-none transition focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                 />
               </label>
               <button
                 type="button"
-                className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-sm"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-800 shadow-sm"
                 aria-label="Notifications"
               >
                 <Bell className="h-5 w-5" />
               </button>
               <button
                 type="button"
-                className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#fff0f6] text-[#f31976]"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976]"
                 aria-label="Profil client"
               >
                 <User className="h-5 w-5" />
               </button>
             </div>
-          </header>
+          </div>
+        </header>
+
+        <main className="mt-5">
 
           <section className="relative mt-3 overflow-hidden rounded-[28px] bg-[#f31976] text-white shadow-lg">
             <div className="absolute inset-y-0 right-0 hidden w-1/2 sm:block">
@@ -704,24 +693,6 @@ function ClientHomePage() {
           </section>
         </main>
       </div>
-
-      <nav className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-5 gap-1 rounded-3xl border border-slate-100 bg-white/95 p-2 shadow-xl backdrop-blur lg:hidden">
-        {clientNavItems.map((item) => {
-          const Icon = item.icon
-
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => scrollToSection(item.id)}
-              className="grid min-w-0 place-items-center gap-1 rounded-2xl px-1 py-2 text-[11px] font-black text-slate-600 hover:bg-[#fff0f6] hover:text-[#f31976]"
-            >
-              <Icon className="h-5 w-5" />
-              <span className="max-w-full truncate">{item.label}</span>
-            </button>
-          )
-        })}
-      </nav>
 
       {selectedCoiffure ? (
         <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:px-5 sm:py-8">
