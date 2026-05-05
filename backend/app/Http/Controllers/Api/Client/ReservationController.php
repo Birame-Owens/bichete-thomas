@@ -10,6 +10,7 @@ use App\Models\Paiement;
 use App\Models\ParametreSysteme;
 use App\Models\Reservation;
 use Carbon\Carbon;
+use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -47,8 +48,8 @@ class ReservationController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
             'mode_paiement' => ['required', Rule::in(self::ONLINE_PAYMENT_METHODS)],
             'reference_paiement' => ['nullable', 'string', 'max:255'],
-            'success_url' => ['nullable', 'url', 'max:2048'],
-            'cancel_url' => ['nullable', 'url', 'max:2048'],
+            'success_url' => ['nullable', 'string', 'max:2048', $this->redirectUrlRule(true)],
+            'cancel_url' => ['nullable', 'string', 'max:2048', $this->redirectUrlRule()],
         ]);
 
         $result = DB::transaction(fn (): array => $this->createReservation($data));
@@ -187,6 +188,21 @@ class ReservationController extends Controller
             'checkout_url' => $checkoutUrl,
             'requires_redirect' => $checkoutUrl !== null,
         ];
+    }
+
+    private function redirectUrlRule(bool $allowStripeSessionPlaceholder = false): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($allowStripeSessionPlaceholder): void {
+            $url = (string) $value;
+
+            if ($allowStripeSessionPlaceholder) {
+                $url = str_replace('{CHECKOUT_SESSION_ID}', 'cs_test_placeholder', $url);
+            }
+
+            if (! filter_var($url, FILTER_VALIDATE_URL)) {
+                $fail("Le champ {$attribute} doit etre une URL valide.");
+            }
+        };
     }
 
     /**
