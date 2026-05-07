@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\Admin\PageSeoController;
 use App\Http\Controllers\Api\Admin\PaiementController;
 use App\Http\Controllers\Api\Admin\ParametreSystemeController;
 use App\Http\Controllers\Api\Admin\PreferenceClientController;
+use App\Http\Controllers\Api\Admin\RapportStatistiqueController;
 use App\Http\Controllers\Api\Admin\ReservationController;
 use App\Http\Controllers\Api\Admin\RegleFideliteController;
 use App\Http\Controllers\Api\Admin\VarianteCoiffureController;
@@ -64,6 +65,7 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
     ->name('admin.')
     ->group(function (): void {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
+        Route::get('rapports-statistiques', RapportStatistiqueController::class)->name('rapports-statistiques');
         Route::apiResource('categories-coiffures', CategorieCoiffureController::class)
             ->parameters(['categories-coiffures' => 'categorieCoiffure']);
         Route::apiResource('coiffures', CoiffureController::class);

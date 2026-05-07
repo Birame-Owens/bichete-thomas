@@ -6,32 +6,33 @@ use App\Http\Controllers\Controller;
 use App\Models\Depense;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 
 class DepenseController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $depenses = Depense::query()
-            ->with('categorie')
-            ->when($request->filled('categorie_depense_id'), fn ($query) => $query->where('categorie_depense_id', $request->integer('categorie_depense_id')))
-            ->when($request->filled('date_debut'), fn ($query) => $query->whereDate('date_depense', '>=', $request->date('date_debut')))
-            ->when($request->filled('date_fin'), fn ($query) => $query->whereDate('date_depense', '<=', $request->date('date_fin')))
-            ->when($request->filled('search'), function ($query) use ($request): void {
-                $search = $request->string('search')->toString();
+        $query = $this->filteredQuery($request);
+        $summaryQuery = clone $query;
+        $perPage = min(max($request->integer('per_page', 15), 1), 100);
 
-                $query->where(function ($query) use ($search): void {
-                    $query->where('titre', 'ilike', "%{$search}%")
-                        ->orWhere('description', 'ilike', "%{$search}%")
-                        ->orWhere('reference', 'ilike', "%{$search}%");
-                });
-            })
+        $depenses = $query
+            ->with('categorie')
             ->latest('date_depense')
-            ->paginate(15);
+            ->latest('id')
+            ->paginate($perPage);
 
         return response()->json([
             'data' => $depenses,
             'meta' => [
-                'total_montant' => (float) Depense::query()->sum('montant'),
+                'total_montant' => (float) (clone $summaryQuery)->sum('montant'),
+                'nombre_depenses' => (clone $summaryQuery)->count(),
+                'total_mois_courant' => (float) Depense::query()
+                    ->whereBetween('date_depense', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
+                    ->sum('montant'),
+                'total_aujourdhui' => (float) Depense::query()
+                    ->whereDate('date_depense', now()->toDateString())
+                    ->sum('montant'),
             ],
         ]);
     }
@@ -88,5 +89,23 @@ class DepenseController extends Controller
         $depense->delete();
 
         return response()->json(['message' => 'Depense supprimee.']);
+    }
+
+    private function filteredQuery(Request $request): Builder
+    {
+        return Depense::query()
+            ->when($request->filled('categorie_depense_id'), fn (Builder $query) => $query->where('categorie_depense_id', $request->integer('categorie_depense_id')))
+            ->when($request->filled('mode_paiement'), fn (Builder $query) => $query->where('mode_paiement', $request->string('mode_paiement')->toString()))
+            ->when($request->filled('date_debut'), fn (Builder $query) => $query->whereDate('date_depense', '>=', $request->date('date_debut')))
+            ->when($request->filled('date_fin'), fn (Builder $query) => $query->whereDate('date_depense', '<=', $request->date('date_fin')))
+            ->when($request->filled('search'), function (Builder $query) use ($request): void {
+                $search = $request->string('search')->toString();
+
+                $query->where(function (Builder $query) use ($search): void {
+                    $query->where('titre', 'ilike', "%{$search}%")
+                        ->orWhere('description', 'ilike', "%{$search}%")
+                        ->orWhere('reference', 'ilike', "%{$search}%");
+                });
+            });
     }
 }
