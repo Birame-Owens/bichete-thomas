@@ -1102,38 +1102,12 @@ function ClientHomePage() {
                   <p className="mt-1 text-xs font-bold text-slate-500">{selectedCoiffure.avis_resume?.total ?? 0} commentaire(s)</p>
                 </div>
                 <div className="rounded-3xl bg-white p-4">
-                  <p className="text-xs font-black uppercase text-slate-400">Prestations</p>
-                  <p className="mt-1 text-lg font-black text-slate-950">{selectedCoiffure.prestations_recentes.length}</p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">Liees a cette coiffure</p>
+                  <p className="text-xs font-black uppercase text-slate-400">Fiabilite</p>
+                  <p className="mt-1 text-lg font-black text-slate-950">
+                    {selectedCoiffure.avis.some((avis) => avis.verifie) ? 'Verifie' : 'En cours'}
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-slate-500">Commentaires clientes</p>
                 </div>
-              </div>
-
-              <div className="mt-5 rounded-3xl bg-white p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-black text-slate-950">Prestations en rapport</p>
-                  <Camera className="h-4 w-4 text-[#f31976]" />
-                </div>
-                {selectedCoiffure.prestations_recentes.length > 0 ? (
-                  <div className="mt-3 space-y-2">
-                    {selectedCoiffure.prestations_recentes.slice(0, 4).map((prestation) => (
-                      <div key={prestation.reservation_id} className="grid grid-cols-[1fr_auto] gap-3 rounded-2xl bg-[#fff7fb] px-3 py-2 text-xs">
-                        <div className="min-w-0">
-                          <p className="truncate font-black text-slate-950">{prestation.variante_nom ?? selectedCoiffure.nom}</p>
-                          <p className="mt-0.5 font-bold text-slate-500">{prestation.cliente} - {formatShortDate(prestation.date_reservation)}</p>
-                        </div>
-                        <span className="font-black text-[#d80f63]">{formatCurrency(prestation.montant_total, devise)}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    {(selectedCoiffure.images.length > 0 ? selectedCoiffure.images.slice(0, 3) : [{ id: 0, url: heroImage, alt: null, principale: true }]).map((image) => (
-                      <div key={image.id} className="aspect-square overflow-hidden rounded-2xl bg-[#fff7fb]">
-                        <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div className="mt-5 rounded-3xl bg-white p-4">
