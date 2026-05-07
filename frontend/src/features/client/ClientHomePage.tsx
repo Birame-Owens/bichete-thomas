@@ -11,9 +11,11 @@ import {
   Heart,
   Home,
   Image as ImageIcon,
+  Camera,
   Loader2,
   MapPin,
   MessageCircle,
+  Music2,
   Phone,
   Scissors,
   Search,
@@ -97,6 +99,11 @@ const paymentMethods: Array<{
   { value: 'orange_money', label: 'Orange Money', detail: 'Paiement securise via PayTech', icon: Phone, logo: '/om logo.webp' },
   { value: 'carte_bancaire', label: 'Carte bancaire', detail: 'Paiement securise Stripe', icon: CreditCard },
 ]
+
+const instagramUrl = 'https://www.instagram.com/bichette_thomas/'
+const tiktokUrl = 'https://www.tiktok.com/@bichette_thomas'
+const mapsUrl = 'https://www.google.com/maps/?cid=9724705947575440818'
+const mapsEmbedUrl = 'https://www.google.com/maps?cid=9724705947575440818&output=embed'
 
 const emptyCategories: ClientCategory[] = []
 const emptyCoiffures: ClientCoiffure[] = []
@@ -843,7 +850,66 @@ function ClientHomePage() {
                   {settings.telephone_whatsapp}
                 </a>
               ) : null}
+              <div className="mt-5 rounded-3xl border border-slate-100 bg-[#fff8fb] p-4">
+                <p className="text-sm font-black text-slate-950">Suivez-nous</p>
+                <div className="mt-3 grid gap-2">
+                  <a
+                    href={instagramUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-between rounded-2xl bg-white px-3 py-2 text-xs font-black text-slate-700"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Camera className="h-4 w-4 text-[#f31976]" />
+                      Instagram
+                    </span>
+                    <span className="text-[#f31976]">@bichette_thomas</span>
+                  </a>
+                  <a
+                    href={tiktokUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-between rounded-2xl bg-white px-3 py-2 text-xs font-black text-slate-700"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Music2 className="h-4 w-4 text-[#f31976]" />
+                      TikTok
+                    </span>
+                    <span className="text-[#f31976]">@bichette_thomas</span>
+                  </a>
+                </div>
+              </div>
             </aside>
+          </section>
+
+          <section className="mt-8 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#f31976]">Nous trouver</p>
+                <h3 className="mt-2 text-2xl font-black text-slate-950">Salon Bichette Thomas</h3>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Consultez la position exacte du salon sur la carte.
+                </p>
+              </div>
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-xs font-black text-slate-700"
+              >
+                <MapPin className="h-4 w-4 text-[#f31976]" />
+                Ouvrir dans Google Maps
+              </a>
+            </div>
+            <div className="mt-4 overflow-hidden rounded-3xl border border-slate-100">
+              <iframe
+                title="Carte du salon Bichette Thomas"
+                src={mapsEmbedUrl}
+                className="h-72 w-full"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
           </section>
         </main>
 
