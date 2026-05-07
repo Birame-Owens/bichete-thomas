@@ -28,6 +28,7 @@ const settingKeys = [
   'heure_ouverture',
   'heure_fermeture',
   'telephone_whatsapp',
+  'jours_fermeture',
   'devise',
   'delai_annulation_heures',
   'seuil_retard_minutes',
@@ -36,12 +37,23 @@ const settingKeys = [
   'limite_reservations_par_creneau',
 ] as const
 
+const weekDays = [
+  { key: 'lundi', label: 'Lundi' },
+  { key: 'mardi', label: 'Mardi' },
+  { key: 'mercredi', label: 'Mercredi' },
+  { key: 'jeudi', label: 'Jeudi' },
+  { key: 'vendredi', label: 'Vendredi' },
+  { key: 'samedi', label: 'Samedi' },
+  { key: 'dimanche', label: 'Dimanche' },
+] as const
+
 const emptyForm: ReservationSettingsForm = {
   montant_acompte_defaut: '5000',
   pourcentage_acompte: '30',
   heure_ouverture: '09:00',
   heure_fermeture: '19:00',
-  telephone_whatsapp: '+221 77 000 00 00',
+  telephone_whatsapp: '765923402',
+  jours_fermeture: [],
   devise: 'FCFA',
   delai_annulation_heures: '24',
   seuil_retard_minutes: '15',
@@ -51,11 +63,30 @@ const emptyForm: ReservationSettingsForm = {
 }
 
 type SettingKey = (typeof settingKeys)[number]
+type StringSettingKey = Exclude<SettingKey, 'jours_fermeture'>
 
 function rawSettingValue(setting?: SystemSetting) {
   const value = setting?.valeur?.value
 
   return value === null || value === undefined ? '' : String(value)
+}
+
+function arraySettingValue(setting?: SystemSetting) {
+  const value = setting?.valeur?.value
+
+  return Array.isArray(value) ? value : []
+}
+
+function areValuesEqual(a: string | string[], b: string | string[]) {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) {
+      return false
+    }
+
+    return a.every((item) => b.includes(item))
+  }
+
+  return a === b
 }
 
 function buildSettingsForm(items: Record<string, SystemSetting>): ReservationSettingsForm {
@@ -65,6 +96,7 @@ function buildSettingsForm(items: Record<string, SystemSetting>): ReservationSet
     heure_ouverture: rawSettingValue(items.heure_ouverture) || emptyForm.heure_ouverture,
     heure_fermeture: rawSettingValue(items.heure_fermeture) || emptyForm.heure_fermeture,
     telephone_whatsapp: rawSettingValue(items.telephone_whatsapp) || emptyForm.telephone_whatsapp,
+    jours_fermeture: arraySettingValue(items.jours_fermeture),
     devise: (rawSettingValue(items.devise) || emptyForm.devise) as 'FCFA',
     delai_annulation_heures: rawSettingValue(items.delai_annulation_heures) || emptyForm.delai_annulation_heures,
     seuil_retard_minutes: rawSettingValue(items.seuil_retard_minutes) || emptyForm.seuil_retard_minutes,
@@ -89,6 +121,18 @@ function minutesLabel(value: string) {
   const rest = minutes % 60
 
   return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`
+}
+
+function closedDaysLabel(days: string[]) {
+  if (days.length === 0) {
+    return 'Ouvert toute la semaine'
+  }
+
+  const labels = weekDays
+    .filter((day) => days.includes(day.key))
+    .map((day) => day.label)
+
+  return `Ferme: ${labels.join(', ')}`
 }
 
 function Field({
@@ -143,7 +187,7 @@ function SettingsPage() {
   const [success, setSuccess] = useState<string | null>(null)
 
   const hasChanges = useMemo(
-    () => settingKeys.some((key) => form[key] !== initialForm[key]),
+    () => settingKeys.some((key) => !areValuesEqual(form[key], initialForm[key])),
     [form, initialForm],
   )
 
@@ -160,6 +204,10 @@ function SettingsPage() {
       {
         label: 'Horaires',
         value: `${form.heure_ouverture} - ${form.heure_fermeture}`,
+      },
+      {
+        label: 'Fermeture',
+        value: closedDaysLabel(form.jours_fermeture),
       },
       {
         label: 'Annulation',
@@ -218,11 +266,24 @@ function SettingsPage() {
       .finally(() => setLoading(false))
   }, [applySettings])
 
-  const setField = (key: SettingKey, value: string) => {
+  const setField = (key: StringSettingKey, value: string) => {
     setForm((current) => ({
       ...current,
       [key]: value,
     }))
+  }
+
+  const toggleClosedDay = (day: string) => {
+    setForm((current) => {
+      const exists = current.jours_fermeture.includes(day)
+
+      return {
+        ...current,
+        jours_fermeture: exists
+          ? current.jours_fermeture.filter((item) => item !== day)
+          : [...current.jours_fermeture, day],
+      }
+    })
   }
 
   const validateForm = () => {
@@ -233,6 +294,11 @@ function SettingsPage() {
     const absenceMinutes = Number(form.seuil_absence_minutes)
     const dailyLimit = Number(form.limite_reservations_par_jour)
     const slotLimit = Number(form.limite_reservations_par_creneau)
+
+    const unknownDay = form.jours_fermeture.find((day) => !weekDays.some((item) => item.key === day))
+    if (unknownDay) {
+      return 'Les jours de fermeture doivent etre valides.'
+    }
 
     if ([amount, percent, cancelHours, lateMinutes, absenceMinutes, dailyLimit, slotLimit].some((value) => Number.isNaN(value))) {
       return 'Les valeurs numeriques doivent etre valides.'
@@ -278,7 +344,7 @@ function SettingsPage() {
 
     setSaving(true)
     try {
-      const changedKeys = settingKeys.filter((key) => form[key] !== initialForm[key])
+      const changedKeys = settingKeys.filter((key) => !areValuesEqual(form[key], initialForm[key]))
       const updated = await Promise.all(
         changedKeys.map((key) => {
           const setting = settings[key]
@@ -436,6 +502,21 @@ function SettingsPage() {
                   onChange={(event) => setField('telephone_whatsapp', event.target.value)}
                   placeholder="+221 77 000 00 00"
                 />
+              </Field>
+              <Field label="Jours de fermeture" hint="Selectionnez les jours ou le salon est ferme.">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {weekDays.map((day) => (
+                    <label key={day.key} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={form.jours_fermeture.includes(day.key)}
+                        onChange={() => toggleClosedDay(day.key)}
+                        className="h-4 w-4 rounded border-gray-300 text-[#e91e63]"
+                      />
+                      {day.label}
+                    </label>
+                  ))}
+                </div>
               </Field>
             </div>
           </Panel>

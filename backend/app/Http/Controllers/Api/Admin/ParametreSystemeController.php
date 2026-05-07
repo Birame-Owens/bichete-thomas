@@ -6,11 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Models\ParametreSysteme;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ParametreSystemeController extends Controller
 {
+    private const CLOSED_DAYS = [
+        'lundi',
+        'mardi',
+        'mercredi',
+        'jeudi',
+        'vendredi',
+        'samedi',
+        'dimanche',
+    ];
+
     /**
      * @var array<string, array<string, mixed>>
      */
@@ -72,6 +83,10 @@ class ParametreSystemeController extends Controller
             'min' => 1,
             'max' => 50,
             'description' => 'Nombre maximum de reservations autorisees sur la meme heure de debut.',
+        ],
+        'jours_fermeture' => [
+            'type' => 'json',
+            'description' => 'Liste des jours ou le salon est ferme.',
         ],
     ];
 
@@ -229,6 +244,31 @@ class ParametreSystemeController extends Controller
             }
 
             return preg_replace('/\s+/', ' ', $phone);
+        }
+
+        if ($key === 'jours_fermeture') {
+            $days = is_array($value) ? $value : [];
+            $normalized = [];
+
+            foreach ($days as $day) {
+                if (! is_string($day)) {
+                    throw ValidationException::withMessages([
+                        'valeur' => 'Les jours de fermeture doivent etre une liste de valeurs texte.',
+                    ]);
+                }
+
+                $keyDay = Str::lower(trim($day));
+
+                if (! in_array($keyDay, self::CLOSED_DAYS, true)) {
+                    throw ValidationException::withMessages([
+                        'valeur' => 'Les jours de fermeture doivent etre valides.',
+                    ]);
+                }
+
+                $normalized[$keyDay] = true;
+            }
+
+            return array_values(array_filter(self::CLOSED_DAYS, fn (string $day): bool => isset($normalized[$day])));
         }
 
         if (isset($definition['allowed']) && ! in_array($value, $definition['allowed'], true)) {

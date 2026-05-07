@@ -24,7 +24,7 @@ export async function getSystemSettings(params?: QueryParams) {
   return collection(response.data)
 }
 
-export async function updateSystemSetting(setting: SystemSetting, value: string | number | boolean | null) {
+export async function updateSystemSetting(setting: SystemSetting, value: string | number | boolean | string[] | null) {
   const response = await apiClient.put<ApiItem<SystemSetting>>(`/admin/parametres-systeme/${setting.id}`, {
     valeur: value,
   })

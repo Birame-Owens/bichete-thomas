@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Client;
 use App\Http\Controllers\Controller;
 use App\Models\Paiement;
 use App\Models\Reservation;
+use App\Services\PaymentReceiptNotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,10 @@ use Illuminate\Validation\ValidationException;
 class PaymentController extends Controller
 {
     private const INCOMING_TYPES = ['acompte', 'solde', 'complet', 'ajustement'];
+
+    public function __construct(private readonly PaymentReceiptNotificationService $receiptNotifications)
+    {
+    }
 
     public function confirmStripeCheckout(Request $request): JsonResponse
     {
@@ -240,6 +245,7 @@ class PaymentController extends Controller
         ])->save();
 
         $this->syncReservationPaymentState($payment->reservation_id);
+        $this->receiptNotifications->send($payment->fresh(['reservation.client', 'reservation.details', 'client']));
     }
 
     private function markPaymentAsCanceled(Paiement $payment, string $reference): void

@@ -30,7 +30,7 @@ return new class extends Migration
             'description' => 'Heure de fermeture du salon.',
         ],
         'telephone_whatsapp' => [
-            'value' => '+221 77 000 00 00',
+            'value' => '+221 765923402',
             'type' => 'string',
             'description' => 'Numero WhatsApp utilise pour les confirmations et rappels.',
         ],
@@ -53,6 +53,21 @@ return new class extends Migration
             'value' => 30,
             'type' => 'integer',
             'description' => 'Nombre de minutes apres lequel le retard devient une absence.',
+        ],
+        'limite_reservations_par_jour' => [
+            'value' => 15,
+            'type' => 'integer',
+            'description' => 'Nombre maximum de reservations que le salon peut prendre par jour.',
+        ],
+        'limite_reservations_par_creneau' => [
+            'value' => 3,
+            'type' => 'integer',
+            'description' => 'Nombre maximum de reservations autorisees sur la meme heure de debut.',
+        ],
+        'jours_fermeture' => [
+            'value' => [],
+            'type' => 'json',
+            'description' => 'Liste des jours ou le salon est ferme.',
         ],
     ];
 

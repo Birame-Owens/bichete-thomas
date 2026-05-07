@@ -33,7 +33,7 @@ export type SystemSetting = {
   id: number
   cle: string
   valeur: {
-    value: string | number | boolean | null
+    value: string | number | boolean | string[] | null
   } | null
   type: SettingType
   description: string | null
@@ -48,6 +48,7 @@ export type ReservationSettingsForm = {
   heure_ouverture: string
   heure_fermeture: string
   telephone_whatsapp: string
+  jours_fermeture: string[]
   devise: 'FCFA'
   delai_annulation_heures: string
   seuil_retard_minutes: string

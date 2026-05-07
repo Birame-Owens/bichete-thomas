@@ -54,4 +54,17 @@ return [
         'cancel_url' => env('PAYTECH_CANCEL_URL'),
     ],
 
+    'whatsapp' => [
+        'base_url' => env('WHATSAPP_CLOUD_API_URL', 'https://graph.facebook.com/v25.0'),
+        'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
+        'access_token' => env('WHATSAPP_ACCESS_TOKEN'),
+        'receipt_template_name' => env('WHATSAPP_RECEIPT_TEMPLATE_NAME'),
+        'receipt_template_language' => env('WHATSAPP_RECEIPT_TEMPLATE_LANGUAGE', 'fr'),
+    ],
+
+    'receipt_notifications' => [
+        'whatsapp' => env('SEND_RECEIPT_WHATSAPP', true),
+        'email' => env('SEND_RECEIPT_EMAIL', true),
+    ],
+
 ];

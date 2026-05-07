@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -34,6 +35,15 @@ class ReservationController extends Controller
         'acompte_paye',
         'en_cours',
         'terminee',
+    ];
+    private const CLOSED_DAYS = [
+        'lundi',
+        'mardi',
+        'mercredi',
+        'jeudi',
+        'vendredi',
+        'samedi',
+        'dimanche',
     ];
 
     public function index(Request $request): JsonResponse
@@ -296,6 +306,7 @@ class ReservationController extends Controller
             ]);
         }
 
+        $this->ensureOpenDay($startsAt);
         $this->ensureWithinBusinessHours($startsAt, $endsAt);
         $this->ensureSalonCapacity($reservationData, $reservation);
         $this->ensureNoPlanningConflict($reservationData, $endsAt->format('H:i'), $reservation);
@@ -401,6 +412,17 @@ class ReservationController extends Controller
                 'heure_debut' => "La reservation doit rester entre {$open} et {$close}.",
             ]);
         }
+    }
+
+    private function ensureOpenDay(Carbon $startsAt): void
+    {
+        if (! $this->isClosedDay($startsAt)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'date_reservation' => 'Le salon est ferme ce jour-la.',
+        ]);
     }
 
     /**
@@ -553,7 +575,13 @@ class ReservationController extends Controller
     private function findOrCreateClient(array $data): Client
     {
         $telephone = trim((string) $data['telephone']);
-        $client = Client::query()->where('telephone', $telephone)->first();
+        $nom = Str::lower(trim((string) $data['nom']));
+        $prenom = Str::lower(trim((string) $data['prenom']));
+        $client = Client::query()
+            ->whereRaw('LOWER(nom) = ?', [$nom])
+            ->whereRaw('LOWER(prenom) = ?', [$prenom])
+            ->where('telephone', $telephone)
+            ->first();
 
         if ($client) {
             if ($client->est_blackliste) {
@@ -586,6 +614,32 @@ class ReservationController extends Controller
         $setting = ParametreSysteme::query()->where('cle', $key)->first();
 
         return $setting?->valeur['value'] ?? $default;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function closedDays(): array
+    {
+        $days = $this->settingValue('jours_fermeture', []);
+
+        return is_array($days) ? $days : [];
+    }
+
+    private function isClosedDay(Carbon $date): bool
+    {
+        $day = match ((int) $date->dayOfWeekIso) {
+            1 => 'lundi',
+            2 => 'mardi',
+            3 => 'mercredi',
+            4 => 'jeudi',
+            5 => 'vendredi',
+            6 => 'samedi',
+            7 => 'dimanche',
+            default => 'lundi',
+        };
+
+        return in_array($day, $this->closedDays(), true);
     }
 
     private function applyStatusTimestamps(Reservation $reservation): void

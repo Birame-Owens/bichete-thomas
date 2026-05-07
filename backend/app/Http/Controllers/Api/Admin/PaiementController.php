@@ -9,6 +9,7 @@ use App\Models\MouvementCaisse;
 use App\Models\Paiement;
 use App\Models\ParametreSysteme;
 use App\Models\Reservation;
+use App\Services\PaymentReceiptNotificationService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -24,6 +25,10 @@ class PaiementController extends Controller
     private const INCOMING_TYPES = ['acompte', 'solde', 'complet', 'ajustement'];
     private const METHODS = ['especes', 'wave', 'orange_money', 'carte_bancaire', 'virement', 'autre'];
     private const STATUSES = ['en_attente', 'valide', 'annule', 'rembourse'];
+
+    public function __construct(private readonly PaymentReceiptNotificationService $receiptNotifications)
+    {
+    }
 
     public function index(Request $request): JsonResponse
     {
@@ -46,6 +51,7 @@ class PaiementController extends Controller
         $data = $this->validatedPaymentData($request);
 
         $paiement = DB::transaction(fn (): Paiement => $this->persistPayment($data));
+        $this->receiptNotifications->send($paiement);
 
         return response()->json([
             'message' => 'Paiement enregistre.',
@@ -69,6 +75,7 @@ class PaiementController extends Controller
         $data = $this->validatedPaymentData($request, $paiement);
 
         $paiement = DB::transaction(fn (): Paiement => $this->persistPayment($data, $paiement));
+        $this->receiptNotifications->send($paiement);
 
         return response()->json([
             'message' => 'Paiement mis a jour.',

@@ -29,6 +29,15 @@ class ReservationController extends Controller
         'terminee',
     ];
     private const ONLINE_PAYMENT_METHODS = ['wave', 'orange_money', 'carte_bancaire'];
+    private const CLOSED_DAYS = [
+        'lundi',
+        'mardi',
+        'mercredi',
+        'jeudi',
+        'vendredi',
+        'samedi',
+        'dimanche',
+    ];
 
     public function store(Request $request): JsonResponse
     {
@@ -111,6 +120,7 @@ class ReservationController extends Controller
         $duration = (int) $variante->duree_minutes;
         $endsAt = $startsAt->copy()->addMinutes($duration);
         $this->ensureNotPastSlot($startsAt);
+        $this->ensureOpenDay($startsAt);
         $this->ensureWithinBusinessHours($startsAt, $endsAt);
         $this->ensureSalonCapacity($startsAt->toDateString(), $startsAt->format('H:i'));
 
@@ -211,7 +221,13 @@ class ReservationController extends Controller
     private function findOrCreateClient(array $data): Client
     {
         $telephone = trim((string) $data['telephone']);
-        $client = Client::query()->where('telephone', $telephone)->first();
+        $nom = Str::lower(trim((string) $data['nom']));
+        $prenom = Str::lower(trim((string) $data['prenom']));
+        $client = Client::query()
+            ->whereRaw('LOWER(nom) = ?', [$nom])
+            ->whereRaw('LOWER(prenom) = ?', [$prenom])
+            ->where('telephone', $telephone)
+            ->first();
 
         if ($client) {
             if ($client->est_blackliste) {
@@ -249,6 +265,17 @@ class ReservationController extends Controller
                 'heure_debut' => "Choisissez une heure entre {$open} et {$close}.",
             ]);
         }
+    }
+
+    private function ensureOpenDay(Carbon $startsAt): void
+    {
+        if (! $this->isClosedDay($startsAt)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'date_reservation' => 'Le salon est ferme ce jour-la.',
+        ]);
     }
 
     private function ensureNotPastSlot(Carbon $startsAt): void
@@ -594,5 +621,31 @@ class ReservationController extends Controller
         $setting = ParametreSysteme::query()->where('cle', $key)->first();
 
         return $setting?->valeur['value'] ?? $default;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function closedDays(): array
+    {
+        $days = $this->settingValue('jours_fermeture', []);
+
+        return is_array($days) ? $days : [];
+    }
+
+    private function isClosedDay(Carbon $date): bool
+    {
+        $day = match ((int) $date->dayOfWeekIso) {
+            1 => 'lundi',
+            2 => 'mardi',
+            3 => 'mercredi',
+            4 => 'jeudi',
+            5 => 'vendredi',
+            6 => 'samedi',
+            7 => 'dimanche',
+            default => 'lundi',
+        };
+
+        return in_array($day, $this->closedDays(), true);
     }
 }

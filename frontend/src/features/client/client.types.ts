@@ -61,6 +61,7 @@ export type ClientSettings = {
   telephone_whatsapp: string | null
   heure_ouverture: string
   heure_fermeture: string
+  jours_fermeture: string[]
   montant_acompte_defaut: number
   pourcentage_acompte: number
   limite_reservations_par_jour: number
@@ -84,7 +85,7 @@ export type ClientAvailabilitySlot = {
   reservations: number
   limite: number
   disponible: boolean
-  raison: 'jour_complet' | 'creneau_complet' | 'heure_passee' | null
+  raison: 'jour_ferme' | 'jour_complet' | 'creneau_complet' | 'heure_passee' | null
 }
 
 export type ClientAvailability = {
@@ -94,6 +95,7 @@ export type ClientAvailability = {
   limite_reservations_par_jour: number
   reservations_jour: number
   jour_complet: boolean
+  jour_ferme: boolean
   limite_reservations_par_creneau: number
   creneaux: ClientAvailabilitySlot[]
 }

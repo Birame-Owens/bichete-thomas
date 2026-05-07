@@ -113,6 +113,51 @@ function todayInput() {
   return toInputDate(new Date())
 }
 
+const weekDays = [
+  'lundi',
+  'mardi',
+  'mercredi',
+  'jeudi',
+  'vendredi',
+  'samedi',
+  'dimanche',
+] as const
+
+const weekDayLabels: Record<(typeof weekDays)[number], string> = {
+  lundi: 'Lundi',
+  mardi: 'Mardi',
+  mercredi: 'Mercredi',
+  jeudi: 'Jeudi',
+  vendredi: 'Vendredi',
+  samedi: 'Samedi',
+  dimanche: 'Dimanche',
+}
+
+function dayKeyFromDate(dateString: string) {
+  const date = new Date(`${dateString}T00:00:00`)
+  const dayIndex = date.getDay()
+
+  return weekDays[(dayIndex + 6) % 7]
+}
+
+function isClosedDate(dateString: string, settings?: ClientSettings) {
+  if (!settings?.jours_fermeture || settings.jours_fermeture.length === 0) {
+    return false
+  }
+
+  const key = dayKeyFromDate(dateString)
+
+  return settings.jours_fermeture.includes(key)
+}
+
+function closedDaysLabel(days: string[]) {
+  if (!days || days.length === 0) {
+    return 'Ouvert toute la semaine'
+  }
+
+  return `Ferme: ${weekDays.filter((day) => days.includes(day)).map((day) => weekDayLabels[day]).join(', ')}`
+}
+
 function createBookingForm(coiffure?: ClientCoiffure): BookingForm {
   return {
     prenom: '',
@@ -302,8 +347,21 @@ function ClientHomePage() {
       })
   }, [])
 
+  const settings = catalogue?.settings
+
   useEffect(() => {
     if (!selectedCoiffure || bookingForm.date_reservation === '') {
+      return
+    }
+
+    if (isClosedDate(bookingForm.date_reservation, settings)) {
+      setAvailability(null)
+      setAvailabilityError('Le salon est ferme ce jour-la.')
+      setAvailabilityLoading(false)
+      setBookingForm((current) => ({
+        ...current,
+        heure_debut: '',
+      }))
       return
     }
 
@@ -345,12 +403,11 @@ function ClientHomePage() {
     return () => {
       ignore = true
     }
-  }, [selectedCoiffure, bookingForm.date_reservation])
+  }, [selectedCoiffure, bookingForm.date_reservation, settings])
 
   const categories = catalogue?.categories ?? emptyCategories
   const coiffures = catalogue?.coiffures ?? emptyCoiffures
   const promotions = catalogue?.promotions ?? emptyPromotions
-  const settings = catalogue?.settings
   const devise = settings?.devise ?? 'FCFA'
 
   const filteredCoiffures = useMemo(() => {
@@ -444,6 +501,11 @@ function ClientHomePage() {
 
     if (!selectedCoiffure || !selectedVariant) {
       setSubmitState({ type: 'error', message: 'Choisissez une coiffure et une variante.' })
+      return
+    }
+
+    if (isClosedDate(bookingForm.date_reservation, settings)) {
+      setSubmitState({ type: 'error', message: 'Le salon est ferme ce jour-la.' })
       return
     }
 
@@ -610,9 +672,12 @@ function ClientHomePage() {
           <section id="categories" className="mt-7">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xl font-black text-slate-950">Categories</h2>
-              <p className="text-sm font-bold text-slate-500">
-                {settings?.heure_ouverture ?? '09:00'} - {settings?.heure_fermeture ?? '19:00'}
-              </p>
+              <div className="text-right text-sm font-bold text-slate-500">
+                <p>{settings?.heure_ouverture ?? '09:00'} - {settings?.heure_fermeture ?? '19:00'}</p>
+                <p className="text-xs font-semibold text-slate-400">
+                  {closedDaysLabel(settings?.jours_fermeture ?? [])}
+                </p>
+              </div>
             </div>
 
             <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
@@ -781,6 +846,19 @@ function ClientHomePage() {
             </aside>
           </section>
         </main>
+
+        <footer className="mt-10 flex flex-col items-center justify-between gap-3 rounded-3xl bg-white px-6 py-4 text-xs font-bold text-slate-500 sm:flex-row">
+          <span>© 2026 Bichette Thomas · Tous droits reserves.</span>
+          {settings?.telephone_whatsapp ? (
+            <a
+              href={`https://wa.me/${settings.telephone_whatsapp.replace(/\D/g, '')}`}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700"
+            >
+              <Phone className="h-3.5 w-3.5 text-[#f31976]" />
+              WhatsApp {settings.telephone_whatsapp}
+            </a>
+          ) : null}
+        </footer>
       </div>
 
       {selectedCoiffure ? (
@@ -981,6 +1059,7 @@ function ClientHomePage() {
                     ))}
                   </div>
                   {availabilityError ? <p className="mt-2 text-xs font-bold text-rose-600">{availabilityError}</p> : null}
+                  {availability?.jour_ferme ? <p className="mt-2 text-xs font-bold text-amber-600">Le salon est ferme ce jour-la.</p> : null}
                   {availability?.jour_complet ? <p className="mt-2 text-xs font-bold text-amber-600">Cette journee est complete.</p> : null}
                 </div>
               </div>
