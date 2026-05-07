@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\ReservationConfirmationMail;
 use App\Models\Paiement;
 use App\Models\ParametreSysteme;
 use Illuminate\Support\Facades\Http;
@@ -31,7 +32,7 @@ class PaymentReceiptNotificationService
         }
 
         if ((bool) config('services.receipt_notifications.email')) {
-            $sent['email'] = $this->sendEmail($receipt, $message);
+            $sent['email'] = $this->sendEmail($receipt);
         }
 
         if ($sent['whatsapp'] || $sent['email']) {
@@ -189,7 +190,7 @@ class PaymentReceiptNotificationService
     /**
      * @param array<string, mixed> $receipt
      */
-    private function sendEmail(array $receipt, string $message): bool
+    private function sendEmail(array $receipt): bool
     {
         $email = $receipt['email'] ?? null;
 
@@ -198,10 +199,7 @@ class PaymentReceiptNotificationService
         }
 
         try {
-            Mail::raw($message, function ($mail) use ($email, $receipt): void {
-                $mail->to($email)
-                    ->subject("Votre recu Bichette Thomas {$receipt['numero_recu']}");
-            });
+            Mail::to($email)->send(new ReservationConfirmationMail($receipt));
 
             return true;
         } catch (\Throwable $exception) {
