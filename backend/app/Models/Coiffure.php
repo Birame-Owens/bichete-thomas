@@ -47,6 +47,14 @@ class Coiffure extends Model
     }
 
     /**
+     * @return HasMany<AvisCoiffure, $this>
+     */
+    public function avis(): HasMany
+    {
+        return $this->hasMany(AvisCoiffure::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

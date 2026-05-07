@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Api\Client;
 
 use App\Http\Controllers\Controller;
+use App\Models\AvisCoiffure;
 use App\Models\CategorieCoiffure;
+use App\Models\Client;
 use App\Models\CodePromo;
 use App\Models\Coiffure;
 use App\Models\ParametreSysteme;
+use App\Models\Reservation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CatalogueController extends Controller
 {
@@ -38,6 +42,8 @@ class CatalogueController extends Controller
                 'options' => fn ($query) => $query->where('actif', true)->orderBy('nom'),
                 'images' => fn ($query) => $query->orderByDesc('principale')->orderBy('ordre'),
             ])
+            ->withCount(['avis as avis_total' => fn ($query) => $query->where('statut', 'approuve')])
+            ->withAvg(['avis as avis_note_moyenne' => fn ($query) => $query->where('statut', 'approuve')], 'note')
             ->where('actif', true)
             ->whereHas('variantes', fn ($query) => $query->where('actif', true))
             ->when($categoryId, fn ($query) => $query->where('categorie_coiffure_id', $categoryId))
@@ -90,14 +96,58 @@ class CatalogueController extends Controller
                     'options' => fn ($query) => $query->where('actif', true)->orderBy('nom'),
                     'images' => fn ($query) => $query->orderByDesc('principale')->orderBy('ordre'),
                 ])
+                    ->loadCount(['avis as avis_total' => fn ($query) => $query->where('statut', 'approuve')])
+                    ->loadAvg(['avis as avis_note_moyenne' => fn ($query) => $query->where('statut', 'approuve')], 'note'),
+                true
             ),
         ]);
+    }
+
+    public function storeAvis(Request $request, Coiffure $coiffure): JsonResponse
+    {
+        abort_unless($coiffure->actif, 404);
+
+        $data = $request->validate([
+            'nom_client' => ['required', 'string', 'max:120'],
+            'telephone' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'note' => ['required', 'integer', 'min:1', 'max:5'],
+            'commentaire' => ['required', 'string', 'min:8', 'max:800'],
+        ]);
+
+        [$client, $reservation] = $this->matchingReviewClientAndReservation(
+            $coiffure,
+            $data['telephone'] ?? null,
+            $data['email'] ?? null
+        );
+        $verified = $reservation !== null;
+
+        $avis = AvisCoiffure::query()->create([
+            'coiffure_id' => $coiffure->id,
+            'client_id' => $client?->id,
+            'reservation_id' => $reservation?->id,
+            'nom_client' => trim((string) $data['nom_client']),
+            'telephone' => isset($data['telephone']) ? trim((string) $data['telephone']) : null,
+            'email' => $data['email'] ?? null,
+            'note' => (int) $data['note'],
+            'commentaire' => trim((string) $data['commentaire']),
+            'statut' => $verified ? 'approuve' : 'en_attente',
+            'verifie' => $verified,
+            'publie_at' => $verified ? now() : null,
+        ]);
+
+        return response()->json([
+            'message' => $verified
+                ? 'Merci, votre avis verifie est publie.'
+                : 'Merci, votre avis sera affiche apres validation.',
+            'data' => $this->formatAvis($avis),
+        ], 201);
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function formatCoiffure(Coiffure $coiffure): array
+    private function formatCoiffure(Coiffure $coiffure, bool $detailed = false): array
     {
         $images = $coiffure->images
             ->map(fn ($image): array => [
@@ -110,6 +160,14 @@ class CatalogueController extends Controller
         $mainImage = $images->firstWhere('principale', true)['url'] ?? $images->first()['url'] ?? $coiffure->image;
         $minPrice = (float) $coiffure->variantes->min('prix');
         $minDuration = (int) $coiffure->variantes->min('duree_minutes');
+        $reviewsTotal = (int) ($coiffure->avis_total ?? AvisCoiffure::query()
+            ->where('coiffure_id', $coiffure->id)
+            ->where('statut', 'approuve')
+            ->count());
+        $reviewsAverage = (float) ($coiffure->avis_note_moyenne ?? AvisCoiffure::query()
+            ->where('coiffure_id', $coiffure->id)
+            ->where('statut', 'approuve')
+            ->avg('note'));
 
         return [
             'id' => $coiffure->id,
@@ -123,6 +181,13 @@ class CatalogueController extends Controller
             'prix_min' => $minPrice,
             'duree_min_minutes' => $minDuration,
             'images' => $images,
+            'avis_resume' => [
+                'moyenne' => $reviewsTotal > 0 ? round($reviewsAverage, 1) : 0,
+                'total' => $reviewsTotal,
+            ],
+            'avis' => $this->approvedReviews($coiffure, $detailed ? 8 : 2),
+            'prestations_recentes' => $this->recentPrestations($coiffure, $detailed ? 6 : 3),
+            'coiffures_liees' => $detailed ? $this->relatedCoiffures($coiffure) : [],
             'variantes' => $coiffure->variantes->map(fn ($variant): array => [
                 'id' => $variant->id,
                 'nom' => $variant->nom,
@@ -135,6 +200,193 @@ class CatalogueController extends Controller
                 'prix' => (float) $option->prix,
             ])->values(),
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function approvedReviews(Coiffure $coiffure, int $limit): array
+    {
+        return AvisCoiffure::query()
+            ->where('coiffure_id', $coiffure->id)
+            ->where('statut', 'approuve')
+            ->latest('publie_at')
+            ->latest('id')
+            ->limit($limit)
+            ->get()
+            ->map(fn (AvisCoiffure $avis): array => $this->formatAvis($avis))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatAvis(AvisCoiffure $avis): array
+    {
+        return [
+            'id' => $avis->id,
+            'nom_client' => $this->publicClientName($avis->nom_client),
+            'note' => $avis->note,
+            'commentaire' => $avis->commentaire,
+            'photo_url' => $avis->photo_url,
+            'verifie' => $avis->verifie,
+            'statut' => $avis->statut,
+            'publie_at' => $avis->publie_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function recentPrestations(Coiffure $coiffure, int $limit): array
+    {
+        return DB::table('details_reservations')
+            ->join('reservations', 'details_reservations.reservation_id', '=', 'reservations.id')
+            ->leftJoin('clients', 'reservations.client_id', '=', 'clients.id')
+            ->where('details_reservations.coiffure_id', $coiffure->id)
+            ->whereNotIn('reservations.statut', ['annulee', 'absence'])
+            ->select([
+                'reservations.id as reservation_id',
+                'reservations.date_reservation',
+                'reservations.statut',
+                'clients.nom as client_nom',
+                'clients.prenom as client_prenom',
+                'details_reservations.variante_nom',
+                'details_reservations.montant_total',
+            ])
+            ->orderByDesc('reservations.date_reservation')
+            ->limit($limit)
+            ->get()
+            ->map(fn (object $row): array => [
+                'reservation_id' => (int) $row->reservation_id,
+                'date_reservation' => $row->date_reservation,
+                'statut' => $row->statut,
+                'cliente' => $this->publicClientName(trim(($row->client_prenom ?? '') . ' ' . ($row->client_nom ?? ''))) ?: 'Cliente',
+                'variante_nom' => $row->variante_nom,
+                'montant_total' => (float) $row->montant_total,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function relatedCoiffures(Coiffure $coiffure): array
+    {
+        return Coiffure::query()
+            ->with([
+                'categorie',
+                'variantes' => fn ($query) => $query->where('actif', true)->orderBy('prix'),
+                'images' => fn ($query) => $query->orderByDesc('principale')->orderBy('ordre'),
+            ])
+            ->where('actif', true)
+            ->where('categorie_coiffure_id', $coiffure->categorie_coiffure_id)
+            ->whereKeyNot($coiffure->id)
+            ->whereHas('variantes', fn ($query) => $query->where('actif', true))
+            ->latest()
+            ->limit(4)
+            ->get()
+            ->map(function (Coiffure $related): array {
+                $images = $related->images
+                    ->map(fn ($image): array => [
+                        'id' => $image->id,
+                        'url' => $image->url,
+                        'alt' => $image->alt,
+                        'principale' => $image->principale,
+                    ])
+                    ->values();
+
+                return [
+                    'id' => $related->id,
+                    'nom' => $related->nom,
+                    'image' => $images->firstWhere('principale', true)['url'] ?? $images->first()['url'] ?? $related->image,
+                    'prix_min' => (float) $related->variantes->min('prix'),
+                    'duree_min_minutes' => (int) $related->variantes->min('duree_minutes'),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array{0: Client|null, 1: Reservation|null}
+     */
+    private function matchingReviewClientAndReservation(Coiffure $coiffure, ?string $telephone, ?string $email): array
+    {
+        $client = $this->matchingClient($telephone, $email);
+
+        if (! $client) {
+            return [null, null];
+        }
+
+        $reservation = Reservation::query()
+            ->where('client_id', $client->id)
+            ->whereNotIn('statut', ['annulee', 'absence'])
+            ->whereHas('details', fn ($query) => $query->where('coiffure_id', $coiffure->id))
+            ->latest('date_reservation')
+            ->latest('id')
+            ->first();
+
+        return [$client, $reservation];
+    }
+
+    private function matchingClient(?string $telephone, ?string $email): ?Client
+    {
+        $digits = $this->phoneDigits($telephone);
+        $lastNineDigits = $digits ? substr($digits, -9) : null;
+        $email = trim((string) $email);
+
+        if (! $digits && $email === '') {
+            return null;
+        }
+
+        return Client::query()
+            ->where(function ($query) use ($digits, $lastNineDigits, $email): void {
+                if ($email !== '') {
+                    $query->orWhereRaw('LOWER(email) = ?', [mb_strtolower($email)]);
+                }
+
+                if ($digits) {
+                    $query->orWhereRaw("regexp_replace(telephone, '\\D', '', 'g') = ?", [$digits]);
+                }
+
+                if ($lastNineDigits) {
+                    $query->orWhereRaw("RIGHT(regexp_replace(telephone, '\\D', '', 'g'), 9) = ?", [$lastNineDigits]);
+                }
+            })
+            ->first();
+    }
+
+    private function phoneDigits(?string $phone): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone) ?? '';
+
+        if ($digits === '') {
+            return null;
+        }
+
+        if (str_starts_with($digits, '00')) {
+            $digits = substr($digits, 2);
+        }
+
+        return $digits;
+    }
+
+    private function publicClientName(string $name): string
+    {
+        $parts = array_values(array_filter(explode(' ', trim($name))));
+
+        if ($parts === []) {
+            return '';
+        }
+
+        if (count($parts) === 1) {
+            return $parts[0];
+        }
+
+        return $parts[0] . ' ' . mb_strtoupper(mb_substr($parts[1], 0, 1)) . '.';
     }
 
     /**

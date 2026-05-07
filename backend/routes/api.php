@@ -43,6 +43,7 @@ Route::get('/reservations/disponibilites', ClientReservationAvailabilityControll
 Route::prefix('client')->name('client.')->group(function (): void {
     Route::get('/catalogue', [ClientCatalogueController::class, 'index'])->name('catalogue.index');
     Route::get('/catalogue/{coiffure}', [ClientCatalogueController::class, 'show'])->name('catalogue.show');
+    Route::post('/catalogue/{coiffure}/avis', [ClientCatalogueController::class, 'storeAvis'])->name('catalogue.avis.store');
     Route::get('/reservations/disponibilites', ClientReservationAvailabilityController::class)->name('reservations.availability');
     Route::post('/reservations', [ClientReservationController::class, 'store'])->name('reservations.store');
     Route::post('/paiements/stripe/confirmer', [ClientPaymentController::class, 'confirmStripeCheckout'])->name('payments.stripe.confirm');

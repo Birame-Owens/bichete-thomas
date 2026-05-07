@@ -73,6 +73,14 @@ class Client extends Model
     }
 
     /**
+     * @return HasMany<AvisCoiffure, $this>
+     */
+    public function avisCoiffures(): HasMany
+    {
+        return $this->hasMany(AvisCoiffure::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

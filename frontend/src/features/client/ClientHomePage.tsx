@@ -19,8 +19,10 @@ import {
   Phone,
   Scissors,
   Search,
+  Send,
   ShieldCheck,
   Sparkles,
+  Star,
   User,
   Users,
   X,
@@ -30,6 +32,7 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import heroImage from '../../assets/hero.jpg'
 import {
   confirmStripeCheckout,
+  createClientCoiffureReview,
   createClientReservation,
   getClientAvailability,
   getClientCatalogue,
@@ -46,6 +49,7 @@ import type {
   ClientReservation,
   ClientReservationPayload,
   ClientSettings,
+  ClientCoiffureReviewPayload,
 } from './client.types'
 
 type BookingForm = {
@@ -60,6 +64,14 @@ type BookingForm = {
   code_promo: string
   notes: string
   paymentMethod: ClientPaymentMethod
+}
+
+type ReviewForm = {
+  nom_client: string
+  telephone: string
+  email: string
+  note: number
+  commentaire: string
 }
 
 type SubmitState = {
@@ -181,6 +193,14 @@ function createBookingForm(coiffure?: ClientCoiffure): BookingForm {
   }
 }
 
+const emptyReviewForm = (): ReviewForm => ({
+  nom_client: '',
+  telephone: '',
+  email: '',
+  note: 5,
+  commentaire: '',
+})
+
 function formatCurrency(value: number | string, devise = 'FCFA') {
   const amount = Number(value || 0)
 
@@ -196,6 +216,38 @@ function formatDuration(minutes: number) {
   const remaining = minutes % 60
 
   return remaining > 0 ? `${hours}h ${remaining}min` : `${hours}h`
+}
+
+function formatShortDate(value?: string | null) {
+  if (!value) {
+    return '-'
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+  }).format(date)
+}
+
+function RatingStars({ value, size = 'sm' }: { value: number; size?: 'xs' | 'sm' }) {
+  const iconSize = size === 'xs' ? 'h-3.5 w-3.5' : 'h-4 w-4'
+
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[#f59e0b]">
+      {Array.from({ length: 5 }, (_, index) => (
+        <Star
+          key={index}
+          className={`${iconSize} ${index < Math.round(value) ? 'fill-[#f59e0b]' : 'fill-none text-slate-300'}`}
+        />
+      ))}
+    </span>
+  )
 }
 
 function coiffureImage(coiffure: ClientCoiffure) {
@@ -275,6 +327,9 @@ function ClientHomePage() {
   const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitState, setSubmitState] = useState<SubmitState>(null)
+  const [reviewForm, setReviewForm] = useState<ReviewForm>(() => emptyReviewForm())
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewState, setReviewState] = useState<SubmitState>(null)
   const [pageNotice, setPageNotice] = useState<SubmitState>(null)
   const [submittedReservation, setSubmittedReservation] = useState<ClientReservation | null>(null)
 
@@ -454,6 +509,13 @@ function ClientHomePage() {
     }))
   }
 
+  function updateReviewField<K extends keyof ReviewForm>(key: K, value: ReviewForm[K]) {
+    setReviewForm((current) => ({
+      ...current,
+      [key]: value,
+    }))
+  }
+
   function toggleFavorite(id: number) {
     setFavoriteIds((current) => (current.includes(id) ? current.filter((favoriteId) => favoriteId !== id) : [...current, id]))
   }
@@ -474,6 +536,8 @@ function ClientHomePage() {
   function closeDetails() {
     setSelectedCoiffure(null)
     setSubmitState(null)
+    setReviewState(null)
+    setReviewForm(emptyReviewForm())
     setSubmittedReservation(null)
     setAvailability(null)
     setAvailabilityLoading(false)
@@ -483,6 +547,8 @@ function ClientHomePage() {
     setSelectedCoiffure(coiffure)
     setBookingForm(createBookingForm(coiffure))
     setSubmitState(null)
+    setReviewState(null)
+    setReviewForm(emptyReviewForm())
     setSubmittedReservation(null)
     setAvailability(null)
     setAvailabilityLoading(true)
@@ -500,6 +566,44 @@ function ClientHomePage() {
       setSubmitState({ type: 'error', message: 'Impossible de charger tous les details de cette coiffure.' })
     } finally {
       setModalLoading(false)
+    }
+  }
+
+  async function handleReviewSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!selectedCoiffure) {
+      return
+    }
+
+    if (reviewForm.nom_client.trim() === '' || reviewForm.commentaire.trim().length < 8) {
+      setReviewState({ type: 'error', message: 'Ajoutez votre nom et un commentaire plus detaille.' })
+      return
+    }
+
+    const payload: ClientCoiffureReviewPayload = {
+      nom_client: reviewForm.nom_client.trim(),
+      telephone: reviewForm.telephone.trim() === '' ? null : reviewForm.telephone.trim(),
+      email: reviewForm.email.trim() === '' ? null : reviewForm.email.trim(),
+      note: reviewForm.note,
+      commentaire: reviewForm.commentaire.trim(),
+    }
+
+    setReviewSubmitting(true)
+    setReviewState(null)
+
+    try {
+      const response = await createClientCoiffureReview(selectedCoiffure.id, payload)
+      setReviewState({ type: 'success', message: response.message ?? 'Merci pour votre avis.' })
+      setReviewForm(emptyReviewForm())
+
+      if (response.data.statut === 'approuve') {
+        setSelectedCoiffure(await getClientCoiffureDetails(selectedCoiffure.id))
+      }
+    } catch (error) {
+      setReviewState({ type: 'error', message: extractApiError(error) })
+    } finally {
+      setReviewSubmitting(false)
     }
   }
 
@@ -647,12 +751,12 @@ function ClientHomePage() {
           ) : null}
 
           <section className="relative mt-3 overflow-hidden rounded-[28px] bg-[#f31976] text-white shadow-lg">
-            <div className="absolute inset-y-0 right-0 hidden w-1/2 sm:block">
-              <img src={heroImage} alt="" className="h-full w-full object-cover object-center opacity-90" />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#f31976] via-[#f31976]/50 to-transparent" />
+            <div className="absolute inset-0">
+              <img src={heroImage} alt="" className="h-full w-full object-cover object-[68%_center] opacity-90 sm:object-center" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#f31976]/95 via-[#f31976]/88 to-[#f31976]/52 sm:bg-gradient-to-r sm:from-[#f31976] sm:via-[#f31976]/72 sm:to-transparent" />
             </div>
-            <div className="relative grid min-h-72 items-center gap-6 p-6 sm:p-9 lg:grid-cols-[1.05fr_0.95fr]">
-              <div className="max-w-lg">
+            <div className="relative grid min-h-[430px] items-center gap-6 p-6 sm:min-h-72 sm:p-9 lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="max-w-xl">
                 <p className="text-sm font-black uppercase text-white/75">Reservation en ligne</p>
                 <h2 className="mt-3 text-4xl font-black leading-tight sm:text-5xl">Revelez votre beaute</h2>
                 <p className="mt-4 max-w-sm text-base font-semibold leading-7 text-white/85">
@@ -764,6 +868,14 @@ function ClientHomePage() {
                     <div className="p-4">
                       <p className="line-clamp-1 text-sm font-black text-slate-950 sm:text-base">{coiffure.nom}</p>
                       <p className="mt-1 text-xs font-bold text-slate-500">{coiffure.categorie?.nom ?? 'Coiffure'}</p>
+                      <div className="mt-2 flex items-center gap-2 text-xs font-black text-slate-500">
+                        <RatingStars value={coiffure.avis_resume?.moyenne ?? 0} size="xs" />
+                        <span>
+                          {coiffure.avis_resume?.total
+                            ? `${coiffure.avis_resume.moyenne}/5 (${coiffure.avis_resume.total})`
+                            : 'Nouveau'}
+                        </span>
+                      </div>
                       <p className="mt-3 text-xs font-semibold text-slate-500">A partir de</p>
                       <div className="mt-1 flex items-end justify-between gap-2">
                         <p className="text-sm font-black text-[#f31976]">{formatCurrency(coiffure.prix_min, devise)}</p>
@@ -977,6 +1089,165 @@ function ClientHomePage() {
                   <p className="mt-1 text-lg font-black text-slate-950">{formatDuration(selectedCoiffure.duree_min_minutes)}</p>
                 </div>
               </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="rounded-3xl bg-white p-4">
+                  <p className="text-xs font-black uppercase text-slate-400">Avis</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <RatingStars value={selectedCoiffure.avis_resume?.moyenne ?? 0} />
+                    <span className="text-sm font-black text-slate-950">
+                      {selectedCoiffure.avis_resume?.total ? selectedCoiffure.avis_resume.moyenne.toFixed(1) : '0.0'}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs font-bold text-slate-500">{selectedCoiffure.avis_resume?.total ?? 0} commentaire(s)</p>
+                </div>
+                <div className="rounded-3xl bg-white p-4">
+                  <p className="text-xs font-black uppercase text-slate-400">Prestations</p>
+                  <p className="mt-1 text-lg font-black text-slate-950">{selectedCoiffure.prestations_recentes.length}</p>
+                  <p className="mt-1 text-xs font-bold text-slate-500">Liees a cette coiffure</p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-3xl bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-black text-slate-950">Prestations en rapport</p>
+                  <Camera className="h-4 w-4 text-[#f31976]" />
+                </div>
+                {selectedCoiffure.prestations_recentes.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {selectedCoiffure.prestations_recentes.slice(0, 4).map((prestation) => (
+                      <div key={prestation.reservation_id} className="grid grid-cols-[1fr_auto] gap-3 rounded-2xl bg-[#fff7fb] px-3 py-2 text-xs">
+                        <div className="min-w-0">
+                          <p className="truncate font-black text-slate-950">{prestation.variante_nom ?? selectedCoiffure.nom}</p>
+                          <p className="mt-0.5 font-bold text-slate-500">{prestation.cliente} - {formatShortDate(prestation.date_reservation)}</p>
+                        </div>
+                        <span className="font-black text-[#d80f63]">{formatCurrency(prestation.montant_total, devise)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {(selectedCoiffure.images.length > 0 ? selectedCoiffure.images.slice(0, 3) : [{ id: 0, url: heroImage, alt: null, principale: true }]).map((image) => (
+                      <div key={image.id} className="aspect-square overflow-hidden rounded-2xl bg-[#fff7fb]">
+                        <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5 rounded-3xl bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-black text-slate-950">Commentaires clientes</p>
+                  <MessageCircle className="h-4 w-4 text-[#f31976]" />
+                </div>
+                {selectedCoiffure.avis.length > 0 ? (
+                  <div className="mt-3 space-y-3">
+                    {selectedCoiffure.avis.map((avis) => (
+                      <article key={avis.id} className="rounded-2xl border border-slate-100 bg-white p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-slate-950">{avis.nom_client}</p>
+                            <div className="mt-1 flex items-center gap-2">
+                              <RatingStars value={avis.note} size="xs" />
+                              {avis.verifie ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">Verifie</span> : null}
+                            </div>
+                          </div>
+                          <span className="shrink-0 text-xs font-bold text-slate-400">{avis.publie_at ? formatShortDate(avis.publie_at) : ''}</span>
+                        </div>
+                        <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{avis.commentaire}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 rounded-2xl bg-[#fff7fb] px-3 py-3 text-sm font-bold text-slate-500">
+                    Aucun commentaire publie pour cette coiffure pour le moment.
+                  </p>
+                )}
+              </div>
+
+              {selectedCoiffure.coiffures_liees.length > 0 ? (
+                <div className="mt-5 rounded-3xl bg-white p-4">
+                  <p className="text-sm font-black text-slate-950">A voir aussi</p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    {selectedCoiffure.coiffures_liees.map((related) => (
+                      <div key={related.id} className="overflow-hidden rounded-2xl border border-slate-100 bg-white">
+                        <div className="aspect-[4/3] bg-[#fff7fb]">
+                          <img src={related.image ?? heroImage} alt={related.nom} className="h-full w-full object-cover" />
+                        </div>
+                        <div className="p-3">
+                          <p className="line-clamp-1 text-xs font-black text-slate-950">{related.nom}</p>
+                          <p className="mt-1 text-xs font-bold text-[#f31976]">{formatCurrency(related.prix_min, devise)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <form onSubmit={handleReviewSubmit} className="mt-5 rounded-3xl bg-slate-950 p-4 text-white">
+                <p className="text-sm font-black">Ajouter votre commentaire</p>
+                <div className="mt-3 flex items-center gap-1">
+                  {Array.from({ length: 5 }, (_, index) => {
+                    const note = index + 1
+
+                    return (
+                      <button
+                        key={note}
+                        type="button"
+                        onClick={() => updateReviewField('note', note)}
+                        className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[#f59e0b]"
+                        aria-label={`${note} etoiles`}
+                      >
+                        <Star className={`h-5 w-5 ${note <= reviewForm.note ? 'fill-[#f59e0b]' : 'fill-none text-white/40'}`} />
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <input
+                    value={reviewForm.nom_client}
+                    onChange={(event) => updateReviewField('nom_client', event.target.value)}
+                    placeholder="Votre nom"
+                    required
+                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
+                  />
+                  <input
+                    value={reviewForm.telephone}
+                    onChange={(event) => updateReviewField('telephone', event.target.value)}
+                    placeholder="Telephone pour verifier"
+                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
+                  />
+                </div>
+                <input
+                  type="email"
+                  value={reviewForm.email}
+                  onChange={(event) => updateReviewField('email', event.target.value)}
+                  placeholder="Email optionnel"
+                  className="mt-3 h-11 w-full rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
+                />
+                <textarea
+                  value={reviewForm.commentaire}
+                  onChange={(event) => updateReviewField('commentaire', event.target.value)}
+                  placeholder="Votre experience avec cette coiffure"
+                  required
+                  rows={3}
+                  className="mt-3 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
+                />
+                {reviewState ? (
+                  <p className={`mt-3 rounded-2xl px-3 py-2 text-xs font-bold ${reviewState.type === 'success' ? 'bg-emerald-400/15 text-emerald-100' : 'bg-rose-400/15 text-rose-100'}`}>
+                    {reviewState.message}
+                  </p>
+                ) : null}
+                <button
+                  type="submit"
+                  disabled={reviewSubmitting}
+                  className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#d80f63] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {reviewSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  Publier mon avis
+                </button>
+              </form>
             </section>
 
             <form onSubmit={handleReservationSubmit} className="p-4 sm:p-6">

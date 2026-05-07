@@ -31,6 +31,39 @@ export type ClientCoiffureOption = {
   prix: number
 }
 
+export type ClientCoiffureReviewSummary = {
+  moyenne: number
+  total: number
+}
+
+export type ClientCoiffureReview = {
+  id: number
+  nom_client: string
+  note: number
+  commentaire: string
+  photo_url: string | null
+  verifie: boolean
+  statut: 'en_attente' | 'approuve' | 'rejete'
+  publie_at: string | null
+}
+
+export type ClientCoiffureRecentPrestation = {
+  reservation_id: number
+  date_reservation: string
+  statut: string
+  cliente: string
+  variante_nom: string | null
+  montant_total: number
+}
+
+export type ClientRelatedCoiffure = {
+  id: number
+  nom: string
+  image: string | null
+  prix_min: number
+  duree_min_minutes: number
+}
+
 export type ClientCoiffure = {
   id: number
   nom: string
@@ -43,8 +76,25 @@ export type ClientCoiffure = {
   prix_min: number
   duree_min_minutes: number
   images: ClientCoiffureImage[]
+  avis_resume: ClientCoiffureReviewSummary
+  avis: ClientCoiffureReview[]
+  prestations_recentes: ClientCoiffureRecentPrestation[]
+  coiffures_liees: ClientRelatedCoiffure[]
   variantes: ClientCoiffureVariant[]
   options: ClientCoiffureOption[]
+}
+
+export type ClientCoiffureReviewPayload = {
+  nom_client: string
+  telephone: string | null
+  email: string | null
+  note: number
+  commentaire: string
+}
+
+export type ClientCoiffureReviewResponse = {
+  message?: string
+  data: ClientCoiffureReview
 }
 
 export type ClientPromotion = {
