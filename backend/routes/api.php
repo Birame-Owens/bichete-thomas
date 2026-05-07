@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\CategorieCoiffureController;
+use App\Http\Controllers\Api\Admin\AvisCoiffureController;
 use App\Http\Controllers\Api\Admin\CaisseController;
 use App\Http\Controllers\Api\Admin\CodePromoController;
 use App\Http\Controllers\Api\Admin\CoiffeuseController;
@@ -67,6 +68,11 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
     ->group(function (): void {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
         Route::get('rapports-statistiques', RapportStatistiqueController::class)->name('rapports-statistiques');
+        Route::patch('avis-coiffures/{avisCoiffure}/approuver', [AvisCoiffureController::class, 'approve'])->name('avis-coiffures.approve');
+        Route::patch('avis-coiffures/{avisCoiffure}/rejeter', [AvisCoiffureController::class, 'reject'])->name('avis-coiffures.reject');
+        Route::apiResource('avis-coiffures', AvisCoiffureController::class)
+            ->only(['index', 'show', 'update', 'destroy'])
+            ->parameters(['avis-coiffures' => 'avisCoiffure']);
         Route::apiResource('categories-coiffures', CategorieCoiffureController::class)
             ->parameters(['categories-coiffures' => 'categorieCoiffure']);
         Route::apiResource('coiffures', CoiffureController::class);
