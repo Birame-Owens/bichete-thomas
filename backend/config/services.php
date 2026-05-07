@@ -62,6 +62,12 @@ return [
         'receipt_template_language' => env('WHATSAPP_RECEIPT_TEMPLATE_LANGUAGE', 'fr'),
     ],
 
+    'twilio' => [
+        'account_sid' => env('TWILIO_ACCOUNT_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
+    ],
+
     'receipt_notifications' => [
         'whatsapp' => env('SEND_RECEIPT_WHATSAPP', true),
         'email' => env('SEND_RECEIPT_EMAIL', true),
