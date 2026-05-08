@@ -98,3 +98,12 @@ export async function confirmStripeCheckout(sessionId: string) {
 
   return response.data
 }
+
+export async function confirmPaytechReturn(paymentId: string, signature: string) {
+  const response = await apiClient.post<ClientStripeConfirmation>('/client/paiements/paytech/confirmer', {
+    paiement_id: paymentId,
+    signature,
+  })
+
+  return response.data
+}

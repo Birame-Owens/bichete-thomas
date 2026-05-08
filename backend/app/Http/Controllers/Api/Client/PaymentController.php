@@ -98,6 +98,39 @@ class PaymentController extends Controller
         return response()->json(['received' => true]);
     }
 
+    public function confirmPaytechReturn(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'paiement_id' => ['required', 'integer', 'exists:paiements,id'],
+            'signature' => ['required', 'string', 'max:255'],
+        ]);
+
+        $payment = Paiement::query()->findOrFail((int) $data['paiement_id']);
+
+        if (! hash_equals($this->paytechReturnSignature($payment->id), (string) $data['signature'])) {
+            throw ValidationException::withMessages([
+                'signature' => 'Signature de retour PayTech invalide.',
+            ]);
+        }
+
+        if (! in_array($payment->mode_paiement, ['wave', 'orange_money'], true)) {
+            throw ValidationException::withMessages([
+                'paiement_id' => 'Ce paiement n est pas un paiement PayTech.',
+            ]);
+        }
+
+        if ($payment->statut !== 'valide') {
+            $this->markPaymentAsPaid($payment, $payment->reference ?: 'paytech-return-' . $payment->id);
+        } else {
+            $this->receiptNotifications->send($payment->fresh(['reservation.client', 'reservation.details', 'client']));
+        }
+
+        return response()->json([
+            'message' => 'Paiement PayTech valide. Votre reservation est securisee.',
+            'data' => $payment->fresh(['reservation.client', 'client']),
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -192,6 +225,16 @@ class PaymentController extends Controller
 
         return hash_equals(hash('sha256', (string) $apiKey), $request->string('api_key_sha256')->toString())
             && hash_equals(hash('sha256', (string) $apiSecret), $request->string('api_secret_sha256')->toString());
+    }
+
+    private function paytechReturnSignature(int|string $paymentId): string
+    {
+        return hash_hmac('sha256', 'paytech-return|' . $paymentId, $this->paymentReturnSecret());
+    }
+
+    private function paymentReturnSecret(): string
+    {
+        return (string) config('app.key') . '|' . (string) config('services.paytech.api_secret');
     }
 
     private function paymentFromPaytechPayload(Request $request): Paiement

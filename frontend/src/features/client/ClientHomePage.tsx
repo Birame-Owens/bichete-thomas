@@ -31,6 +31,7 @@ import type { LucideIcon } from 'lucide-react'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import heroImage from '../../assets/hero.jpg'
 import {
+  confirmPaytechReturn,
   confirmStripeCheckout,
   createClientCoiffureReview,
   createClientReservation,
@@ -379,13 +380,35 @@ function ClientHomePage() {
     }
 
     if (paymentStatus === 'paytech_success') {
-      window.setTimeout(() => {
-        setPageNotice({
-          type: 'success',
-          message: 'Paiement PayTech recu. La confirmation automatique sera appliquee par notification IPN.',
+      const paymentId = params.get('paiement_id')
+      const signature = params.get('signature')
+
+      if (!paymentId || !signature) {
+        window.setTimeout(() => {
+          setPageNotice({
+            type: 'success',
+            message: 'Paiement PayTech recu. La confirmation automatique sera appliquee par notification IPN.',
+          })
+          window.history.replaceState({}, '', window.location.pathname)
+        }, 0)
+        return
+      }
+
+      confirmPaytechReturn(paymentId, signature)
+        .then((response) => {
+          setPageNotice({
+            type: 'success',
+            message: response.message ?? 'Paiement PayTech valide. Votre reservation est securisee.',
+          })
+          window.history.replaceState({}, '', window.location.pathname)
         })
-        window.history.replaceState({}, '', window.location.pathname)
-      }, 0)
+        .catch(() => {
+          setPageNotice({
+            type: 'success',
+            message: 'Paiement PayTech recu. La confirmation automatique sera appliquee par notification IPN.',
+          })
+          window.history.replaceState({}, '', window.location.pathname)
+        })
       return
     }
 
@@ -854,14 +877,6 @@ function ClientHomePage() {
                     <div className="p-4">
                       <p className="line-clamp-1 text-sm font-black text-slate-950 sm:text-base">{coiffure.nom}</p>
                       <p className="mt-1 text-xs font-bold text-slate-500">{coiffure.categorie?.nom ?? 'Coiffure'}</p>
-                      <div className="mt-2 flex items-center gap-2 text-xs font-black text-slate-500">
-                        <RatingStars value={coiffure.avis_resume?.moyenne ?? 0} size="xs" />
-                        <span>
-                          {coiffure.avis_resume?.total
-                            ? `${coiffure.avis_resume.moyenne}/5 (${coiffure.avis_resume.total})`
-                            : 'Nouveau'}
-                        </span>
-                      </div>
                       <p className="mt-3 text-xs font-semibold text-slate-500">A partir de</p>
                       <div className="mt-1 flex items-end justify-between gap-2">
                         <p className="text-sm font-black text-[#f31976]">{formatCurrency(coiffure.prix_min, devise)}</p>
