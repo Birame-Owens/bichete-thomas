@@ -675,7 +675,7 @@ function ClientHomePage() {
       <div className="mx-auto w-full max-w-[1320px] px-3 pb-12 pt-3 sm:px-5 lg:px-6">
         <header
           id="accueil"
-          className="sticky top-3 z-30 rounded-[28px] border border-slate-100 bg-white/95 p-3 shadow-sm backdrop-blur"
+          className="z-30 rounded-[28px] border border-slate-100 bg-white/95 p-3 shadow-sm backdrop-blur lg:sticky lg:top-3"
         >
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex min-w-[220px] flex-1 items-center gap-3">
@@ -792,24 +792,12 @@ function ClientHomePage() {
             </div>
 
             <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-              <button
-                type="button"
-                onClick={() => setActiveCategoryId(null)}
-                className={`grid min-h-24 min-w-24 place-items-center rounded-3xl border px-4 text-center text-sm font-black transition ${
-                  activeCategoryId === null
-                    ? 'border-[#f31976] bg-[#f31976] text-white'
-                    : 'border-slate-100 bg-white text-slate-800'
-                }`}
-              >
-                <Scissors className="mb-2 h-7 w-7" />
-                Tout
-              </button>
               {categories.map((category) => (
                 <button
                   key={category.id}
                   type="button"
                   onClick={() => setActiveCategoryId(category.id)}
-                  className={`grid min-h-24 min-w-28 place-items-center rounded-3xl border px-4 text-center text-sm font-black transition ${
+                  className={`grid min-h-20 min-w-24 place-items-center rounded-3xl border px-4 text-center text-sm font-black transition ${
                     activeCategoryId === category.id
                       ? 'border-[#f31976] bg-[#f31976] text-white'
                       : 'border-slate-100 bg-white text-slate-800'
@@ -817,9 +805,7 @@ function ClientHomePage() {
                 >
                   {category.image ? (
                     <img src={category.image} alt="" className="mb-2 h-9 w-9 rounded-2xl object-cover" />
-                  ) : (
-                    <Scissors className="mb-2 h-7 w-7" />
-                  )}
+                  ) : null}
                   {category.nom}
                 </button>
               ))}
@@ -1140,88 +1126,6 @@ function ClientHomePage() {
                 )}
               </div>
 
-              {selectedCoiffure.coiffures_liees.length > 0 ? (
-                <div className="mt-5 rounded-3xl bg-white p-4">
-                  <p className="text-sm font-black text-slate-950">A voir aussi</p>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    {selectedCoiffure.coiffures_liees.map((related) => (
-                      <div key={related.id} className="overflow-hidden rounded-2xl border border-slate-100 bg-white">
-                        <div className="aspect-[4/3] bg-[#fff7fb]">
-                          <img src={related.image ?? heroImage} alt={related.nom} className="h-full w-full object-cover" />
-                        </div>
-                        <div className="p-3">
-                          <p className="line-clamp-1 text-xs font-black text-slate-950">{related.nom}</p>
-                          <p className="mt-1 text-xs font-bold text-[#f31976]">{formatCurrency(related.prix_min, devise)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              <form onSubmit={handleReviewSubmit} className="mt-5 rounded-3xl bg-slate-950 p-4 text-white">
-                <p className="text-sm font-black">Ajouter votre commentaire</p>
-                <div className="mt-3 flex items-center gap-1">
-                  {Array.from({ length: 5 }, (_, index) => {
-                    const note = index + 1
-
-                    return (
-                      <button
-                        key={note}
-                        type="button"
-                        onClick={() => updateReviewField('note', note)}
-                        className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[#f59e0b]"
-                        aria-label={`${note} etoiles`}
-                      >
-                        <Star className={`h-5 w-5 ${note <= reviewForm.note ? 'fill-[#f59e0b]' : 'fill-none text-white/40'}`} />
-                      </button>
-                    )
-                  })}
-                </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <input
-                    value={reviewForm.nom_client}
-                    onChange={(event) => updateReviewField('nom_client', event.target.value)}
-                    placeholder="Votre nom"
-                    required
-                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
-                  />
-                  <input
-                    value={reviewForm.telephone}
-                    onChange={(event) => updateReviewField('telephone', event.target.value)}
-                    placeholder="Telephone pour verifier"
-                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
-                  />
-                </div>
-                <input
-                  type="email"
-                  value={reviewForm.email}
-                  onChange={(event) => updateReviewField('email', event.target.value)}
-                  placeholder="Email optionnel"
-                  className="mt-3 h-11 w-full rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
-                />
-                <textarea
-                  value={reviewForm.commentaire}
-                  onChange={(event) => updateReviewField('commentaire', event.target.value)}
-                  placeholder="Votre experience avec cette coiffure"
-                  required
-                  rows={3}
-                  className="mt-3 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
-                />
-                {reviewState ? (
-                  <p className={`mt-3 rounded-2xl px-3 py-2 text-xs font-bold ${reviewState.type === 'success' ? 'bg-emerald-400/15 text-emerald-100' : 'bg-rose-400/15 text-rose-100'}`}>
-                    {reviewState.message}
-                  </p>
-                ) : null}
-                <button
-                  type="submit"
-                  disabled={reviewSubmitting}
-                  className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#d80f63] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {reviewSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Publier mon avis
-                </button>
-              </form>
             </section>
 
             <form onSubmit={handleReservationSubmit} className="p-4 sm:p-6">
@@ -1290,48 +1194,48 @@ function ClientHomePage() {
                 </div>
               ) : null}
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="mt-5 grid grid-cols-2 gap-3">
                 <label className="block">
-                  <span className="text-xs font-black uppercase text-slate-500">Prenom</span>
+                  <span className="text-[11px] font-black uppercase text-slate-500">Prenom</span>
                   <input
                     value={bookingForm.prenom}
                     onChange={(event) => updateBookingField('prenom', event.target.value)}
                     required
-                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                    className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
                 <label className="block">
-                  <span className="text-xs font-black uppercase text-slate-500">Nom</span>
+                  <span className="text-[11px] font-black uppercase text-slate-500">Nom</span>
                   <input
                     value={bookingForm.nom}
                     onChange={(event) => updateBookingField('nom', event.target.value)}
                     required
-                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                    className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
                 <label className="block">
-                  <span className="text-xs font-black uppercase text-slate-500">Telephone</span>
+                  <span className="text-[11px] font-black uppercase text-slate-500">Telephone</span>
                   <input
                     value={bookingForm.telephone}
                     onChange={(event) => updateBookingField('telephone', event.target.value)}
                     required
-                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                    className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
                 <label className="block">
-                  <span className="text-xs font-black uppercase text-slate-500">Email</span>
+                  <span className="text-[11px] font-black uppercase text-slate-500">Email</span>
                   <input
                     type="email"
                     value={bookingForm.email}
                     onChange={(event) => updateBookingField('email', event.target.value)}
-                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                    className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
               </div>
 
-              <div className="mt-6 grid gap-4 lg:grid-cols-[220px_1fr]">
+              <div className="mt-5 grid grid-cols-2 gap-3">
                 <label className="block">
-                  <span className="text-xs font-black uppercase text-slate-500">Date</span>
+                  <span className="text-[11px] font-black uppercase text-slate-500">Date</span>
                   <input
                     type="date"
                     min={todayInput()}
@@ -1343,13 +1247,22 @@ function ClientHomePage() {
                       updateBookingField('date_reservation', event.target.value)
                     }}
                     required
-                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                    className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-black uppercase text-slate-500">Code promo</span>
+                  <input
+                    value={bookingForm.code_promo}
+                    onChange={(event) => updateBookingField('code_promo', event.target.value)}
+                    placeholder={promotions[0]?.code ?? 'Code'}
+                    className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold uppercase outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
 
-                <div>
+                <div className="col-span-2">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-black uppercase text-slate-500">Horaires</span>
+                    <span className="text-[11px] font-black uppercase text-slate-500">Horaires</span>
                     {availabilityLoading ? <Loader2 className="h-4 w-4 animate-spin text-[#f31976]" /> : null}
                   </div>
                   <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -1377,7 +1290,7 @@ function ClientHomePage() {
 
               <div className="mt-6">
                 <p className="text-sm font-black text-slate-950">Paiement de l acompte</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div className="mt-3 grid grid-cols-3 gap-2">
                   {paymentMethods.map((method) => {
                     const Icon = method.icon
                     const checked = bookingForm.paymentMethod === method.value
@@ -1392,19 +1305,24 @@ function ClientHomePage() {
                         type="button"
                         disabled={disabled}
                         onClick={() => updateBookingField('paymentMethod', method.value)}
-                        className={`rounded-3xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                        className={`min-h-[94px] rounded-2xl border px-2 py-3 text-center transition disabled:cursor-not-allowed disabled:opacity-50 ${
                           checked ? 'border-[#f31976] bg-[#fff0f6]' : 'border-slate-200 bg-white'
                         }`}
                       >
-                        <span className="flex items-center gap-2 text-sm font-black text-slate-950">
+                        <span className="flex flex-col items-center justify-center gap-1.5 text-xs font-black text-slate-950 sm:flex-row sm:text-sm">
                           {method.logo ? (
                             <img src={method.logo} alt="" className="h-7 w-7 rounded-full object-contain" />
                           ) : (
                             <Icon className="h-5 w-5 text-[#f31976]" />
                           )}
-                          {method.label}
+                          <span>
+                            <span className="sm:hidden">
+                              {method.value === 'orange_money' ? 'Orange' : method.value === 'carte_bancaire' ? 'Carte' : method.label}
+                            </span>
+                            <span className="hidden sm:inline">{method.label}</span>
+                          </span>
                         </span>
-                        <span className="mt-2 block text-xs font-bold text-slate-500">
+                        <span className="mt-2 hidden text-xs font-bold text-slate-500 sm:block">
                           {disabled ? (method.value === 'carte_bancaire' ? 'Stripe non configure' : 'PayTech non configure') : method.detail}
                         </span>
                       </button>
@@ -1421,27 +1339,6 @@ function ClientHomePage() {
                     Vous serez redirigee vers Stripe pour payer par carte bancaire. Le paiement sera valide automatiquement au retour.
                   </div>
                 )}
-              </div>
-
-              <div className="mt-6 grid gap-4 sm:grid-cols-[1fr_1.2fr]">
-                <label className="block">
-                  <span className="text-xs font-black uppercase text-slate-500">Code promo</span>
-                  <input
-                    value={bookingForm.code_promo}
-                    onChange={(event) => updateBookingField('code_promo', event.target.value)}
-                    placeholder={promotions[0]?.code ?? 'Code promo'}
-                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm font-bold uppercase outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-xs font-black uppercase text-slate-500">Note</span>
-                  <input
-                    value={bookingForm.notes}
-                    onChange={(event) => updateBookingField('notes', event.target.value)}
-                    placeholder="Ex : preference, longueur, disponibilite"
-                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
-                  />
-                </label>
               </div>
 
               <div className="mt-6 rounded-3xl bg-slate-950 p-5 text-white">
@@ -1467,6 +1364,17 @@ function ClientHomePage() {
                 </div>
               </div>
 
+              <label className="mt-5 block">
+                <span className="text-[11px] font-black uppercase text-slate-500">Commentaire</span>
+                <textarea
+                  value={bookingForm.notes}
+                  onChange={(event) => updateBookingField('notes', event.target.value)}
+                  placeholder="Ex : preference, longueur, disponibilite"
+                  rows={3}
+                  className="mt-1.5 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                />
+              </label>
+
               {submitState ? (
                 <div
                   className={`mt-4 rounded-3xl px-5 py-4 text-sm font-bold ${
@@ -1491,6 +1399,79 @@ function ClientHomePage() {
                 {bookingForm.paymentMethod === 'carte_bancaire' ? 'Continuer vers Stripe' : 'Continuer vers PayTech'}
               </button>
             </form>
+
+            <section className="border-t border-slate-100 bg-white p-4 sm:p-6 lg:col-span-2">
+              <form onSubmit={handleReviewSubmit} className="rounded-3xl bg-slate-950 p-4 text-white">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-black">Ajouter votre commentaire</p>
+                    <p className="mt-1 text-xs font-bold text-white/55">Votre avis aide les prochaines clientes a choisir.</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }, (_, index) => {
+                      const note = index + 1
+
+                      return (
+                        <button
+                          key={note}
+                          type="button"
+                          onClick={() => updateReviewField('note', note)}
+                          className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[#f59e0b]"
+                          aria-label={`${note} etoiles`}
+                        >
+                          <Star className={`h-5 w-5 ${note <= reviewForm.note ? 'fill-[#f59e0b]' : 'fill-none text-white/40'}`} />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <input
+                    value={reviewForm.nom_client}
+                    onChange={(event) => updateReviewField('nom_client', event.target.value)}
+                    placeholder="Votre nom"
+                    required
+                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
+                  />
+                  <input
+                    value={reviewForm.telephone}
+                    onChange={(event) => updateReviewField('telephone', event.target.value)}
+                    placeholder="Telephone"
+                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
+                  />
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-[0.7fr_1.3fr]">
+                  <input
+                    type="email"
+                    value={reviewForm.email}
+                    onChange={(event) => updateReviewField('email', event.target.value)}
+                    placeholder="Email optionnel"
+                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
+                  />
+                  <textarea
+                    value={reviewForm.commentaire}
+                    onChange={(event) => updateReviewField('commentaire', event.target.value)}
+                    placeholder="Votre experience avec cette coiffure"
+                    required
+                    rows={2}
+                    className="min-h-11 rounded-2xl border border-white/10 bg-white/10 px-3 py-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
+                  />
+                </div>
+                {reviewState ? (
+                  <p className={`mt-3 rounded-2xl px-3 py-2 text-xs font-bold ${reviewState.type === 'success' ? 'bg-emerald-400/15 text-emerald-100' : 'bg-rose-400/15 text-rose-100'}`}>
+                    {reviewState.message}
+                  </p>
+                ) : null}
+                <button
+                  type="submit"
+                  disabled={reviewSubmitting}
+                  className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#d80f63] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {reviewSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  Publier mon avis
+                </button>
+              </form>
+            </section>
           </div>
         </div>
       ) : null}
