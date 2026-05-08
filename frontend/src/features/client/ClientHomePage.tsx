@@ -1144,22 +1144,28 @@ function ClientHomePage() {
                 <p className="text-sm font-black text-slate-950">Variante</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   {selectedCoiffure.variantes.map((variant) => (
-                    <button
+                    <label
                       key={variant.id}
-                      type="button"
-                      onClick={() => updateBookingField('varianteId', String(variant.id))}
-                      className={`rounded-3xl border p-4 text-left transition ${
+                      className={`block cursor-pointer select-none rounded-3xl border p-4 text-left transition ${
                         bookingForm.varianteId === String(variant.id)
                           ? 'border-[#f31976] bg-[#fff0f6]'
                           : 'border-slate-200 bg-white'
                       }`}
                     >
+                      <input
+                        type="radio"
+                        name="variante"
+                        value={variant.id}
+                        checked={bookingForm.varianteId === String(variant.id)}
+                        onChange={() => updateBookingField('varianteId', String(variant.id))}
+                        className="sr-only"
+                      />
                       <span className="block text-sm font-black text-slate-950">{variant.nom}</span>
                       <span className="mt-2 flex items-center justify-between gap-2 text-sm font-bold text-slate-500">
                         {formatDuration(variant.duree_minutes)}
                         <span className="text-[#f31976]">{formatCurrency(variant.prix, devise)}</span>
                       </span>
-                    </button>
+                    </label>
                   ))}
                 </div>
               </div>
@@ -1172,14 +1178,18 @@ function ClientHomePage() {
                       const checked = bookingForm.optionIds.includes(option.id)
 
                       return (
-                        <button
+                        <label
                           key={option.id}
-                          type="button"
-                          onClick={() => toggleOption(option)}
-                          className={`flex items-center justify-between gap-3 rounded-3xl border p-4 text-left transition ${
+                          className={`flex cursor-pointer select-none items-center justify-between gap-3 rounded-3xl border p-4 text-left transition ${
                             checked ? 'border-[#f31976] bg-[#fff0f6]' : 'border-slate-200 bg-white'
                           }`}
                         >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleOption(option)}
+                            className="sr-only"
+                          />
                           <span>
                             <span className="block text-sm font-black text-slate-950">{option.nom}</span>
                             <span className="mt-1 block text-xs font-bold text-slate-500">{formatCurrency(option.prix, devise)}</span>
@@ -1187,7 +1197,7 @@ function ClientHomePage() {
                           <span className={`grid h-7 w-7 place-items-center rounded-full ${checked ? 'bg-[#f31976] text-white' : 'bg-slate-100 text-slate-400'}`}>
                             <Check className="h-4 w-4" />
                           </span>
-                        </button>
+                        </label>
                       )
                     })}
                   </div>
@@ -1294,21 +1304,26 @@ function ClientHomePage() {
                   {paymentMethods.map((method) => {
                     const Icon = method.icon
                     const checked = bookingForm.paymentMethod === method.value
-                    const disabled =
+                    const configured =
                       method.value === 'carte_bancaire'
-                        ? settings?.paiements_en_ligne?.carte_bancaire === false
-                        : settings?.paiements_en_ligne?.[method.value] === false
+                        ? settings?.paiements_en_ligne?.carte_bancaire !== false
+                        : settings?.paiements_en_ligne?.[method.value] !== false
 
                     return (
-                      <button
+                      <label
                         key={method.value}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => updateBookingField('paymentMethod', method.value)}
-                        className={`min-h-[94px] rounded-2xl border px-2 py-3 text-center transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                        className={`block min-h-[94px] cursor-pointer select-none rounded-2xl border px-2 py-3 text-center transition ${
                           checked ? 'border-[#f31976] bg-[#fff0f6]' : 'border-slate-200 bg-white'
                         }`}
                       >
+                        <input
+                          type="radio"
+                          name="mode_paiement"
+                          value={method.value}
+                          checked={checked}
+                          onChange={() => updateBookingField('paymentMethod', method.value)}
+                          className="sr-only"
+                        />
                         <span className="flex flex-col items-center justify-center gap-1.5 text-xs font-black text-slate-950 sm:flex-row sm:text-sm">
                           {method.logo ? (
                             <img src={method.logo} alt="" className="h-7 w-7 rounded-full object-contain" />
@@ -1323,9 +1338,9 @@ function ClientHomePage() {
                           </span>
                         </span>
                         <span className="mt-2 hidden text-xs font-bold text-slate-500 sm:block">
-                          {disabled ? (method.value === 'carte_bancaire' ? 'Stripe non configure' : 'PayTech non configure') : method.detail}
+                          {configured ? method.detail : method.value === 'carte_bancaire' ? 'Stripe a verifier' : 'PayTech a verifier'}
                         </span>
-                      </button>
+                      </label>
                     )
                   })}
                 </div>
