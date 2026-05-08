@@ -26,6 +26,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { clearAuth, getUser } from '../lib/authStorage'
+import { logout as apiLogout } from '../services/authService'
 
 type AdminLayoutProps = {
   children: ReactNode
@@ -103,7 +104,12 @@ function AdminLayout({ children }: AdminLayoutProps) {
 
   const closeMobileMenu = () => setMobileMenuOpen(false)
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await apiLogout('current')
+    } catch {
+      // Ignore : on nettoie quand meme l etat local et on redirige.
+    }
     clearAuth()
     closeMobileMenu()
     navigate('/login', { replace: true })

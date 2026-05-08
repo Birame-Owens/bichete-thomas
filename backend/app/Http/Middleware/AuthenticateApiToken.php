@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\Api\AuthController;
 use App\Models\PersonalAccessToken;
 use Closure;
 use Illuminate\Http\Request;
@@ -10,17 +11,32 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticateApiToken
 {
+    private const MUTATING_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
     /**
      * @param Closure(Request): Response $next
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $plainTextToken = $request->bearerToken();
+        $cookieToken = $request->cookie(AuthController::AUTH_COOKIE);
+        $bearerToken = $request->bearerToken();
+        $plainTextToken = $cookieToken ?: $bearerToken;
 
         if (! $plainTextToken) {
             return response()->json([
                 'message' => 'Token absent.',
             ], 401);
+        }
+
+        if ($cookieToken && in_array($request->method(), self::MUTATING_METHODS, true)) {
+            $csrfCookie = (string) $request->cookie(AuthController::CSRF_COOKIE);
+            $csrfHeader = (string) $request->header('X-XSRF-TOKEN');
+
+            if ($csrfCookie === '' || $csrfHeader === '' || ! hash_equals($csrfCookie, $csrfHeader)) {
+                return response()->json([
+                    'message' => 'CSRF token mismatch.',
+                ], 419);
+            }
         }
 
         $accessToken = PersonalAccessToken::query()
