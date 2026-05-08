@@ -444,7 +444,10 @@ class ReservationController extends Controller
         $refCommand = 'BT-PAY-' . $payment->id . '-' . Str::upper(Str::random(8));
         $successUrl = $this->appendQuery(
             $data['success_url'] ?? config('services.paytech.success_url') ?? config('app.url') . '/client?paiement=paytech_success',
-            ['paiement_id' => $payment->id]
+            [
+                'paiement_id' => $payment->id,
+                'signature' => $this->paytechReturnSignature($payment->id),
+            ]
         );
         $cancelUrl = $this->appendQuery(
             $data['cancel_url'] ?? config('services.paytech.cancel_url') ?? config('app.url') . '/client?paiement=paytech_cancel',
@@ -525,6 +528,16 @@ class ReservationController extends Controller
         $separator = str_contains($url, '?') ? '&' : '?';
 
         return $url . $separator . http_build_query($params);
+    }
+
+    private function paytechReturnSignature(int|string $paymentId): string
+    {
+        return hash_hmac('sha256', 'paytech-return|' . $paymentId, $this->paymentReturnSecret());
+    }
+
+    private function paymentReturnSecret(): string
+    {
+        return (string) config('app.key') . '|' . (string) config('services.paytech.api_secret');
     }
 
     private function internationalPhone(string $phone): string

@@ -258,6 +258,16 @@ class PaymentReceiptNotificationService
             return false;
         }
 
+        if (in_array(config('mail.default'), ['array', 'log'], true)) {
+            Log::warning('Email receipt not delivered because mailer is not a delivery transport', [
+                'paiement' => $receipt['numero_recu'],
+                'mailer' => config('mail.default'),
+                'email' => $email,
+            ]);
+
+            return false;
+        }
+
         try {
             Mail::to($email)->send(new ReservationConfirmationMail($receipt));
 
