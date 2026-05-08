@@ -6,6 +6,8 @@ import type {
   ClientCatalogue,
   ClientCategory,
   ClientCoiffure,
+  ClientCoiffureReviewPayload,
+  ClientCoiffureReviewResponse,
   ClientReservationPayload,
   ClientReservationResponse,
   ClientStripeConfirmation,
@@ -27,9 +29,19 @@ function normalizeCoiffure(coiffure: ClientCoiffure): ClientCoiffure {
   return {
     ...coiffure,
     image: apiAssetUrl(coiffure.image),
-    images: coiffure.images.map((image) => ({
+    avis_resume: coiffure.avis_resume ?? { moyenne: 0, total: 0 },
+    images: (coiffure.images ?? []).map((image) => ({
       ...image,
       url: apiAssetUrl(image.url) ?? image.url,
+    })),
+    avis: (coiffure.avis ?? []).map((avis) => ({
+      ...avis,
+      photo_url: apiAssetUrl(avis.photo_url),
+    })),
+    prestations_recentes: coiffure.prestations_recentes ?? [],
+    coiffures_liees: (coiffure.coiffures_liees ?? []).map((related) => ({
+      ...related,
+      image: apiAssetUrl(related.image),
     })),
   }
 }
@@ -54,6 +66,12 @@ export async function getClientCoiffureDetails(id: number) {
   const response = await apiClient.get<ClientApiItem<ClientCoiffure>>(`/client/catalogue/${id}`)
 
   return normalizeCoiffure(response.data.data)
+}
+
+export async function createClientCoiffureReview(id: number, payload: ClientCoiffureReviewPayload) {
+  const response = await apiClient.post<ClientCoiffureReviewResponse>(`/client/catalogue/${id}/avis`, payload)
+
+  return response.data
 }
 
 export async function getClientAvailability(date: string, intervalMinutes = 60) {

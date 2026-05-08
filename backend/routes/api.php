@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\CategorieCoiffureController;
+use App\Http\Controllers\Api\Admin\AvisCoiffureController;
 use App\Http\Controllers\Api\Admin\CaisseController;
 use App\Http\Controllers\Api\Admin\CodePromoController;
 use App\Http\Controllers\Api\Admin\CoiffeuseController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\Api\Admin\PageSeoController;
 use App\Http\Controllers\Api\Admin\PaiementController;
 use App\Http\Controllers\Api\Admin\ParametreSystemeController;
 use App\Http\Controllers\Api\Admin\PreferenceClientController;
+use App\Http\Controllers\Api\Admin\RapportStatistiqueController;
 use App\Http\Controllers\Api\Admin\ReservationController;
 use App\Http\Controllers\Api\Admin\RegleFideliteController;
 use App\Http\Controllers\Api\Admin\VarianteCoiffureController;
@@ -42,6 +44,7 @@ Route::get('/reservations/disponibilites', ClientReservationAvailabilityControll
 Route::prefix('client')->name('client.')->group(function (): void {
     Route::get('/catalogue', [ClientCatalogueController::class, 'index'])->name('catalogue.index');
     Route::get('/catalogue/{coiffure}', [ClientCatalogueController::class, 'show'])->name('catalogue.show');
+    Route::post('/catalogue/{coiffure}/avis', [ClientCatalogueController::class, 'storeAvis'])->name('catalogue.avis.store');
     Route::get('/reservations/disponibilites', ClientReservationAvailabilityController::class)->name('reservations.availability');
     Route::post('/reservations', [ClientReservationController::class, 'store'])->name('reservations.store');
     Route::post('/paiements/stripe/confirmer', [ClientPaymentController::class, 'confirmStripeCheckout'])->name('payments.stripe.confirm');
@@ -64,6 +67,12 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
     ->name('admin.')
     ->group(function (): void {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
+        Route::get('rapports-statistiques', RapportStatistiqueController::class)->name('rapports-statistiques');
+        Route::patch('avis-coiffures/{avisCoiffure}/approuver', [AvisCoiffureController::class, 'approve'])->name('avis-coiffures.approve');
+        Route::patch('avis-coiffures/{avisCoiffure}/rejeter', [AvisCoiffureController::class, 'reject'])->name('avis-coiffures.reject');
+        Route::apiResource('avis-coiffures', AvisCoiffureController::class)
+            ->only(['index', 'show', 'update', 'destroy'])
+            ->parameters(['avis-coiffures' => 'avisCoiffure']);
         Route::apiResource('categories-coiffures', CategorieCoiffureController::class)
             ->parameters(['categories-coiffures' => 'categorieCoiffure']);
         Route::apiResource('coiffures', CoiffureController::class);
