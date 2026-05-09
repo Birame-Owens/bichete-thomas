@@ -7,8 +7,8 @@ use App\Models\Client;
 use App\Models\CodePromo;
 use App\Models\Coiffure;
 use App\Models\Paiement;
-use App\Models\ParametreSysteme;
 use App\Models\Reservation;
+use App\Support\SystemSettings;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -633,9 +633,8 @@ class ReservationController extends Controller
 
     private function settingValue(string $key, mixed $default): mixed
     {
-        $setting = ParametreSysteme::query()->where('cle', $key)->first();
-
-        return $setting?->valeur['value'] ?? $default;
+        // Delegue a SystemSettings (cache I7) : 1 SELECT au cold-start, 0 ensuite.
+        return SystemSettings::get($key, $default);
     }
 
     /**
