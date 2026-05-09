@@ -20,6 +20,12 @@ import {
 } from './personnel.api'
 import type { Gerante, GeranteForm, LaravelPaginated } from './personnel.types'
 
+// Doit miroir cote backend : Password::min(12)->mixedCase()->numbers()->symbols()
+// (cf GeranteController). On valide cote client pour un retour utilisateur
+// immediat ; le serveur reste l autorite finale.
+const PASSWORD_RULE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/
+const PASSWORD_HINT = 'Minimum 12 caracteres avec majuscule, minuscule, chiffre et symbole.'
+
 const emptyForm: GeranteForm = {
   name: '',
   email: '',
@@ -117,8 +123,13 @@ function GerantesPage() {
     setSaving(true)
     setError(null)
     try {
-      if (!editing && form.password.trim().length < 8) {
-        setError('Le mot de passe doit contenir au moins 8 caracteres.')
+      // En creation : password obligatoire, doit respecter la complexite.
+      // En edition : password optionnel ; s il est fourni, meme regle.
+      const trimmedPassword = form.password.trim()
+      const passwordProvided = trimmedPassword !== ''
+
+      if ((!editing || passwordProvided) && !PASSWORD_RULE.test(form.password)) {
+        setError(`Le mot de passe est trop faible. ${PASSWORD_HINT}`)
         return
       }
 
@@ -352,12 +363,14 @@ function GerantesPage() {
                 <input
                   className={inputClass}
                   type="password"
-                  minLength={editing ? undefined : 8}
+                  minLength={editing ? undefined : 12}
                   value={form.password}
                   onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
                   required={!editing}
-                  placeholder={editing ? 'Laisser vide pour conserver' : 'Minimum 8 caracteres'}
+                  placeholder={editing ? 'Laisser vide pour conserver' : 'Minimum 12 caracteres'}
                 />
+                {/* Aide visuelle alignee sur la regle backend (I3). */}
+                <p className="mt-1 text-xs text-gray-500">{PASSWORD_HINT}</p>
               </FormField>
               <label className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-3 text-sm font-bold sm:self-end">
                 <input
