@@ -30,12 +30,16 @@ class DatabaseSeeder extends Seeder
             ['description' => 'Gerante du salon']
         );
 
+        // Mots de passe admin et gerante : OBLIGATOIRES via env (I14).
+        // L ancien fallback 'password' permettait de seeder en prod par
+        // accident avec un compte trivialement compromettable. On exige
+        // desormais une valeur explicite avant tout seed.
         User::query()->updateOrCreate([
             'email' => env('ADMIN_EMAIL', 'admin@bichette-thomas.test'),
         ], [
             'role_id' => $adminRole->id,
             'name' => env('ADMIN_NAME', 'Administratrice'),
-            'password' => Hash::make(env('ADMIN_PASSWORD', 'password')),
+            'password' => Hash::make($this->requireEnv('ADMIN_PASSWORD')),
             'email_verified_at' => now(),
         ]);
 
@@ -44,7 +48,7 @@ class DatabaseSeeder extends Seeder
         ], [
             'role_id' => $geranteRole->id,
             'name' => env('GERANTE_NAME', 'Gerante'),
-            'password' => Hash::make(env('GERANTE_PASSWORD', 'password')),
+            'password' => Hash::make($this->requireEnv('GERANTE_PASSWORD')),
             'email_verified_at' => now(),
         ]);
 
@@ -68,6 +72,24 @@ class DatabaseSeeder extends Seeder
                 $rule
             );
         }
+    }
+
+    /**
+     * Recupere une variable d environnement obligatoire, ou throw avec un
+     * message clair (I14). Empeche le seed de fabriquer silencieusement un
+     * compte avec un mot de passe par defaut si l env n est pas configuree.
+     */
+    private function requireEnv(string $key): string
+    {
+        $value = env($key);
+
+        if (! is_string($value) || $value === '') {
+            throw new \RuntimeException(
+                "La variable d environnement {$key} doit etre definie avant de lancer db:seed."
+            );
+        }
+
+        return $value;
     }
 
     /**

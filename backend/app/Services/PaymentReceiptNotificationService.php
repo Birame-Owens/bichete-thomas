@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Mail\ReservationConfirmationMail;
 use App\Models\Paiement;
-use App\Models\ParametreSysteme;
+use App\Support\SystemSettings;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -346,8 +346,7 @@ class PaymentReceiptNotificationService
 
     private function settingValue(string $key, mixed $default): mixed
     {
-        $setting = ParametreSysteme::query()->where('cle', $key)->first();
-
-        return $setting?->valeur['value'] ?? $default;
+        // Delegue a SystemSettings (cache I7).
+        return SystemSettings::get($key, $default);
     }
 }

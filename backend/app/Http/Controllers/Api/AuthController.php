@@ -102,8 +102,12 @@ class AuthController extends Controller
     {
         return cookie(
             name: self::AUTH_COOKIE,
+            // Plafond dur cote navigateur (I1) : passe ce delai, le cookie est
+            // detruit par le navigateur, peu importe l activite. Le serveur
+            // applique en plus une expiration glissante de
+            // session_inactivity_hours via last_used_at.
             value: $token,
-            minutes: (int) config('session.lifetime', 120),
+            minutes: $this->cookieLifetimeMinutes(),
             path: (string) config('session.path', '/'),
             domain: config('session.domain'),
             secure: (bool) config('session.secure', false),
@@ -118,7 +122,7 @@ class AuthController extends Controller
         return cookie(
             name: self::CSRF_COOKIE,
             value: Str::random(40),
-            minutes: (int) config('session.lifetime', 120),
+            minutes: $this->cookieLifetimeMinutes(),
             path: (string) config('session.path', '/'),
             domain: config('session.domain'),
             secure: (bool) config('session.secure', false),
@@ -126,6 +130,11 @@ class AuthController extends Controller
             raw: false,
             sameSite: (string) config('session.same_site', 'lax'),
         );
+    }
+
+    private function cookieLifetimeMinutes(): int
+    {
+        return (int) config('auth.session_cookie_max_hours', 168) * 60;
     }
 
     private function withClearedAuthCookies(JsonResponse $response): JsonResponse

@@ -57,9 +57,14 @@ class User extends Authenticatable
     {
         $plainTextToken = Str::random(80);
 
+        // last_used_at = now() : sert d ancre pour la verification d inactivite
+        // (I1). Sans ca, un token frais avec last_used_at NULL ne pourrait
+        // jamais etre invalide pour inactivite, meme si le compte est laisse
+        // a l abandon entre la creation et la 1re requete.
         $this->tokens()->create([
             'name' => $name,
             'token' => hash('sha256', $plainTextToken),
+            'last_used_at' => now(),
         ]);
 
         return $plainTextToken;
