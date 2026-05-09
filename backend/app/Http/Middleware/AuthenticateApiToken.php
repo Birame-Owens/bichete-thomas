@@ -50,6 +50,19 @@ class AuthenticateApiToken
             ], 401);
         }
 
+        // Sliding-window inactivity check (I1) : si le token n a pas ete utilise
+        // depuis plus de session_inactivity_hours, on le considere abandonne et
+        // on force une re-authentification. last_used_at est rafraichi tous les
+        // 5 min ci-dessous tant que l utilisateur fait des requetes, donc une
+        // session active ne meurt jamais.
+        $inactivityHours = (int) config('auth.session_inactivity_hours', 6);
+
+        if ($accessToken->last_used_at && $accessToken->last_used_at->lt(now()->subHours($inactivityHours))) {
+            return response()->json([
+                'message' => 'Session expiree pour cause d inactivite.',
+            ], 401);
+        }
+
         if (! $accessToken->user->actif) {
             return response()->json([
                 'message' => 'Compte desactive.',

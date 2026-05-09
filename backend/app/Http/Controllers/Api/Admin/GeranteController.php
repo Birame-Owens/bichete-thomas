@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class GeranteController extends Controller
 {
@@ -35,10 +36,13 @@ class GeranteController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // Password complexe (I3) : min 12 caracteres + maj/min + chiffre +
+        // symbole. Bloque les "password123" et autres choix faibles que le
+        // simple min:8 laissait passer.
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
+            'password' => ['required', 'string', Password::min(12)->mixedCase()->numbers()->symbols()],
             'actif' => ['sometimes', 'boolean'],
         ]);
 
@@ -70,10 +74,12 @@ class GeranteController extends Controller
     {
         abort_unless($gerante->hasRole('gerante'), 404);
 
+        // Meme regle complexe que pour la creation (I3) : si un nouveau
+        // password est fourni, il doit respecter la meme politique.
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($gerante->id)],
-            'password' => ['nullable', 'string', 'min:8'],
+            'password' => ['nullable', 'string', Password::min(12)->mixedCase()->numbers()->symbols()],
             'actif' => ['sometimes', 'boolean'],
         ]);
 
