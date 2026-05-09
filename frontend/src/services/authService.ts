@@ -6,7 +6,6 @@ export const login = async (
   password: string,
   deviceName: string
 ) => {
-  // Centralized login request to keep API calls consistent across the app.
   const response = await apiClient.post<LoginResponse>('/auth/login', {
     email,
     password,
@@ -16,15 +15,6 @@ export const login = async (
   return response.data
 }
 
-export const logout = async (token: string, scope: 'current' | 'all') => {
-  // Use the appropriate endpoint for single-session vs. global logout.
-  await apiClient.post(
-    `/auth/${scope === 'current' ? 'logout' : 'logout-all'}`,
-    {},
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  )
+export const logout = async (scope: 'current' | 'all') => {
+  await apiClient.post(`/auth/${scope === 'current' ? 'logout' : 'logout-all'}`)
 }

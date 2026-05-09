@@ -7,7 +7,5 @@ export type User = {
 
 export type LoginResponse = {
   message: string
-  token_type: string
-  access_token: string
   user: User
 }
