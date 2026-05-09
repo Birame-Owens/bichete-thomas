@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api\Client;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendPaymentReceiptNotifications;
 use App\Models\Paiement;
 use App\Models\Reservation;
-use App\Services\PaymentReceiptNotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,10 +16,6 @@ use Illuminate\Validation\ValidationException;
 class PaymentController extends Controller
 {
     private const INCOMING_TYPES = ['acompte', 'solde', 'complet', 'ajustement'];
-
-    public function __construct(private readonly PaymentReceiptNotificationService $receiptNotifications)
-    {
-    }
 
     public function confirmStripeCheckout(Request $request): JsonResponse
     {
@@ -122,7 +118,10 @@ class PaymentController extends Controller
         if ($payment->statut !== 'valide') {
             $this->markPaymentAsPaid($payment, $payment->reference ?: 'paytech-return-' . $payment->id);
         } else {
-            $this->receiptNotifications->send($payment->fresh(['reservation.client', 'reservation.details', 'client']));
+            // Paiement deja valide (cas du retour PayTech post-webhook) : on
+            // re-pousse l envoi du recu en queue (I6) au cas ou le webhook
+            // n aurait pas reussi a notifier.
+            SendPaymentReceiptNotifications::dispatch($payment->id);
         }
 
         return response()->json([
@@ -288,7 +287,11 @@ class PaymentController extends Controller
         ])->save();
 
         $this->syncReservationPaymentState($payment->reservation_id);
-        $this->receiptNotifications->send($payment->fresh(['reservation.client', 'reservation.details', 'client']));
+        // Notif asynchrone (I6) : la requete webhook Stripe/PayTech repond
+        // immediatement (~50 ms au lieu de 1-5 s avec les appels HTTP
+        // Twilio/WhatsApp/Mail synchrones). Un worker queue:work consomme
+        // la queue Redis et envoie le recu en arriere-plan.
+        SendPaymentReceiptNotifications::dispatch($payment->id);
     }
 
     private function markPaymentAsCanceled(Paiement $payment, string $reference): void
