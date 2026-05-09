@@ -25,4 +25,52 @@ export default defineConfig({
       },
     },
   },
+
+  // ---------------------------------------------------------------------
+  // Build production (I10)
+  // ---------------------------------------------------------------------
+  build: {
+    // Pas de source maps en prod : evite de leak le code source frontend
+    // (logique de routing admin, structure des composants, etc.) sur le
+    // serveur public. Les source maps restent utiles en dev (defaut Vite).
+    sourcemap: false,
+
+    // Augmente le seuil d alerte de taille de chunk (defaut 500 kB).
+    // Avec le lazy loading des routes admin (I9), les chunks vendor sont
+    // les plus gros mais restent acceptables.
+    chunkSizeWarningLimit: 800,
+
+    rollupOptions: {
+      output: {
+        // Decoupage manuel des chunks vendor : isole React et React Router
+        // dans leur propre chunk pour qu ils soient caches par le navigateur
+        // entre les deploiements (l upgrade d une lib metier ne casse pas le
+        // cache de React, et inversement).
+        // Le reste de node_modules part dans un chunk "vendor" generique.
+        manualChunks: (id: string) => {
+          if (!id.includes('node_modules')) {
+            return undefined
+          }
+
+          if (id.includes('react-router')) {
+            return 'vendor-router'
+          }
+
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
+            return 'vendor-react'
+          }
+
+          if (id.includes('axios')) {
+            return 'vendor-axios'
+          }
+
+          if (id.includes('lucide-react')) {
+            return 'vendor-icons'
+          }
+
+          return 'vendor'
+        },
+      },
+    },
+  },
 })

@@ -8,7 +8,6 @@ import {
   Clock,
   CreditCard,
   Gift,
-  Heart,
   Home,
   Image as ImageIcon,
   Camera,
@@ -28,7 +27,7 @@ import {
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { type FormEvent, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import heroImage from '../../assets/hero.jpg'
 import {
   confirmPaytechReturn,
@@ -39,6 +38,20 @@ import {
   getClientCatalogue,
   getClientCoiffureDetails,
 } from './client.api'
+import {
+  closedDaysLabel,
+  coiffureImage,
+  depositAmount,
+  discountAmount,
+  formatCurrency,
+  formatDuration,
+  formatShortDate,
+  isClosedDate,
+  promoText,
+  todayInput,
+} from './client.helpers'
+import { CoiffureCard } from './components/CoiffureCard'
+import { RatingStars } from './components/RatingStars'
 import type {
   ClientAvailability,
   ClientCatalogue,
@@ -49,7 +62,6 @@ import type {
   ClientPromotion,
   ClientReservation,
   ClientReservationPayload,
-  ClientSettings,
   ClientCoiffureReviewPayload,
 } from './client.types'
 
@@ -122,61 +134,10 @@ const emptyCategories: ClientCategory[] = []
 const emptyCoiffures: ClientCoiffure[] = []
 const emptyPromotions: ClientPromotion[] = []
 
-function toInputDate(date: Date) {
-  const normalized = new Date(date)
-  normalized.setMinutes(normalized.getMinutes() - normalized.getTimezoneOffset())
-
-  return normalized.toISOString().slice(0, 10)
-}
-
-function todayInput() {
-  return toInputDate(new Date())
-}
-
-const weekDays = [
-  'lundi',
-  'mardi',
-  'mercredi',
-  'jeudi',
-  'vendredi',
-  'samedi',
-  'dimanche',
-] as const
-
-const weekDayLabels: Record<(typeof weekDays)[number], string> = {
-  lundi: 'Lundi',
-  mardi: 'Mardi',
-  mercredi: 'Mercredi',
-  jeudi: 'Jeudi',
-  vendredi: 'Vendredi',
-  samedi: 'Samedi',
-  dimanche: 'Dimanche',
-}
-
-function dayKeyFromDate(dateString: string) {
-  const date = new Date(`${dateString}T00:00:00`)
-  const dayIndex = date.getDay()
-
-  return weekDays[(dayIndex + 6) % 7]
-}
-
-function isClosedDate(dateString: string, settings?: ClientSettings) {
-  if (!settings?.jours_fermeture || settings.jours_fermeture.length === 0) {
-    return false
-  }
-
-  const key = dayKeyFromDate(dateString)
-
-  return settings.jours_fermeture.includes(key)
-}
-
-function closedDaysLabel(days: string[]) {
-  if (!days || days.length === 0) {
-    return 'Ouvert toute la semaine'
-  }
-
-  return `Ferme: ${weekDays.filter((day) => days.includes(day)).map((day) => weekDayLabels[day]).join(', ')}`
-}
+// Les helpers de formatage / calcul / dates sont externalises dans
+// ./client.helpers.ts pour permettre le memo correct des sous-composants
+// (CoiffureCard, etc.). Les composants RatingStars et CoiffureCard sont
+// dans ./components/ et memoizes (I11).
 
 function createBookingForm(coiffure?: ClientCoiffure): BookingForm {
   return {
@@ -201,91 +162,6 @@ const emptyReviewForm = (): ReviewForm => ({
   note: 5,
   commentaire: '',
 })
-
-function formatCurrency(value: number | string, devise = 'FCFA') {
-  const amount = Number(value || 0)
-
-  return `${new Intl.NumberFormat('fr-FR').format(amount)} ${devise}`
-}
-
-function formatDuration(minutes: number) {
-  if (minutes < 60) {
-    return `${minutes} min`
-  }
-
-  const hours = Math.floor(minutes / 60)
-  const remaining = minutes % 60
-
-  return remaining > 0 ? `${hours}h ${remaining}min` : `${hours}h`
-}
-
-function formatShortDate(value?: string | null) {
-  if (!value) {
-    return '-'
-  }
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-  }).format(date)
-}
-
-function RatingStars({ value, size = 'sm' }: { value: number; size?: 'xs' | 'sm' }) {
-  const iconSize = size === 'xs' ? 'h-3.5 w-3.5' : 'h-4 w-4'
-
-  return (
-    <span className="inline-flex items-center gap-0.5 text-[#f59e0b]">
-      {Array.from({ length: 5 }, (_, index) => (
-        <Star
-          key={index}
-          className={`${iconSize} ${index < Math.round(value) ? 'fill-[#f59e0b]' : 'fill-none text-slate-300'}`}
-        />
-      ))}
-    </span>
-  )
-}
-
-function coiffureImage(coiffure: ClientCoiffure) {
-  return coiffure.image ?? coiffure.images[0]?.url ?? heroImage
-}
-
-function promoText(promo: ClientPromotion) {
-  if (promo.type_reduction === 'pourcentage') {
-    return `-${Number(promo.valeur)}%`
-  }
-
-  return `-${formatCurrency(promo.valeur)}`
-}
-
-function discountAmount(promo: ClientPromotion | null, total: number) {
-  if (!promo) {
-    return 0
-  }
-
-  if (promo.type_reduction === 'pourcentage') {
-    return Math.min(total, total * (Number(promo.valeur) / 100))
-  }
-
-  return Math.min(total, Number(promo.valeur))
-}
-
-function depositAmount(total: number, settings?: ClientSettings) {
-  if (!settings) {
-    return 0
-  }
-
-  if (Number(settings.pourcentage_acompte) > 0) {
-    return total * (Number(settings.pourcentage_acompte) / 100)
-  }
-
-  return Math.min(Number(settings.montant_acompte_defaut || 0), total)
-}
 
 function extractApiError(error: unknown) {
   if (axios.isAxiosError(error)) {
@@ -539,9 +415,15 @@ function ClientHomePage() {
     }))
   }
 
-  function toggleFavorite(id: number) {
-    setFavoriteIds((current) => (current.includes(id) ? current.filter((favoriteId) => favoriteId !== id) : [...current, id]))
-  }
+  // useCallback pour stabiliser les references entre re-renders et permettre
+  // au memo de CoiffureCard de fonctionner (sinon nouveau callback a chaque
+  // render -> memo casse -> 8 cartes re-rendent a chaque frappe). Pareil
+  // pour openDetails plus bas.
+  const toggleFavorite = useCallback((id: number) => {
+    setFavoriteIds((current) =>
+      current.includes(id) ? current.filter((favoriteId) => favoriteId !== id) : [...current, id],
+    )
+  }, [])
 
   function toggleOption(option: ClientCoiffureOption) {
     setBookingForm((current) => {
@@ -566,7 +448,10 @@ function ClientHomePage() {
     setAvailabilityLoading(false)
   }
 
-  async function openDetails(coiffure: ClientCoiffure) {
+  // useCallback : stabilise la reference pour que CoiffureCard memo bite.
+  // Toutes les valeurs capturees sont des setters (stables) ou des helpers
+  // au niveau module (stables) donc deps array vide suffit.
+  const openDetails = useCallback(async (coiffure: ClientCoiffure) => {
     setSelectedCoiffure(coiffure)
     setBookingForm(createBookingForm(coiffure))
     setSubmitState(null)
@@ -590,7 +475,7 @@ function ClientHomePage() {
     } finally {
       setModalLoading(false)
     }
-  }
+  }, [])
 
   async function handleReviewSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -862,36 +747,14 @@ function ClientHomePage() {
             ) : (
               <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
                 {featuredCoiffures.map((coiffure) => (
-                  <article key={coiffure.id} className="group overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
-                    <div className="relative aspect-[4/3] bg-rose-50">
-                      <img src={coiffureImage(coiffure)} alt={coiffure.nom} className="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => toggleFavorite(coiffure.id)}
-                        className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-[#f31976] shadow-sm"
-                        aria-label="Ajouter aux favoris"
-                      >
-                        <Heart className={`h-5 w-5 ${favoriteIds.includes(coiffure.id) ? 'fill-[#f31976]' : ''}`} />
-                      </button>
-                    </div>
-                    <div className="p-4">
-                      <p className="line-clamp-1 text-sm font-black text-slate-950 sm:text-base">{coiffure.nom}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">{coiffure.categorie?.nom ?? 'Coiffure'}</p>
-                      <p className="mt-3 text-xs font-semibold text-slate-500">A partir de</p>
-                      <div className="mt-1 flex items-end justify-between gap-2">
-                        <p className="text-sm font-black text-[#f31976]">{formatCurrency(coiffure.prix_min, devise)}</p>
-                        <p className="text-xs font-bold text-slate-500">{formatDuration(coiffure.duree_min_minutes)}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => openDetails(coiffure)}
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-3 py-3 text-sm font-black text-white transition group-hover:bg-[#f31976]"
-                      >
-                        Details
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </article>
+                  <CoiffureCard
+                    key={coiffure.id}
+                    coiffure={coiffure}
+                    isFavorite={favoriteIds.includes(coiffure.id)}
+                    devise={devise}
+                    onToggleFavorite={toggleFavorite}
+                    onOpenDetails={openDetails}
+                  />
                 ))}
               </div>
             )}
