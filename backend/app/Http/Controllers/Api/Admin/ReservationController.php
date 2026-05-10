@@ -9,11 +9,11 @@ use App\Models\Coiffure;
 use App\Models\ParametreSysteme;
 use App\Models\RegleFidelite;
 use App\Models\Reservation;
+use App\Services\ClientResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -45,6 +45,8 @@ class ReservationController extends Controller
         'samedi',
         'dimanche',
     ];
+
+    public function __construct(private readonly ClientResolver $clientResolver) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -248,7 +250,7 @@ class ReservationController extends Controller
         ];
 
         if (! $current['client_id'] && ! empty($data['client'])) {
-            $current['client_id'] = $this->findOrCreateClient($data['client'])->id;
+            $current['client_id'] = $this->clientResolver->findOrCreate($data['client'])->id;
         }
 
         $computed = $this->computeReservation($current, $data['details'], $reservation);
@@ -567,46 +569,6 @@ class ReservationController extends Controller
         }
 
         return min($fallback, $total);
-    }
-
-    /**
-     * @param array<string, mixed> $data
-     */
-    private function findOrCreateClient(array $data): Client
-    {
-        $telephone = trim((string) $data['telephone']);
-        $nom = Str::lower(trim((string) $data['nom']));
-        $prenom = Str::lower(trim((string) $data['prenom']));
-        $client = Client::query()
-            ->whereRaw('LOWER(nom) = ?', [$nom])
-            ->whereRaw('LOWER(prenom) = ?', [$prenom])
-            ->where('telephone', $telephone)
-            ->first();
-
-        if ($client) {
-            if ($client->est_blackliste) {
-                throw ValidationException::withMessages([
-                    'client.telephone' => 'Ce telephone appartient a un client dans la liste noire.',
-                ]);
-            }
-
-            return $client;
-        }
-
-        $client = Client::query()->create([
-            'nom' => trim((string) $data['nom']),
-            'prenom' => trim((string) $data['prenom']),
-            'telephone' => $telephone,
-            'email' => $data['email'] ?? null,
-            'source' => $data['source'] ?? 'physique',
-        ]);
-
-        $client->preferences()->create([
-            'notifications_whatsapp' => true,
-            'notifications_promos' => true,
-        ]);
-
-        return $client;
     }
 
     private function settingValue(string $key, mixed $default): mixed

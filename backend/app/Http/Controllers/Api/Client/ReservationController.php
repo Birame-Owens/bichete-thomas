@@ -8,6 +8,7 @@ use App\Models\CodePromo;
 use App\Models\Coiffure;
 use App\Models\Paiement;
 use App\Models\Reservation;
+use App\Services\ClientResolver;
 use App\Support\SystemSettings;
 use Carbon\Carbon;
 use Closure;
@@ -38,6 +39,8 @@ class ReservationController extends Controller
         'samedi',
         'dimanche',
     ];
+
+    public function __construct(private readonly ClientResolver $clientResolver) {}
 
     public function store(Request $request): JsonResponse
     {
@@ -79,7 +82,13 @@ class ReservationController extends Controller
      */
     private function createReservation(array $data): array
     {
-        $client = $this->findOrCreateClient($data['client']);
+        // Source 'en_ligne' : ce flow est le checkout client public.
+        // Message blacklist explicite pour le contexte client (vs admin).
+        $client = $this->clientResolver->findOrCreate(
+            $data['client'],
+            defaultSource: 'en_ligne',
+            blacklistMessage: 'Ce telephone ne peut pas effectuer de reservation en ligne.',
+        );
         $coiffure = Coiffure::query()
             ->with(['variantes', 'options'])
             ->where('actif', true)
@@ -213,46 +222,6 @@ class ReservationController extends Controller
                 $fail("Le champ {$attribute} doit etre une URL valide.");
             }
         };
-    }
-
-    /**
-     * @param array<string, mixed> $data
-     */
-    private function findOrCreateClient(array $data): Client
-    {
-        $telephone = trim((string) $data['telephone']);
-        $nom = Str::lower(trim((string) $data['nom']));
-        $prenom = Str::lower(trim((string) $data['prenom']));
-        $client = Client::query()
-            ->whereRaw('LOWER(nom) = ?', [$nom])
-            ->whereRaw('LOWER(prenom) = ?', [$prenom])
-            ->where('telephone', $telephone)
-            ->first();
-
-        if ($client) {
-            if ($client->est_blackliste) {
-                throw ValidationException::withMessages([
-                    'client.telephone' => 'Ce telephone ne peut pas effectuer de reservation en ligne.',
-                ]);
-            }
-
-            return $client;
-        }
-
-        $client = Client::query()->create([
-            'nom' => trim((string) $data['nom']),
-            'prenom' => trim((string) $data['prenom']),
-            'telephone' => $telephone,
-            'email' => $data['email'] ?? null,
-            'source' => 'en_ligne',
-        ]);
-
-        $client->preferences()->create([
-            'notifications_whatsapp' => true,
-            'notifications_promos' => true,
-        ]);
-
-        return $client;
     }
 
     private function ensureWithinBusinessHours(Carbon $startsAt, Carbon $endsAt): void
