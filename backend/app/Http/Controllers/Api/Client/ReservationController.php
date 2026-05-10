@@ -289,7 +289,13 @@ class ReservationController extends Controller
 
     private function ensureSalonCapacity(string $date, string $hour): void
     {
-        DB::statement('SELECT pg_advisory_xact_lock(hashtext(?))', ["reservation_capacity:{$date}"]);
+        // Advisory lock PostgreSQL pour serialiser les reservations concurrentes
+        // sur la meme journee (B2). On le saute sur les autres drivers (sqlite
+        // utilise en tests : pas de concurrence, pas besoin) sinon le SQL
+        // pg_advisory_xact_lock fait planter pg-only.
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('SELECT pg_advisory_xact_lock(hashtext(?))', ["reservation_capacity:{$date}"]);
+        }
 
         $dailyLimit = max(1, (int) $this->settingValue('limite_reservations_par_jour', 15));
         $slotLimit = max(1, (int) $this->settingValue('limite_reservations_par_creneau', 3));
