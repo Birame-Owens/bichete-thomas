@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class ReservationController extends Controller
 {
@@ -178,7 +179,7 @@ class ReservationController extends Controller
             'client' => ['nullable', 'array'],
             'client.nom' => ['required_with:client', 'string', 'max:255'],
             'client.prenom' => ['required_with:client', 'string', 'max:255'],
-            'client.telephone' => ['required_with:client', 'string', 'max:50'],
+            'client.telephone' => ['required_with:client', 'string', 'max:30', (new Phone())->country(['SN'])->international()],
             'client.email' => ['nullable', 'email', 'max:255'],
             'client.source' => ['sometimes', Rule::in(['en_ligne', 'physique'])],
             'coiffeuse_id' => ['nullable', 'integer', Rule::exists('coiffeuses', 'id')->where('actif', true)],

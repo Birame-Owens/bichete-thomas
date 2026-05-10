@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class ReservationController extends Controller
 {
@@ -48,7 +49,11 @@ class ReservationController extends Controller
             'client' => ['required', 'array'],
             'client.nom' => ['required', 'string', 'max:255'],
             'client.prenom' => ['required', 'string', 'max:255'],
-            'client.telephone' => ['required', 'string', 'max:50'],
+            // Tel international accepte (SN par defaut, fallback international pour
+            // touristes/expats). La rule Phone tolere les espaces/tirets/parens
+            // (parsing libphonenumber). La normalisation E.164 a la persistence
+            // est faite par ClientResolver::findOrCreate.
+            'client.telephone' => ['required', 'string', 'max:30', (new Phone())->country(['SN'])->international()],
             'client.email' => ['nullable', 'email', 'max:255'],
             'coiffure_id' => ['required', 'integer', 'exists:coiffures,id'],
             'variante_coiffure_id' => ['required', 'integer', 'exists:variantes_coiffures,id'],

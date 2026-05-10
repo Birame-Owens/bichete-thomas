@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class PaiementController extends Controller
 {
@@ -226,7 +227,7 @@ class PaiementController extends Controller
             'client' => ['nullable', 'array'],
             'client.nom' => ['required_with:client', 'string', 'max:255'],
             'client.prenom' => ['required_with:client', 'string', 'max:255'],
-            'client.telephone' => ['required_with:client', 'string', 'max:50'],
+            'client.telephone' => ['required_with:client', 'string', 'max:30', (new Phone())->country(['SN'])->international()],
             'client.email' => ['nullable', 'email', 'max:255'],
             'client.source' => ['sometimes', Rule::in(['en_ligne', 'physique'])],
             'type' => [$paiement ? 'sometimes' : 'required', Rule::in(self::TYPES)],
