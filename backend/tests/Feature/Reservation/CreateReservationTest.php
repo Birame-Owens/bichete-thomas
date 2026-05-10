@@ -166,8 +166,11 @@ class CreateReservationTest extends TestCase
 
         $coiffure = $this->createCoiffure();
 
-        // Trouve le prochain dimanche.
-        $sunday = Carbon::now();
+        // Trouve le prochain dimanche STRICTEMENT futur. Sans ce addDay()
+        // initial, un test lance un dimanche apres 10h tombe sur "creneau
+        // dans le passe" plutot que sur "jour ferme" - bug deterministe dans
+        // PR #47 mais qui rend la CI flaky 1 jour sur 7.
+        $sunday = Carbon::tomorrow();
         while ($sunday->dayOfWeekIso !== 7) {
             $sunday->addDay();
         }
@@ -277,9 +280,109 @@ class CreateReservationTest extends TestCase
         $payload['heure_debut'] = '11:00';
         $this->postJson('/api/client/reservations', $payload)->assertStatus(201);
 
-        // Toujours 1 client en base (reutilise par tel + nom + prenom).
+        // Toujours 1 client en base (reutilise par tel - match Phase 5 sur tel E.164 uniquement).
         $this->assertDatabaseCount('clients', 1);
         $this->assertDatabaseCount('reservations', 2);
+    }
+
+    public function test_le_match_se_fait_uniquement_sur_le_tel_meme_si_le_nom_diffe(): void
+    {
+        // Phase 5 : le match passe de "nom+prenom+tel" a "tel E.164 uniquement".
+        // Une cliente qui retape son nom differemment (ex: faute de frappe ou
+        // changement marital) ne doit plus creer de doublon.
+        $coiffure = $this->createCoiffure();
+        $tomorrow = Carbon::tomorrow()->toDateString();
+
+        $first = [
+            'client' => ['nom' => 'Diop', 'prenom' => 'Awa', 'telephone' => '+221771230001'],
+            'coiffure_id' => $coiffure->id,
+            'variante_coiffure_id' => $coiffure->variantes->first()->id,
+            'date_reservation' => $tomorrow,
+            'heure_debut' => '10:00',
+            'mode_paiement' => 'wave',
+        ];
+
+        $this->postJson('/api/client/reservations', $first)->assertStatus(201);
+
+        // 2e reservation : meme tel, nom different.
+        $second = $first;
+        $second['client']['nom'] = 'NDIAYE'; // changement de nom marital, casse differente
+        $second['heure_debut'] = '11:00';
+
+        $this->postJson('/api/client/reservations', $second)->assertStatus(201);
+
+        // Avant Phase 5 : 2 clients. Apres : 1 seul, le nom historique est conserve.
+        $this->assertDatabaseCount('clients', 1);
+        $this->assertDatabaseHas('clients', ['nom' => 'Diop', 'telephone' => '+221771230001']);
+    }
+
+    public function test_le_tel_est_stocke_au_format_e164_normalise(): void
+    {
+        // Phase 5 : ClientResolver normalise via PhoneNumber::normalize avant
+        // INSERT. Un tel saisi avec espaces / tirets / parens doit ressortir
+        // en E.164 strict en base.
+        $coiffure = $this->createCoiffure();
+        $tomorrow = Carbon::tomorrow()->toDateString();
+
+        $this->postJson('/api/client/reservations', [
+            'client' => [
+                'nom' => 'Sarr',
+                'prenom' => 'Adji',
+                'telephone' => '+221 77 123 0002', // saisie type formulaire
+            ],
+            'coiffure_id' => $coiffure->id,
+            'variante_coiffure_id' => $coiffure->variantes->first()->id,
+            'date_reservation' => $tomorrow,
+            'heure_debut' => '10:00',
+            'mode_paiement' => 'wave',
+        ])->assertStatus(201);
+
+        $this->assertDatabaseHas('clients', ['telephone' => '+221771230002']);
+        $this->assertDatabaseMissing('clients', ['telephone' => '+221 77 123 0002']);
+    }
+
+    public function test_un_tel_invalide_est_refuse_par_la_validation_phone(): void
+    {
+        // Phase 5 : Rule Phone()->country(['SN'])->international() bloque tout
+        // input non parsable avant meme d arriver a ClientResolver.
+        $coiffure = $this->createCoiffure();
+        $tomorrow = Carbon::tomorrow()->toDateString();
+
+        $r = $this->postJson('/api/client/reservations', [
+            'client' => ['nom' => 'X', 'prenom' => 'Y', 'telephone' => 'voir avec elle'],
+            'coiffure_id' => $coiffure->id,
+            'variante_coiffure_id' => $coiffure->variantes->first()->id,
+            'date_reservation' => $tomorrow,
+            'heure_debut' => '10:00',
+            'mode_paiement' => 'wave',
+        ]);
+
+        $r->assertStatus(422);
+        $r->assertJsonValidationErrors(['client.telephone']);
+        $this->assertDatabaseCount('clients', 0);
+    }
+
+    public function test_un_tel_international_etranger_est_accepte(): void
+    {
+        // Touristes / expats : un +33 (France), +1 (US), etc. doit passer la
+        // validation grace a ->international() sur la rule Phone.
+        $coiffure = $this->createCoiffure();
+        $tomorrow = Carbon::tomorrow()->toDateString();
+
+        $this->postJson('/api/client/reservations', [
+            'client' => [
+                'nom' => 'Martin',
+                'prenom' => 'Sophie',
+                'telephone' => '+33 6 12 34 56 78',
+            ],
+            'coiffure_id' => $coiffure->id,
+            'variante_coiffure_id' => $coiffure->variantes->first()->id,
+            'date_reservation' => $tomorrow,
+            'heure_debut' => '10:00',
+            'mode_paiement' => 'wave',
+        ])->assertStatus(201);
+
+        $this->assertDatabaseHas('clients', ['telephone' => '+33612345678']);
     }
 
     // -----------------------------------------------------------------

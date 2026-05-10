@@ -4,12 +4,35 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Support\PhoneNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class ClientController extends Controller
 {
+    /**
+     * Pre-normalise le tel en E.164 (Phase 5) AVANT que la regle "unique" ne tape
+     * la base : sinon "+221 77 ..." raw vs "+221771..." en base ne matchent pas
+     * et la contrainte UNIQUE plante a l insertion. Les inputs non-parsables
+     * sont laisses tels quels - la rule Phone derriere les rejette en 422.
+     */
+    private function normalizePhoneInput(Request $request): void
+    {
+        $raw = $request->input('telephone');
+
+        if (! is_string($raw)) {
+            return;
+        }
+
+        $normalized = PhoneNumber::normalize($raw);
+
+        if ($normalized !== null) {
+            $request->merge(['telephone' => $normalized]);
+        }
+    }
+
     public function index(Request $request): JsonResponse
     {
         $perPage = max(1, min($request->integer('per_page', 15), 100));
@@ -37,10 +60,12 @@ class ClientController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->normalizePhoneInput($request);
+
         $data = $request->validate([
             'nom' => ['required', 'string', 'max:255'],
             'prenom' => ['required', 'string', 'max:255'],
-            'telephone' => ['required', 'string', 'max:50', 'unique:clients,telephone'],
+            'telephone' => ['required', 'string', 'max:30', (new Phone())->country(['SN'])->international(), 'unique:clients,telephone'],
             'email' => ['nullable', 'email', 'max:255'],
             'source' => ['sometimes', Rule::in(['en_ligne', 'physique'])],
             'nombre_reservations_terminees' => ['sometimes', 'integer', 'min:0', 'max:100000'],
@@ -68,10 +93,12 @@ class ClientController extends Controller
 
     public function update(Request $request, Client $client): JsonResponse
     {
+        $this->normalizePhoneInput($request);
+
         $data = $request->validate([
             'nom' => ['sometimes', 'string', 'max:255'],
             'prenom' => ['sometimes', 'string', 'max:255'],
-            'telephone' => ['sometimes', 'string', 'max:50', Rule::unique('clients', 'telephone')->ignore($client->id)],
+            'telephone' => ['sometimes', 'string', 'max:30', (new Phone())->country(['SN'])->international(), Rule::unique('clients', 'telephone')->ignore($client->id)],
             'email' => ['nullable', 'email', 'max:255'],
             'source' => ['sometimes', Rule::in(['en_ligne', 'physique'])],
             'nombre_reservations_terminees' => ['sometimes', 'integer', 'min:0', 'max:100000'],
