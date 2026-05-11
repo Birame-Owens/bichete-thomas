@@ -2,7 +2,6 @@
 
 use App\Support\PhoneNumber;
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -30,6 +29,15 @@ use Illuminate\Support\Facades\DB;
  */
 return new class extends Migration
 {
+    /**
+     * Opt-out de la transaction implicite Laravel : sur Postgres, la moindre
+     * exception SQL pendant la migration aborte la transaction entiere et
+     * toutes les requetes suivantes echouent en cascade (SQLSTATE 25P02).
+     * Cette migration n a aucune DDL et gere ses conflits via CSV, donc
+     * la transaction Laravel apporte plus de risque que de protection.
+     */
+    public $withinTransaction = false;
+
     public function up(): void
     {
         $timestamp = now()->format('Y-m-d_His');
@@ -87,18 +95,19 @@ return new class extends Migration
                         continue;
                     }
 
-                    try {
-                        DB::table('clients')->where('id', $c->id)->update(['telephone' => $normalized]);
-                        $stats['normalized']++;
-                    } catch (QueryException $e) {
-                        // On filtre uniquement les violations UNIQUE (toutes drivers : pgsql 23505,
-                        // sqlite "UNIQUE constraint", mysql "Duplicate entry"). Sinon on remonte.
-                        $msg = strtolower($e->getMessage());
-                        if (! str_contains($msg, 'unique') && ! str_contains($msg, 'duplicate')) {
-                            throw $e;
-                        }
+                    // Preflight check : on cherche d'abord si la valeur normalisee
+                    // existe deja sur une autre ligne, AVANT de tenter l'UPDATE.
+                    // Sinon, sur Postgres, l UPDATE qui viole la contrainte UNIQUE
+                    // aborte la transaction entiere -> toutes les queries suivantes
+                    // echouent en cascade avec SQLSTATE 25P02. Le try/catch PHP
+                    // attrape l exception mais Postgres reste dans un etat aborte.
+                    // Faire le check explicitement evite l exception completement.
+                    $other = DB::table('clients')
+                        ->where('telephone', $normalized)
+                        ->where('id', '!=', $c->id)
+                        ->first();
 
-                        $other = DB::table('clients')->where('telephone', $normalized)->first();
+                    if ($other !== null) {
                         fputcsv($handle, [
                             'unique_collision',
                             '',
@@ -115,7 +124,12 @@ return new class extends Migration
                             $this->lastActivity($c->id),
                         ]);
                         $stats['collisions']++;
+
+                        continue;
                     }
+
+                    DB::table('clients')->where('id', $c->id)->update(['telephone' => $normalized]);
+                    $stats['normalized']++;
                 }
             });
 
