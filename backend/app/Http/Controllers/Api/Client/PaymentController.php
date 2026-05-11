@@ -7,6 +7,7 @@ use App\Jobs\SendPaymentReceiptNotifications;
 use App\Models\Paiement;
 use App\Models\Reservation;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -143,8 +144,14 @@ class PaymentController extends Controller
             ]);
         }
 
-        $response = Http::withToken((string) $secret)
-            ->get('https://api.stripe.com/v1/checkout/sessions/' . rawurlencode($sessionId));
+        try {
+            $response = Http::withToken((string) $secret)
+                ->get('https://api.stripe.com/v1/checkout/sessions/' . rawurlencode($sessionId));
+        } catch (ConnectionException) {
+            throw ValidationException::withMessages([
+                'session_id' => 'Stripe est temporairement inaccessible. Reessayez dans quelques instants.',
+            ]);
+        }
 
         if ($response->failed()) {
             throw ValidationException::withMessages([
@@ -280,12 +287,23 @@ class PaymentController extends Controller
 
     private function markPaymentAsPaid(Paiement $payment, string $reference): void
     {
-        $payment->forceFill([
-            'statut' => 'valide',
-            'reference' => $reference,
-            'date_paiement' => now(),
-        ])->save();
+        // UPDATE atomique : si deux requetes concurrentes arrivent (IPN + retour
+        // client, ou IPN retente par PayTech/Stripe), une seule obtient affected=1.
+        // L autre sort ici sans dispatcher un second recu.
+        $affected = Paiement::query()
+            ->where('id', $payment->id)
+            ->where('statut', '!=', 'valide')
+            ->update([
+                'statut' => 'valide',
+                'reference' => $reference,
+                'date_paiement' => now(),
+            ]);
 
+        if ($affected === 0) {
+            return;
+        }
+
+        $payment->refresh();
         $this->syncReservationPaymentState($payment->reservation_id);
         // Notif asynchrone (I6) : la requete webhook Stripe/PayTech repond
         // immediatement (~50 ms au lieu de 1-5 s avec les appels HTTP
