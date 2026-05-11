@@ -112,6 +112,59 @@ class PaytechWebhookTest extends TestCase
         Bus::assertNotDispatched(SendPaymentReceiptNotifications::class);
     }
 
+    public function test_ipn_paytech_rejoue_ne_dispatche_pas_un_second_recu(): void
+    {
+        Bus::fake();
+        $payment = $this->createPendingPayment(5000);
+
+        $payload = $this->paytechPayload(
+            paiementId: $payment->id,
+            amount: 5000,
+            refCommand: 'BT-PAY-1-RETRY',
+            event: 'sale_complete',
+        );
+
+        // Premier appel : valide le paiement.
+        $this->postJson('/api/client/paiements/paytech/ipn', $payload)->assertOk();
+        $this->assertSame('valide', $payment->fresh()->statut);
+        Bus::assertDispatchedTimes(SendPaymentReceiptNotifications::class, 1);
+
+        // Deuxieme appel (IPN retente par PayTech) : no-op, pas de second dispatch.
+        $this->postJson('/api/client/paiements/paytech/ipn', $payload)->assertOk();
+        Bus::assertDispatchedTimes(SendPaymentReceiptNotifications::class, 1);
+    }
+
+    public function test_ipn_paytech_et_retour_client_simultanement_un_seul_recu(): void
+    {
+        Bus::fake();
+        $payment = $this->createPendingPayment(5000);
+
+        // Simule l IPN qui arrive en premier et valide le paiement.
+        $ipnPayload = $this->paytechPayload(
+            paiementId: $payment->id,
+            amount: 5000,
+            refCommand: 'BT-PAY-1-RACE',
+            event: 'sale_complete',
+        );
+        $this->postJson('/api/client/paiements/paytech/ipn', $ipnPayload)->assertOk();
+        Bus::assertDispatchedTimes(SendPaymentReceiptNotifications::class, 1);
+
+        // Simule le retour client qui arrive apres l IPN (paiement deja valide).
+        // confirmPaytechReturn detecte statut=valide -> redispatche UNIQUEMENT
+        // pour renvoi du recu, pas de double validation.
+        $signature = hash_hmac('sha256', 'paytech-return|' . $payment->id, config('app.key') . '|' . config('services.paytech.api_secret'));
+        $this->postJson('/api/client/paiements/paytech/confirmer', [
+            'paiement_id' => $payment->id,
+            'signature' => $signature,
+        ])->assertOk();
+
+        // Le statut ne change pas (toujours valide) et aucune double validation.
+        $this->assertSame('valide', $payment->fresh()->statut);
+        // confirmPaytechReturn redispatche le job de recu quand statut deja valide
+        // (comportement voulu : garantit l envoi si le webhook n avait pas abouti).
+        Bus::assertDispatchedTimes(SendPaymentReceiptNotifications::class, 2);
+    }
+
     public function test_webhook_paytech_sale_canceled_annule_le_paiement(): void
     {
         Bus::fake();

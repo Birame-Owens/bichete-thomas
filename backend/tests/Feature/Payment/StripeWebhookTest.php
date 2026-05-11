@@ -98,6 +98,35 @@ class StripeWebhookTest extends TestCase
         Bus::assertNotDispatched(SendPaymentReceiptNotifications::class);
     }
 
+    public function test_webhook_stripe_rejoue_ne_dispatche_pas_un_second_recu(): void
+    {
+        Bus::fake();
+        $payment = $this->createPendingPayment();
+
+        $payload = json_encode([
+            'type' => 'checkout.session.completed',
+            'data' => [
+                'object' => [
+                    'id' => 'cs_test_idempotent',
+                    'payment_status' => 'paid',
+                    'metadata' => ['paiement_id' => (string) $payment->id],
+                ],
+            ],
+        ]);
+
+        $signature = $this->signStripePayload($payload);
+        $headers = ['HTTP_Stripe-Signature' => $signature, 'CONTENT_TYPE' => 'application/json'];
+
+        // Premier appel : valide le paiement.
+        $this->call('POST', '/api/client/paiements/stripe/webhook', server: $headers, content: $payload)->assertOk();
+        $this->assertSame('valide', $payment->fresh()->statut);
+        Bus::assertDispatchedTimes(SendPaymentReceiptNotifications::class, 1);
+
+        // Deuxieme appel (webhook retente par Stripe) : no-op, pas de second dispatch.
+        $this->call('POST', '/api/client/paiements/stripe/webhook', server: $headers, content: $payload)->assertOk();
+        Bus::assertDispatchedTimes(SendPaymentReceiptNotifications::class, 1);
+    }
+
     public function test_webhook_stripe_event_non_gere_repond_received_sans_modif(): void
     {
         Bus::fake();
