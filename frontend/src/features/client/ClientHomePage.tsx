@@ -1242,8 +1242,12 @@ function ClientHomePage() {
                     return (
                       <label
                         key={method.value}
-                        className={`block min-h-[94px] cursor-pointer select-none rounded-2xl border px-2 py-3 text-center transition ${
-                          checked ? 'border-[#f31976] bg-[#fff0f6]' : 'border-slate-200 bg-white'
+                        className={`block min-h-[94px] select-none rounded-2xl border px-2 py-3 text-center transition ${
+                          !configured
+                            ? 'cursor-not-allowed opacity-40'
+                            : checked
+                              ? 'cursor-pointer border-[#f31976] bg-[#fff0f6]'
+                              : 'cursor-pointer border-slate-200 bg-white'
                         }`}
                       >
                         <input
@@ -1251,6 +1255,7 @@ function ClientHomePage() {
                           name="mode_paiement"
                           value={method.value}
                           checked={checked}
+                          disabled={!configured}
                           onChange={() => updateBookingField('paymentMethod', method.value)}
                           className="sr-only"
                         />
@@ -1268,7 +1273,7 @@ function ClientHomePage() {
                           </span>
                         </span>
                         <span className="mt-2 hidden text-xs font-bold text-slate-500 sm:block">
-                          {configured ? method.detail : method.value === 'carte_bancaire' ? 'Stripe a verifier' : 'PayTech a verifier'}
+                          {configured ? method.detail : 'Non disponible'}
                         </span>
                       </label>
                     )

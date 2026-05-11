@@ -12,6 +12,7 @@ use App\Services\ClientResolver;
 use App\Support\SystemSettings;
 use Carbon\Carbon;
 use Closure;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -381,9 +382,16 @@ class ReservationController extends Controller
             $payload['customer_email'] = $reservation->client->email;
         }
 
-        $response = Http::asForm()
-            ->withToken((string) $secret)
-            ->post('https://api.stripe.com/v1/checkout/sessions', $payload);
+        try {
+            $response = Http::asForm()
+                ->withToken((string) $secret)
+                ->post('https://api.stripe.com/v1/checkout/sessions', $payload);
+        } catch (ConnectionException) {
+            // Stripe inaccessible (DNS, reseau) : erreur propre plutot que stack trace.
+            throw ValidationException::withMessages([
+                'mode_paiement' => 'Le paiement par carte bancaire est temporairement indisponible. Essayez Wave ou Orange Money.',
+            ]);
+        }
 
         if ($response->failed()) {
             throw ValidationException::withMessages([
@@ -437,31 +445,38 @@ class ReservationController extends Controller
         );
         $ipnUrl = config('services.paytech.ipn_url') ?? config('app.url') . '/api/client/paiements/paytech/ipn';
 
-        $response = Http::asForm()
-            ->withHeaders([
-                'Accept' => 'application/json',
-                'API_KEY' => (string) $apiKey,
-                'API_SECRET' => (string) $apiSecret,
-            ])
-            ->post(rtrim((string) config('services.paytech.base_url'), '/') . '/payment/request-payment', [
-                'item_name' => "Acompte reservation #{$reservation->id}",
-                'item_price' => (int) round((float) $payment->montant),
-                'currency' => 'XOF',
-                'ref_command' => $refCommand,
-                'command_name' => "Acompte reservation #{$reservation->id} - Bichette Thomas",
-                'env' => config('services.paytech.env', 'test'),
-                'target_payment' => $targetPayment,
-                'ipn_url' => $ipnUrl,
-                'success_url' => $successUrl,
-                'cancel_url' => $cancelUrl,
-                'custom_field' => json_encode([
-                    'reservation_id' => $reservation->id,
-                    'paiement_id' => $payment->id,
+        try {
+            $response = Http::asForm()
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                    'API_KEY' => (string) $apiKey,
+                    'API_SECRET' => (string) $apiSecret,
+                ])
+                ->post(rtrim((string) config('services.paytech.base_url'), '/') . '/payment/request-payment', [
+                    'item_name' => "Acompte reservation #{$reservation->id}",
+                    'item_price' => (int) round((float) $payment->montant),
+                    'currency' => 'XOF',
                     'ref_command' => $refCommand,
-                    'mode_paiement' => $payment->mode_paiement,
-                    'email' => $client->email,
-                ], JSON_THROW_ON_ERROR),
+                    'command_name' => "Acompte reservation #{$reservation->id} - Bichette Thomas",
+                    'env' => config('services.paytech.env', 'test'),
+                    'target_payment' => $targetPayment,
+                    'ipn_url' => $ipnUrl,
+                    'success_url' => $successUrl,
+                    'cancel_url' => $cancelUrl,
+                    'custom_field' => json_encode([
+                        'reservation_id' => $reservation->id,
+                        'paiement_id' => $payment->id,
+                        'ref_command' => $refCommand,
+                        'mode_paiement' => $payment->mode_paiement,
+                        'email' => $client->email,
+                    ], JSON_THROW_ON_ERROR),
+                ]);
+        } catch (ConnectionException) {
+            // PayTech inaccessible (DNS, reseau) : erreur propre plutot que stack trace.
+            throw ValidationException::withMessages([
+                'mode_paiement' => 'Le paiement mobile est temporairement indisponible. Reessayez dans quelques instants.',
             ]);
+        }
 
         if ($response->failed()) {
             throw ValidationException::withMessages([
