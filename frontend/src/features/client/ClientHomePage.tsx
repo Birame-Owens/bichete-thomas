@@ -28,6 +28,8 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import PhoneInput from 'react-phone-number-input'
+import 'react-phone-number-input/style.css'
 import heroImage from '../../assets/hero.jpg'
 import {
   confirmPaytechReturn,
@@ -52,6 +54,7 @@ import {
 } from './client.helpers'
 import { CoiffureCard } from './components/CoiffureCard'
 import { RatingStars } from './components/RatingStars'
+import { usePhoneLookup } from './hooks/usePhoneLookup'
 import type {
   ClientAvailability,
   ClientCatalogue,
@@ -199,6 +202,9 @@ function ClientHomePage() {
   const [selectedCoiffure, setSelectedCoiffure] = useState<ClientCoiffure | null>(null)
   const [modalLoading, setModalLoading] = useState(false)
   const [bookingForm, setBookingForm] = useState<BookingForm>(() => createBookingForm())
+  // Phase 5 etape 1 : lookup tel international + prefill auto.
+  // Le hook debounce 300ms et n appelle l API que sur E.164 valide (libphonenumber local).
+  const phoneLookup = usePhoneLookup(bookingForm.telephone)
   const [availability, setAvailability] = useState<ClientAvailability | null>(null)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [availabilityError, setAvailabilityError] = useState<string | null>(null)
@@ -209,6 +215,23 @@ function ClientHomePage() {
   const [reviewState, setReviewState] = useState<SubmitState>(null)
   const [pageNotice, setPageNotice] = useState<SubmitState>(null)
   const [submittedReservation, setSubmittedReservation] = useState<ClientReservation | null>(null)
+
+  // Prefill non-destructif nom/prenom quand le backend retrouve un client par tel
+  // (Phase 5 etape 1). On NE PAS ECRASER ce que la cliente a deja tape : si elle
+  // a deja saisi son prenom avant que le tel devienne valide, on le respecte.
+  // Si elle veut le changer (faute de frappe en base, nom marital, etc.) elle
+  // peut le retaper a la main - le backend stockera le nom historique vu que
+  // ClientResolver matche sur tel uniquement.
+  useEffect(() => {
+    if (phoneLookup.state !== 'found' || phoneLookup.data === null) {
+      return
+    }
+    setBookingForm((current) => ({
+      ...current,
+      prenom: current.prenom.trim() === '' ? phoneLookup.data?.prenom ?? '' : current.prenom,
+      nom: current.nom.trim() === '' ? phoneLookup.data?.nom ?? '' : current.nom,
+    }))
+  }, [phoneLookup.state, phoneLookup.data])
 
   useEffect(() => {
     let ignore = false
@@ -1083,12 +1106,48 @@ function ClientHomePage() {
               ) : null}
 
               <div className="mt-5 grid grid-cols-2 gap-3">
+                {/*
+                 * Telephone en PREMIER champ : le hook usePhoneLookup va
+                 * (Phase 5 etape 1) appeler /client/lookup en debounce 300ms
+                 * et auto-prefill prenom + nom si le client est connu. Mettre
+                 * le tel d abord cree donc un effet "magique" : la cliente
+                 * tape son numero, ses autres champs se remplissent tout seuls.
+                 */}
+                <label className="col-span-2 block">
+                  <span className="flex items-center gap-2 text-[11px] font-black uppercase text-slate-500">
+                    Telephone
+                    {phoneLookup.state === 'loading' ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-[#f31976]" aria-hidden />
+                    ) : null}
+                    {phoneLookup.state === 'found' && phoneLookup.data?.prenom ? (
+                      <span className="flex items-center gap-1 rounded-full bg-[#fff0f6] px-2 py-0.5 text-[10px] font-black normal-case text-[#f31976]">
+                        <Check className="h-3 w-3" aria-hidden />
+                        Bonjour {phoneLookup.data.prenom} !
+                      </span>
+                    ) : null}
+                  </span>
+                  <PhoneInput
+                    international
+                    defaultCountry="SN"
+                    value={bookingForm.telephone || undefined}
+                    onChange={(value) => updateBookingField('telephone', value ?? '')}
+                    placeholder="77 123 45 67"
+                    autoComplete="tel"
+                    required
+                    numberInputProps={{
+                      className:
+                        'h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10',
+                    }}
+                    className="mt-1.5 flex items-center gap-2"
+                  />
+                </label>
                 <label className="block">
                   <span className="text-[11px] font-black uppercase text-slate-500">Prenom</span>
                   <input
                     value={bookingForm.prenom}
                     onChange={(event) => updateBookingField('prenom', event.target.value)}
                     required
+                    autoComplete="given-name"
                     className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
@@ -1098,24 +1157,17 @@ function ClientHomePage() {
                     value={bookingForm.nom}
                     onChange={(event) => updateBookingField('nom', event.target.value)}
                     required
+                    autoComplete="family-name"
                     className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
-                <label className="block">
-                  <span className="text-[11px] font-black uppercase text-slate-500">Telephone</span>
-                  <input
-                    value={bookingForm.telephone}
-                    onChange={(event) => updateBookingField('telephone', event.target.value)}
-                    required
-                    className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
-                  />
-                </label>
-                <label className="block">
+                <label className="col-span-2 block">
                   <span className="text-[11px] font-black uppercase text-slate-500">Email</span>
                   <input
                     type="email"
                     value={bookingForm.email}
                     onChange={(event) => updateBookingField('email', event.target.value)}
+                    autoComplete="email"
                     className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
