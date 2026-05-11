@@ -210,3 +210,11 @@ export type ClientStripeConfirmation = {
   message?: string
   data: ClientPayment
 }
+
+// Phase 5 etape 1 : lookup public d un client par telephone E.164.
+// Privacy-first cote backend : la reponse ne contient JAMAIS email/id/telephone.
+export type ClientLookupResponse = {
+  found: boolean
+  nom: string | null
+  prenom: string | null
+}
