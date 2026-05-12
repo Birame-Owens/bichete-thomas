@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\Admin\VarianteCoiffureController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Client\CatalogueController as ClientCatalogueController;
+use App\Http\Controllers\Api\Client\ClientSessionController;
 use App\Http\Controllers\Api\Client\PaymentController as ClientPaymentController;
 use App\Http\Controllers\Api\Client\ReservationAvailabilityController as ClientReservationAvailabilityController;
 use App\Http\Controllers\Api\Client\ReservationController as ClientReservationController;
@@ -45,10 +46,14 @@ Route::prefix('client')->name('client.')->group(function (): void {
     Route::get('/catalogue', [ClientCatalogueController::class, 'index'])->name('catalogue.index');
     Route::get('/catalogue/{coiffure}', [ClientCatalogueController::class, 'show'])->name('catalogue.show');
     Route::post('/catalogue/{coiffure}/avis', [ClientCatalogueController::class, 'storeAvis'])->middleware('throttle:10,1')->name('catalogue.avis.store');
-    // Lookup tel international (Phase 5 etape 1) : prefill auto nom/prenom au
-    // checkout. Throttle serre (5/min/IP) anti-annuaire-inverse + privacy-safe
-    // (jamais d email, jamais d id, jamais d historique).
+    // Lookup tel international (Phase 5 etape 1).
     Route::get('/lookup', [ClientCatalogueController::class, 'lookup'])->middleware('throttle:5,1')->name('lookup');
+    // Magic link + session client (Phase 5 etape 2).
+    Route::post('/auth/magic-link', [ClientSessionController::class, 'verify'])->middleware('throttle:10,1')->name('auth.magic-link');
+    Route::middleware('auth.client.session')->group(function (): void {
+        Route::get('/session', [ClientSessionController::class, 'session'])->name('session');
+        Route::delete('/session', [ClientSessionController::class, 'logout'])->name('session.logout');
+    });
     Route::get('/reservations/disponibilites', ClientReservationAvailabilityController::class)->name('reservations.availability');
     Route::post('/reservations', [ClientReservationController::class, 'store'])->middleware('throttle:10,1')->name('reservations.store');
     Route::post('/paiements/stripe/confirmer', [ClientPaymentController::class, 'confirmStripeCheckout'])->middleware('throttle:20,1')->name('payments.stripe.confirm');

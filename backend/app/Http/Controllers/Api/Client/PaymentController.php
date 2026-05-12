@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Client;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendMagicLinkNotification;
 use App\Jobs\SendPaymentReceiptNotifications;
 use App\Models\Paiement;
 use App\Models\Reservation;
@@ -310,6 +311,10 @@ class PaymentController extends Controller
         // Twilio/WhatsApp/Mail synchrones). Un worker queue:work consomme
         // la queue Redis et envoie le recu en arriere-plan.
         SendPaymentReceiptNotifications::dispatch($payment->id);
+        // Magic link (Phase 5 etape 2) : lien de session 90j envoye par WhatsApp
+        // apres chaque paiement confirme. Si WhatsApp n est pas configure, le
+        // job log un warning et sort proprement (pas d exception).
+        SendMagicLinkNotification::dispatch($payment->id);
     }
 
     private function markPaymentAsCanceled(Paiement $payment, string $reference): void

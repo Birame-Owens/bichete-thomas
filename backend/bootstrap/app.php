@@ -16,9 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Alias des middlewares custom utilises dans routes/api.php.
         $middleware->alias([
             'auth.token' => App\Http\Middleware\AuthenticateApiToken::class,
+            'auth.client.session' => App\Http\Middleware\AuthenticateClientSession::class,
             'log.admin' => App\Http\Middleware\LogAdminAction::class,
             'role' => App\Http\Middleware\EnsureUserHasRole::class,
         ]);
+
 
         // TrustProxies (B6) : le nginx interne tourne en HTTP derriere un
         // reverse-proxy TLS (Cloudflare, Caddy, AWS ELB...). Sans cette
