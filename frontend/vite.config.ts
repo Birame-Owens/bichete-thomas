@@ -23,6 +23,13 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: false, // garde l Origin du navigateur pour les checks CORS Laravel
       },
+      // Proxy les assets uploadés (images coiffures) : Storage::url() génère
+      // des URLs http://localhost:8000/storage/... que apiAssetUrl réécrit en
+      // http://localhost:5173/storage/... — sans ce proxy Vite renverrait 404.
+      '/storage': {
+        target: 'http://localhost:8000',
+        changeOrigin: false,
+      },
     },
   },
 
