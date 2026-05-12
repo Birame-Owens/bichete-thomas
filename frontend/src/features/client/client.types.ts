@@ -230,3 +230,14 @@ export type ClientMagicLinkVerifyResponse = {
   message: string
   data: ClientSession
 }
+
+// Phase 5 etape 3 : avis verifies post-prestation via lien WhatsApp.
+export type AvisPrefill = {
+  prenom: string
+  coiffure_nom: string
+}
+
+export type AvisVerifiePayload = {
+  note: number
+  commentaire: string
+}

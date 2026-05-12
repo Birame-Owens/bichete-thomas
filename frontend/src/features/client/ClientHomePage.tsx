@@ -19,10 +19,8 @@ import {
   Phone,
   Scissors,
   Search,
-  Send,
   ShieldCheck,
   Sparkles,
-  Star,
   User,
   Users,
   X,
@@ -35,7 +33,6 @@ import heroImage from '../../assets/hero.jpg'
 import {
   confirmPaytechReturn,
   confirmStripeCheckout,
-  createClientCoiffureReview,
   createClientReservation,
   getClientAvailability,
   getClientCatalogue,
@@ -69,7 +66,6 @@ import type {
   ClientPromotion,
   ClientReservation,
   ClientReservationPayload,
-  ClientCoiffureReviewPayload,
   ClientSession,
 } from './client.types'
 
@@ -85,14 +81,6 @@ type BookingForm = {
   code_promo: string
   notes: string
   paymentMethod: ClientPaymentMethod
-}
-
-type ReviewForm = {
-  nom_client: string
-  telephone: string
-  email: string
-  note: number
-  commentaire: string
 }
 
 type SubmitState = {
@@ -163,14 +151,6 @@ function createBookingForm(coiffure?: ClientCoiffure): BookingForm {
   }
 }
 
-const emptyReviewForm = (): ReviewForm => ({
-  nom_client: '',
-  telephone: '',
-  email: '',
-  note: 5,
-  commentaire: '',
-})
-
 function extractApiError(error: unknown) {
   if (axios.isAxiosError(error)) {
     const payload = error.response?.data as {
@@ -215,9 +195,6 @@ function ClientHomePage() {
   const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitState, setSubmitState] = useState<SubmitState>(null)
-  const [reviewForm, setReviewForm] = useState<ReviewForm>(() => emptyReviewForm())
-  const [reviewSubmitting, setReviewSubmitting] = useState(false)
-  const [reviewState, setReviewState] = useState<SubmitState>(null)
   const [pageNotice, setPageNotice] = useState<SubmitState>(null)
   const [submittedReservation, setSubmittedReservation] = useState<ClientReservation | null>(null)
   const [clientSession, setClientSession] = useState<ClientSession | null>(null)
@@ -491,13 +468,6 @@ function ClientHomePage() {
     }))
   }
 
-  function updateReviewField<K extends keyof ReviewForm>(key: K, value: ReviewForm[K]) {
-    setReviewForm((current) => ({
-      ...current,
-      [key]: value,
-    }))
-  }
-
   // useCallback pour stabiliser les references entre re-renders et permettre
   // au memo de CoiffureCard de fonctionner (sinon nouveau callback a chaque
   // render -> memo casse -> 8 cartes re-rendent a chaque frappe). Pareil
@@ -524,8 +494,6 @@ function ClientHomePage() {
   function closeDetails() {
     setSelectedCoiffure(null)
     setSubmitState(null)
-    setReviewState(null)
-    setReviewForm(emptyReviewForm())
     setSubmittedReservation(null)
     setAvailability(null)
     setAvailabilityLoading(false)
@@ -546,8 +514,6 @@ function ClientHomePage() {
     setSelectedCoiffure(coiffure)
     setBookingForm(createBookingForm(coiffure))
     setSubmitState(null)
-    setReviewState(null)
-    setReviewForm(emptyReviewForm())
     setSubmittedReservation(null)
     setAvailability(null)
     setAvailabilityLoading(true)
@@ -567,44 +533,6 @@ function ClientHomePage() {
       setModalLoading(false)
     }
   }, [])
-
-  async function handleReviewSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    if (!selectedCoiffure) {
-      return
-    }
-
-    if (reviewForm.nom_client.trim() === '' || reviewForm.commentaire.trim().length < 8) {
-      setReviewState({ type: 'error', message: 'Ajoutez votre nom et un commentaire plus detaille.' })
-      return
-    }
-
-    const payload: ClientCoiffureReviewPayload = {
-      nom_client: reviewForm.nom_client.trim(),
-      telephone: reviewForm.telephone.trim() === '' ? null : reviewForm.telephone.trim(),
-      email: reviewForm.email.trim() === '' ? null : reviewForm.email.trim(),
-      note: reviewForm.note,
-      commentaire: reviewForm.commentaire.trim(),
-    }
-
-    setReviewSubmitting(true)
-    setReviewState(null)
-
-    try {
-      const response = await createClientCoiffureReview(selectedCoiffure.id, payload)
-      setReviewState({ type: 'success', message: response.message ?? 'Merci pour votre avis.' })
-      setReviewForm(emptyReviewForm())
-
-      if (response.data.statut === 'approuve') {
-        setSelectedCoiffure(await getClientCoiffureDetails(selectedCoiffure.id))
-      }
-    } catch (error) {
-      setReviewState({ type: 'error', message: extractApiError(error) })
-    } finally {
-      setReviewSubmitting(false)
-    }
-  }
 
   async function handleReservationSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -1430,79 +1358,6 @@ function ClientHomePage() {
                 {bookingForm.paymentMethod === 'carte_bancaire' ? 'Continuer vers Stripe' : 'Continuer vers PayTech'}
               </button>
             </form>
-
-            <section className="border-t border-slate-100 bg-white p-4 sm:p-6 lg:col-span-2">
-              <form onSubmit={handleReviewSubmit} className="rounded-3xl bg-slate-950 p-4 text-white">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-black">Ajouter votre commentaire</p>
-                    <p className="mt-1 text-xs font-bold text-white/55">Votre avis aide les prochaines clientes a choisir.</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: 5 }, (_, index) => {
-                      const note = index + 1
-
-                      return (
-                        <button
-                          key={note}
-                          type="button"
-                          onClick={() => updateReviewField('note', note)}
-                          className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[#f59e0b]"
-                          aria-label={`${note} etoiles`}
-                        >
-                          <Star className={`h-5 w-5 ${note <= reviewForm.note ? 'fill-[#f59e0b]' : 'fill-none text-white/40'}`} />
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <input
-                    value={reviewForm.nom_client}
-                    onChange={(event) => updateReviewField('nom_client', event.target.value)}
-                    placeholder="Votre nom"
-                    required
-                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
-                  />
-                  <input
-                    value={reviewForm.telephone}
-                    onChange={(event) => updateReviewField('telephone', event.target.value)}
-                    placeholder="Telephone"
-                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
-                  />
-                </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-[0.7fr_1.3fr]">
-                  <input
-                    type="email"
-                    value={reviewForm.email}
-                    onChange={(event) => updateReviewField('email', event.target.value)}
-                    placeholder="Email optionnel"
-                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
-                  />
-                  <textarea
-                    value={reviewForm.commentaire}
-                    onChange={(event) => updateReviewField('commentaire', event.target.value)}
-                    placeholder="Votre experience avec cette coiffure"
-                    required
-                    rows={2}
-                    className="min-h-11 rounded-2xl border border-white/10 bg-white/10 px-3 py-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
-                  />
-                </div>
-                {reviewState ? (
-                  <p className={`mt-3 rounded-2xl px-3 py-2 text-xs font-bold ${reviewState.type === 'success' ? 'bg-emerald-400/15 text-emerald-100' : 'bg-rose-400/15 text-rose-100'}`}>
-                    {reviewState.message}
-                  </p>
-                ) : null}
-                <button
-                  type="submit"
-                  disabled={reviewSubmitting}
-                  className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#d80f63] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {reviewSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Publier mon avis
-                </button>
-              </form>
-            </section>
           </div>
         </div>
       ) : null}

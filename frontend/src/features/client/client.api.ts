@@ -1,6 +1,8 @@
 import { apiAssetUrl } from '../../lib/apiAssets'
 import { apiClient } from '../../lib/apiClient'
 import type {
+  AvisPrefill,
+  AvisVerifiePayload,
   ClientApiItem,
   ClientAvailability,
   ClientCatalogue,
@@ -128,6 +130,20 @@ export async function getClientSession() {
 
 export async function logoutClientSession() {
   await apiClient.delete('/client/session')
+}
+
+// -----------------------------------------------------------------
+// Phase 5 etape 3 : avis verifies post-prestation
+// -----------------------------------------------------------------
+
+export async function getAvisPrefill(token: string) {
+  const response = await apiClient.get<ClientApiItem<AvisPrefill>>(`/client/avis/${token}`)
+  return response.data.data
+}
+
+export async function submitVerifiedAvis(token: string, payload: AvisVerifiePayload) {
+  const response = await apiClient.post<{ message: string }>(`/client/avis/${token}`, payload)
+  return response.data
 }
 
 /**
