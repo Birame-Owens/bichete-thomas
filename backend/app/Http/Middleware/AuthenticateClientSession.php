@@ -10,8 +10,13 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Verifie le cookie de session client `bt_client_session`.
  *
- * Si valide, injecte `$request->clientSession` (instance Client).
- * Si invalide ou absent, retourne 401 (les routes protegees en ont besoin).
+ * Pas de sliding-window d inactivite : le cycle de reservation d un salon
+ * est de plusieurs semaines, une fenetre courte deconnecterait la cliente
+ * avant sa prochaine visite et viderait l interet du magic link.
+ * La session expire apres 90 jours d absence totale (session_expires_at).
+ *
+ * Si valide, injecte `clientSession` dans la requete (instance Client).
+ * Si invalide ou absent, retourne 401.
  */
 class AuthenticateClientSession
 {

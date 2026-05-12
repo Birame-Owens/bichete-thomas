@@ -132,7 +132,7 @@ return [
     |
     */
 
-    'session_inactivity_hours' => (int) env('AUTH_SESSION_INACTIVITY_HOURS', 6),
+    'session_inactivity_hours' => (int) env('AUTH_SESSION_INACTIVITY_HOURS', 2),
     'session_cookie_max_hours' => (int) env('AUTH_SESSION_COOKIE_MAX_HOURS', 168),
 
 ];
