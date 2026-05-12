@@ -46,7 +46,6 @@ Route::get('/reservations/disponibilites', ClientReservationAvailabilityControll
 Route::prefix('client')->name('client.')->group(function (): void {
     Route::get('/catalogue', [ClientCatalogueController::class, 'index'])->name('catalogue.index');
     Route::get('/catalogue/{coiffure}', [ClientCatalogueController::class, 'show'])->name('catalogue.show');
-    Route::post('/catalogue/{coiffure}/avis', [ClientCatalogueController::class, 'storeAvis'])->middleware('throttle:10,1')->name('catalogue.avis.store');
     // Lookup tel international (Phase 5 etape 1).
     Route::get('/lookup', [ClientCatalogueController::class, 'lookup'])->middleware('throttle:5,1')->name('lookup');
     // Magic link + session client (Phase 5 etape 2).
