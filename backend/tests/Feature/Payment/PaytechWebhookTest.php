@@ -3,9 +3,7 @@
 namespace Tests\Feature\Payment;
 
 use App\Jobs\SendPaymentReceiptNotifications;
-use App\Models\Client;
 use App\Models\Paiement;
-use App\Models\Reservation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
@@ -216,39 +214,6 @@ class PaytechWebhookTest extends TestCase
 
     private function createPendingPayment(int $montant): Paiement
     {
-        $client = Client::query()->create([
-            'nom' => 'Test',
-            'prenom' => 'Client',
-            'telephone' => '+221770000000',
-            'source' => 'en_ligne',
-        ]);
-
-        $reservation = Reservation::query()->create([
-            'client_id' => $client->id,
-            'date_reservation' => now()->addDay()->toDateString(),
-            'heure_debut' => '10:00',
-            'heure_fin' => '11:00',
-            'duree_totale_minutes' => 60,
-            'statut' => 'en_attente',
-            'source' => 'en_ligne',
-            'montant_total' => 15000,
-            'montant_acompte' => $montant,
-            'montant_reduction' => 0,
-            'montant_restant' => 15000 - $montant,
-            'devise' => 'FCFA',
-        ]);
-
-        return Paiement::query()->create([
-            'reservation_id' => $reservation->id,
-            'client_id' => $client->id,
-            'numero_recu' => 'TEST-PAY-001',
-            'type' => 'acompte',
-            'mode_paiement' => 'wave',
-            'montant' => $montant,
-            'devise' => 'FCFA',
-            'statut' => 'en_attente',
-            'date_paiement' => now(),
-            'recu_envoye' => false,
-        ]);
+        return Paiement::factory()->create(['montant' => $montant]);
     }
 }

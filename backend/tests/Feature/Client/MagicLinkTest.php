@@ -5,7 +5,6 @@ namespace Tests\Feature\Client;
 use App\Jobs\SendMagicLinkNotification;
 use App\Models\Client;
 use App\Models\Paiement;
-use App\Models\Reservation;
 use App\Services\ClientMagicLinkService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -240,44 +239,13 @@ class MagicLinkTest extends TestCase
 
     private function createClient(): Client
     {
-        return Client::query()->create([
-            'nom' => 'Diallo',
-            'prenom' => 'Albar',
-            'telephone' => '+221770000001',
-            'source' => 'en_ligne',
-            'est_blackliste' => false,
-        ]);
+        return Client::factory()->create();
     }
 
     private function createPendingPayment(): Paiement
     {
         $client = $this->createClient();
-        $reservation = Reservation::query()->create([
-            'client_id' => $client->id,
-            'date_reservation' => now()->addDay()->toDateString(),
-            'heure_debut' => '10:00',
-            'heure_fin' => '11:00',
-            'duree_totale_minutes' => 60,
-            'statut' => 'en_attente',
-            'source' => 'en_ligne',
-            'montant_total' => 15000,
-            'montant_acompte' => 5000,
-            'montant_reduction' => 0,
-            'montant_restant' => 10000,
-            'devise' => 'FCFA',
-        ]);
 
-        return Paiement::query()->create([
-            'reservation_id' => $reservation->id,
-            'client_id' => $client->id,
-            'numero_recu' => 'TEST-ML-001',
-            'type' => 'acompte',
-            'mode_paiement' => 'wave',
-            'montant' => 5000,
-            'devise' => 'FCFA',
-            'statut' => 'en_attente',
-            'date_paiement' => now(),
-            'recu_envoye' => false,
-        ]);
+        return Paiement::factory()->create(['client_id' => $client->id]);
     }
 }

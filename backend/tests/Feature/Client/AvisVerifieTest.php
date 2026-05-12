@@ -5,8 +5,6 @@ namespace Tests\Feature\Client;
 use App\Console\Commands\DispatchReviewInvitations;
 use App\Jobs\SendReviewInvitation;
 use App\Models\AvisCoiffure;
-use App\Models\CategorieCoiffure;
-use App\Models\Client;
 use App\Models\Coiffure;
 use App\Models\DetailReservation;
 use App\Models\Reservation;
@@ -41,7 +39,7 @@ class AvisVerifieTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('data.prenom', $reservation->client->prenom);
-        $response->assertJsonPath('data.coiffure_nom', 'Tresses box braids');
+        $response->assertJsonPath('data.coiffure_nom', $reservation->details->first()->coiffure_nom);
     }
 
     public function test_prefill_token_inconnu_retourne_404(): void
@@ -192,56 +190,18 @@ class AvisVerifieTest extends TestCase
     // Helpers
     // -----------------------------------------------------------------
 
-    private static int $seq = 0;
-
     private function createTermineeReservation(int $daysAgo = 1): Reservation
     {
-        $categorie = CategorieCoiffure::query()->firstOrCreate(
-            ['nom' => 'Tresses'],
-            ['actif' => true],
-        );
+        $coiffure = Coiffure::factory()->create();
 
-        $coiffure = Coiffure::query()->firstOrCreate(
-            ['categorie_coiffure_id' => $categorie->id, 'nom' => 'Tresses box braids'],
-            ['actif' => true],
-        );
+        $reservation = Reservation::factory()
+            ->terminee($daysAgo)
+            ->create();
 
-        $telephone = '+221770' . str_pad(++self::$seq, 6, '0', STR_PAD_LEFT);
-
-        $client = Client::query()->create([
-            'nom' => 'Diallo',
-            'prenom' => 'Fatou',
-            'telephone' => $telephone,
-            'source' => 'en_ligne',
-            'est_blackliste' => false,
-        ]);
-
-        $reservation = Reservation::query()->create([
-            'client_id' => $client->id,
-            'date_reservation' => now()->subDays($daysAgo)->toDateString(),
-            'heure_debut' => '10:00',
-            'heure_fin' => '12:00',
-            'duree_totale_minutes' => 120,
-            'statut' => 'terminee',
-            'source' => 'en_ligne',
-            'montant_total' => 20000,
-            'montant_acompte' => 5000,
-            'montant_reduction' => 0,
-            'montant_restant' => 15000,
-            'devise' => 'FCFA',
-        ]);
-
-        DetailReservation::query()->create([
+        DetailReservation::factory()->create([
             'reservation_id' => $reservation->id,
             'coiffure_id' => $coiffure->id,
-            'coiffure_nom' => 'Tresses box braids',
-            'variante_nom' => 'Petites tresses',
-            'prix_unitaire' => 20000,
-            'duree_minutes' => 120,
-            'quantite' => 1,
-            'montant_options' => 0,
-            'montant_total' => 20000,
-            'ordre' => 1,
+            'coiffure_nom' => $coiffure->nom,
         ]);
 
         return $reservation->load(['client', 'details']);

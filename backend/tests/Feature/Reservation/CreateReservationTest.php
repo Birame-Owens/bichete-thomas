@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Reservation;
 
-use App\Models\CategorieCoiffure;
 use App\Models\Coiffure;
 use App\Models\ParametreSysteme;
 use App\Models\Reservation;
@@ -410,25 +409,8 @@ class CreateReservationTest extends TestCase
 
     private function createCoiffure(): Coiffure
     {
-        $cat = CategorieCoiffure::query()->create([
-            'nom' => 'Tresses',
-            'actif' => true,
-        ]);
-
-        $coiffure = Coiffure::query()->create([
-            'categorie_coiffure_id' => $cat->id,
-            'nom' => 'Tresses africaines',
-            'description' => 'Test',
-            'actif' => true,
-        ]);
-
-        VarianteCoiffure::query()->create([
-            'coiffure_id' => $coiffure->id,
-            'nom' => 'Standard',
-            'prix' => 15000,
-            'duree_minutes' => 60,
-            'actif' => true,
-        ]);
+        $coiffure = Coiffure::factory()->create();
+        VarianteCoiffure::factory()->create(['coiffure_id' => $coiffure->id]);
 
         return $coiffure->fresh(['variantes', 'options']);
     }
