@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\Admin\RegleFideliteController;
 use App\Http\Controllers\Api\Admin\VarianteCoiffureController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\Client\AvisController as ClientAvisController;
 use App\Http\Controllers\Api\Client\CatalogueController as ClientCatalogueController;
 use App\Http\Controllers\Api\Client\ClientSessionController;
 use App\Http\Controllers\Api\Client\PaymentController as ClientPaymentController;
@@ -60,6 +61,9 @@ Route::prefix('client')->name('client.')->group(function (): void {
     Route::post('/paiements/stripe/webhook', [ClientPaymentController::class, 'stripeWebhook'])->name('payments.stripe.webhook');
     Route::post('/paiements/paytech/confirmer', [ClientPaymentController::class, 'confirmPaytechReturn'])->middleware('throttle:20,1')->name('payments.paytech.confirm');
     Route::post('/paiements/paytech/ipn', [ClientPaymentController::class, 'paytechWebhook'])->name('payments.paytech.ipn');
+    // Avis verifies post-prestation (Phase 5 etape 3).
+    Route::get('/avis/{token}', [ClientAvisController::class, 'prefill'])->name('avis.prefill');
+    Route::post('/avis/{token}', [ClientAvisController::class, 'store'])->middleware('throttle:5,1')->name('avis.store');
 });
 
 Route::prefix('auth')->group(function (): void {
