@@ -12,6 +12,7 @@ import {
   Image as ImageIcon,
   Camera,
   Loader2,
+  LogOut,
   MapPin,
   MessageCircle,
   Music2,
@@ -39,6 +40,9 @@ import {
   getClientAvailability,
   getClientCatalogue,
   getClientCoiffureDetails,
+  getClientSession,
+  logoutClientSession,
+  verifyMagicLink,
 } from './client.api'
 import {
   closedDaysLabel,
@@ -66,6 +70,7 @@ import type {
   ClientReservation,
   ClientReservationPayload,
   ClientCoiffureReviewPayload,
+  ClientSession,
 } from './client.types'
 
 type BookingForm = {
@@ -215,6 +220,7 @@ function ClientHomePage() {
   const [reviewState, setReviewState] = useState<SubmitState>(null)
   const [pageNotice, setPageNotice] = useState<SubmitState>(null)
   const [submittedReservation, setSubmittedReservation] = useState<ClientReservation | null>(null)
+  const [clientSession, setClientSession] = useState<ClientSession | null>(null)
 
   // Prefill non-destructif nom/prenom quand le backend retrouve un client par tel
   // (Phase 5 etape 1). On NE PAS ECRASER ce que la cliente a deja tape : si elle
@@ -232,6 +238,36 @@ function ClientHomePage() {
       nom: current.nom.trim() === '' ? phoneLookup.data?.nom ?? '' : current.nom,
     }))
   }, [phoneLookup.state, phoneLookup.data])
+
+  // Phase 5 etape 2 : verifie silencieusement si un cookie de session valide
+  // existe deja. 401 = pas de session = silence. Permet le prefill auto meme
+  // quand la cliente revient directement sur la page sans passer par le lien.
+  useEffect(() => {
+    let ignore = false
+    getClientSession()
+      .then((data) => {
+        if (!ignore) setClientSession(data)
+      })
+      .catch(() => {})
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  // Prefill non-destructif depuis la session active (Phase 5 etape 2).
+  // Complemente le prefill du phoneLookup (etape 1) en ajoutant le telephone.
+  // S execute quand la session change OU quand le modal s ouvre (selectedCoiffure).
+  useEffect(() => {
+    if (!clientSession || !selectedCoiffure) {
+      return
+    }
+    setBookingForm((current) => ({
+      ...current,
+      telephone: current.telephone.trim() === '' ? clientSession.telephone : current.telephone,
+      prenom: current.prenom.trim() === '' ? clientSession.prenom : current.prenom,
+      nom: current.nom.trim() === '' ? clientSession.nom : current.nom,
+    }))
+  }, [clientSession, selectedCoiffure])
 
   useEffect(() => {
     let ignore = false
@@ -261,6 +297,30 @@ function ClientHomePage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+
+    // Magic link WhatsApp (Phase 5 etape 2) : le lien contient ?magic_token=...
+    // On consomme le token immediatement et on nettoie l URL pour qu un reload
+    // ne le rejoue pas (le token est single-use cote backend de toute facon).
+    const magicToken = params.get('magic_token')
+    if (magicToken) {
+      window.history.replaceState({}, '', window.location.pathname)
+      verifyMagicLink(magicToken)
+        .then((response) => {
+          setClientSession(response.data)
+          setPageNotice({
+            type: 'success',
+            message: `Connexion reussie. Bonjour ${response.data.prenom} !`,
+          })
+        })
+        .catch(() => {
+          setPageNotice({
+            type: 'error',
+            message: 'Ce lien de connexion est invalide ou a deja ete utilise.',
+          })
+        })
+      return
+    }
+
     const sessionId = params.get('stripe_session_id')
     const paymentStatus = params.get('paiement')
 
@@ -471,6 +531,14 @@ function ClientHomePage() {
     setAvailabilityLoading(false)
   }
 
+  async function handleLogout() {
+    try {
+      await logoutClientSession()
+    } finally {
+      setClientSession(null)
+    }
+  }
+
   // useCallback : stabilise la reference pour que CoiffureCard memo bite.
   // Toutes les valeurs capturees sont des setters (stables) ou des helpers
   // au niveau module (stables) donc deps array vide suffit.
@@ -659,13 +727,26 @@ function ClientHomePage() {
               >
                 <Bell className="h-5 w-5" />
               </button>
-              <button
-                type="button"
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976]"
-                aria-label="Profil client"
-              >
-                <User className="h-5 w-5" />
-              </button>
+              {clientSession ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  title="Se deconnecter"
+                  className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#fff0f6] px-3 text-sm font-black text-[#f31976]"
+                >
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline">{clientSession.prenom}</span>
+                  <LogOut className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976]"
+                  aria-label="Profil client"
+                >
+                  <User className="h-5 w-5" />
+                </button>
+              )}
             </div>
           </div>
         </header>
