@@ -5,12 +5,13 @@ namespace App\Services;
 use App\Mail\ReservationConfirmationMail;
 use App\Models\Paiement;
 use App\Support\SystemSettings;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class PaymentReceiptNotificationService
 {
+    public function __construct(private readonly WhatsappService $whatsapp) {}
+
     public function send(Paiement $paiement): array
     {
         $paiement->loadMissing(['client', 'reservation.client', 'reservation.details']);
@@ -108,143 +109,35 @@ class PaymentReceiptNotificationService
      */
     private function sendWhatsapp(array $receipt, string $message): bool
     {
-        $to = $this->whatsappPhone($receipt['telephone'] ?? null);
+        $to = $receipt['telephone'] ?? null;
 
         if (! $to) {
             return false;
         }
 
-        if ($this->sendWhatsappViaTwilio($to, $message, $receipt)) {
-            return true;
-        }
-
-        return $this->sendWhatsappViaCloudApi($to, $message, $receipt);
-    }
-
-    /**
-     * @param array<string, mixed> $receipt
-     */
-    private function sendWhatsappViaTwilio(string $to, string $message, array $receipt): bool
-    {
-        $accountSid = config('services.twilio.account_sid');
-        $authToken = config('services.twilio.auth_token');
-        $from = $this->twilioWhatsappAddress(config('services.twilio.whatsapp_from'));
-        $toAddress = $this->twilioWhatsappAddress($to);
-
-        if (! $accountSid || ! $authToken || ! $from || ! $toAddress) {
-            return false;
-        }
-
-        try {
-            $response = Http::withBasicAuth($accountSid, $authToken)
-                ->post("https://api.twilio.com/2010-04-01/Accounts/{$accountSid}/Messages", [
-                    'From' => $from,
-                    'To' => $toAddress,
-                    'Body' => $message,
-                ]);
-
-            if ($response->failed()) {
-                Log::warning('Twilio WhatsApp receipt message failed', [
-                    'paiement' => $receipt['numero_recu'],
-                    'status' => $response->status(),
-                    'body' => $response->json(),
-                ]);
-
-                return false;
-            }
-
-            return true;
-        } catch (\Throwable $exception) {
-            Log::warning('Twilio WhatsApp receipt message exception', [
-                'paiement' => $receipt['numero_recu'],
-                'message' => $exception->getMessage(),
-            ]);
-
-            return false;
-        }
-    }
-
-    /**
-     * @param array<string, mixed> $receipt
-     */
-    private function sendWhatsappViaCloudApi(string $to, string $message, array $receipt): bool
-    {
-        $token = config('services.whatsapp.access_token');
-        $phoneNumberId = config('services.whatsapp.phone_number_id');
-
-        if (! $token || ! $phoneNumberId) {
-            return false;
-        }
-
-        try {
-            $response = Http::withToken((string) $token)
-                ->acceptJson()
-                ->post(rtrim((string) config('services.whatsapp.base_url'), '/') . "/{$phoneNumberId}/messages", $this->whatsappPayload($to, $receipt, $message));
-
-            if ($response->failed()) {
-                Log::warning('WhatsApp Cloud receipt message failed', [
-                    'paiement' => $receipt['numero_recu'],
-                    'status' => $response->status(),
-                    'body' => $response->json(),
-                ]);
-
-                return false;
-            }
-
-            return true;
-        } catch (\Throwable $exception) {
-            Log::warning('WhatsApp Cloud receipt message exception', [
-                'paiement' => $receipt['numero_recu'],
-                'message' => $exception->getMessage(),
-            ]);
-
-            return false;
-        }
-    }
-
-    /**
-     * @param array<string, mixed> $receipt
-     *
-     * @return array<string, mixed>
-     */
-    private function whatsappPayload(string $to, array $receipt, string $message): array
-    {
         $template = config('services.whatsapp.receipt_template_name');
+        $context = 'recu-' . $receipt['numero_recu'];
 
         if ($template) {
-            return [
-                'messaging_product' => 'whatsapp',
-                'recipient_type' => 'individual',
-                'to' => $to,
-                'type' => 'template',
-                'template' => [
-                    'name' => $template,
-                    'language' => ['code' => config('services.whatsapp.receipt_template_language', 'fr')],
-                    'components' => [[
-                        'type' => 'body',
-                        'parameters' => [
-                            ['type' => 'text', 'text' => (string) $receipt['client_nom']],
-                            ['type' => 'text', 'text' => (string) $receipt['numero_recu']],
-                            ['type' => 'text', 'text' => (string) ($receipt['services'][0] ?? 'Reservation')],
-                            ['type' => 'text', 'text' => trim(($receipt['date_reservation'] ?? '') . ' ' . ($receipt['heure_debut'] ?? ''))],
-                            ['type' => 'text', 'text' => $this->money($receipt['montant_paye'], $receipt['devise'])],
-                            ['type' => 'text', 'text' => $this->money($receipt['reste_a_payer'], $receipt['devise'])],
-                        ],
-                    ]],
-                ],
-            ];
+            return $this->whatsapp->sendTemplate(
+                $to,
+                $template,
+                [[
+                    'type' => 'body',
+                    'parameters' => [
+                        ['type' => 'text', 'text' => (string) $receipt['client_nom']],
+                        ['type' => 'text', 'text' => (string) $receipt['numero_recu']],
+                        ['type' => 'text', 'text' => (string) ($receipt['services'][0] ?? 'Reservation')],
+                        ['type' => 'text', 'text' => trim(($receipt['date_reservation'] ?? '') . ' ' . ($receipt['heure_debut'] ?? ''))],
+                        ['type' => 'text', 'text' => $this->money($receipt['montant_paye'], $receipt['devise'])],
+                        ['type' => 'text', 'text' => $this->money($receipt['reste_a_payer'], $receipt['devise'])],
+                    ],
+                ]],
+                $context,
+            );
         }
 
-        return [
-            'messaging_product' => 'whatsapp',
-            'recipient_type' => 'individual',
-            'to' => $to,
-            'type' => 'text',
-            'text' => [
-                'preview_url' => false,
-                'body' => $message,
-            ],
-        ];
+        return $this->whatsapp->send($to, $message, $context);
     }
 
     /**
@@ -280,46 +173,6 @@ class PaymentReceiptNotificationService
 
             return false;
         }
-    }
-
-    private function whatsappPhone(?string $phone): ?string
-    {
-        $digits = preg_replace('/\D+/', '', (string) $phone) ?? '';
-
-        if ($digits === '') {
-            return null;
-        }
-
-        if (str_starts_with($digits, '00')) {
-            $digits = substr($digits, 2);
-        }
-
-        if (str_starts_with($digits, '221')) {
-            return $digits;
-        }
-
-        if (strlen($digits) === 9) {
-            return '221' . $digits;
-        }
-
-        return $digits;
-    }
-
-    private function twilioWhatsappAddress(mixed $phone): ?string
-    {
-        $raw = trim((string) $phone);
-
-        if ($raw === '') {
-            return null;
-        }
-
-        if (str_starts_with($raw, 'whatsapp:')) {
-            return $raw;
-        }
-
-        $normalized = $this->whatsappPhone($raw);
-
-        return $normalized ? 'whatsapp:+' . $normalized : null;
     }
 
     private function reservationPaidAmount(int $reservationId): float
