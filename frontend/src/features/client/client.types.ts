@@ -218,3 +218,15 @@ export type ClientLookupResponse = {
   nom: string | null
   prenom: string | null
 }
+
+// Phase 5 etape 2 : session client persistante via cookie httpOnly.
+export type ClientSession = {
+  nom: string
+  prenom: string
+  telephone: string
+}
+
+export type ClientMagicLinkVerifyResponse = {
+  message: string
+  data: ClientSession
+}

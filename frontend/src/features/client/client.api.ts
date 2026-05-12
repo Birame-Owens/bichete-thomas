@@ -9,8 +9,10 @@ import type {
   ClientCoiffureReviewPayload,
   ClientCoiffureReviewResponse,
   ClientLookupResponse,
+  ClientMagicLinkVerifyResponse,
   ClientReservationPayload,
   ClientReservationResponse,
+  ClientSession,
   ClientStripeConfirmation,
 } from './client.types'
 
@@ -107,6 +109,25 @@ export async function confirmPaytechReturn(paymentId: string, signature: string)
   })
 
   return response.data
+}
+
+// -----------------------------------------------------------------
+// Phase 5 etape 2 : session client via magic link WhatsApp
+// -----------------------------------------------------------------
+
+export async function verifyMagicLink(token: string) {
+  const response = await apiClient.post<ClientMagicLinkVerifyResponse>('/client/auth/magic-link', { token })
+  return response.data
+}
+
+// 401 si pas de session valide — le caller doit catcher silencieusement.
+export async function getClientSession() {
+  const response = await apiClient.get<ClientApiItem<ClientSession>>('/client/session')
+  return response.data.data
+}
+
+export async function logoutClientSession() {
+  await apiClient.delete('/client/session')
 }
 
 /**
