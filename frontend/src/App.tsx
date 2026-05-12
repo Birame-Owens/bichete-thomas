@@ -5,6 +5,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 // du parcours principal et le visiteur du catalogue les charge de toute facon.
 import LoginPage from './pages/LoginPage'
 import ClientHomePage from './features/client/ClientHomePage'
+import AvisPage from './features/client/AvisPage'
 import RequireAuth from './features/auth/RequireAuth'
 
 // Routes admin (I9) : code-split via React.lazy + Suspense.
@@ -84,6 +85,7 @@ function App() {
     <Routes>
       <Route path="/" element={<ClientHomePage />} />
       <Route path="/client" element={<ClientHomePage />} />
+      <Route path="/avis/:token" element={<AvisPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
       <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
