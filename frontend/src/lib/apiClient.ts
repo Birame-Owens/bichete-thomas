@@ -3,7 +3,7 @@ import { getToken } from './authStorage'
 
 // Base URL is configurable via VITE_API_BASE_URL for different environments.
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://192.168.1.5:8000/api'
+  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
 // Shared Axios instance to standardize headers and base URL.
 export const apiClient = axios.create({
