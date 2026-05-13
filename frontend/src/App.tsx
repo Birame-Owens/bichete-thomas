@@ -1,25 +1,37 @@
+import { lazy, Suspense, type ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import type { ReactNode } from 'react'
+
+// Routes "publiques" (page client, login) : import direct - elles font partie
+// du parcours principal et le visiteur du catalogue les charge de toute facon.
 import LoginPage from './pages/LoginPage'
-import AdminDashboardPage from './features/admin/dashboard/AdminDashboardPage'
-import ClientsPage from './features/admin/clients/ClientsPage'
-import ReservationsPage from './features/admin/reservations/ReservationsPage'
-import PaymentsPage from './features/admin/payments/PaymentsPage'
-import ExpensesPage from './features/admin/expenses/ExpensesPage'
-import ReportsPage from './features/admin/reports/ReportsPage'
-import ReviewsPage from './features/admin/reviews/ReviewsPage'
-import CatalogueOverviewPage from './features/admin/catalogue/CatalogueOverviewPage'
-import CategoriesCoiffuresPage from './features/admin/catalogue/CategoriesCoiffuresPage'
-import CoiffuresPage from './features/admin/catalogue/CoiffuresPage'
-import OptionsCoiffuresPage from './features/admin/catalogue/OptionsCoiffuresPage'
-import VariantesCoiffuresPage from './features/admin/catalogue/VariantesCoiffuresPage'
-import PersonnelOverviewPage from './features/admin/personnel/PersonnelOverviewPage'
-import GerantesPage from './features/admin/personnel/GerantesPage'
-import CoiffeusesPage from './features/admin/personnel/CoiffeusesPage'
-import SettingsPage from './features/admin/settings/SettingsPage'
-import PromotionsPage from './features/admin/promotions/PromotionsPage'
-import RequireAuth from './features/auth/RequireAuth'
 import ClientHomePage from './features/client/ClientHomePage'
+import AvisPage from './features/client/AvisPage'
+import RequireAuth from './features/auth/RequireAuth'
+
+// Routes admin (I9) : code-split via React.lazy + Suspense.
+// Avant : toutes les pages admin (17 chunks ~200 kB gzippes au total) etaient
+// dans le bundle initial. Un visiteur du catalogue telechargeait inutilement
+// le code admin qu il ne verra jamais.
+// Maintenant : chaque page admin est un chunk separe, charge a la demande
+// quand l administratrice navigue dessus. Bundle initial client allege de
+// ~100-200 kB gzipped, premier rendu plus rapide (critique en mobile/3G).
+const AdminDashboardPage = lazy(() => import('./features/admin/dashboard/AdminDashboardPage'))
+const ClientsPage = lazy(() => import('./features/admin/clients/ClientsPage'))
+const ReservationsPage = lazy(() => import('./features/admin/reservations/ReservationsPage'))
+const PaymentsPage = lazy(() => import('./features/admin/payments/PaymentsPage'))
+const ExpensesPage = lazy(() => import('./features/admin/expenses/ExpensesPage'))
+const ReportsPage = lazy(() => import('./features/admin/reports/ReportsPage'))
+const ReviewsPage = lazy(() => import('./features/admin/reviews/ReviewsPage'))
+const CatalogueOverviewPage = lazy(() => import('./features/admin/catalogue/CatalogueOverviewPage'))
+const CategoriesCoiffuresPage = lazy(() => import('./features/admin/catalogue/CategoriesCoiffuresPage'))
+const CoiffuresPage = lazy(() => import('./features/admin/catalogue/CoiffuresPage'))
+const OptionsCoiffuresPage = lazy(() => import('./features/admin/catalogue/OptionsCoiffuresPage'))
+const VariantesCoiffuresPage = lazy(() => import('./features/admin/catalogue/VariantesCoiffuresPage'))
+const PersonnelOverviewPage = lazy(() => import('./features/admin/personnel/PersonnelOverviewPage'))
+const GerantesPage = lazy(() => import('./features/admin/personnel/GerantesPage'))
+const CoiffeusesPage = lazy(() => import('./features/admin/personnel/CoiffeusesPage'))
+const SettingsPage = lazy(() => import('./features/admin/settings/SettingsPage'))
+const PromotionsPage = lazy(() => import('./features/admin/promotions/PromotionsPage'))
 
 function ManagerDashboard() {
   return (
@@ -47,8 +59,25 @@ function NotFound() {
   )
 }
 
+// Fallback affiche pendant le chargement d un chunk admin paresseux.
+// Volontairement minimaliste : la page entiere n est pas encore montee, on
+// donne juste un retour visuel discret (3 ms a peine sur reseau rapide,
+// jusqu a quelques centaines de ms en 3G).
+function RouteSuspenseFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#faf9fa]">
+      <div className="text-sm font-semibold text-gray-500">Chargement...</div>
+    </div>
+  )
+}
+
 function AdminRoute({ children }: { children: ReactNode }) {
-  return <RequireAuth role="admin">{children}</RequireAuth>
+  // Wrap dans Suspense pour gerer le chunk lazy en cours de chargement.
+  return (
+    <RequireAuth role="admin">
+      <Suspense fallback={<RouteSuspenseFallback />}>{children}</Suspense>
+    </RequireAuth>
+  )
 }
 
 function App() {
@@ -56,16 +85,10 @@ function App() {
     <Routes>
       <Route path="/" element={<ClientHomePage />} />
       <Route path="/client" element={<ClientHomePage />} />
+      <Route path="/avis/:token" element={<AvisPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-      <Route
-        path="/admin/dashboard"
-        element={
-          <AdminRoute>
-            <AdminDashboardPage />
-          </AdminRoute>
-        }
-      />
+      <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
       <Route path="/admin/clients" element={<AdminRoute><ClientsPage /></AdminRoute>} />
       <Route path="/admin/reservations" element={<AdminRoute><ReservationsPage /></AdminRoute>} />
       <Route path="/admin/paiements" element={<AdminRoute><PaymentsPage /></AdminRoute>} />

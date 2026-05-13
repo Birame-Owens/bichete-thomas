@@ -8,10 +8,16 @@ use App\Models\PersonalAccessToken;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Cookie as SymfonyCookie;
 
 class AuthController extends Controller
 {
+    public const AUTH_COOKIE = 'auth_token';
+    public const CSRF_COOKIE = 'XSRF-TOKEN';
+
     public function login(LoginRequest $request): JsonResponse
     {
         $credentials = $request->validated();
@@ -41,12 +47,13 @@ class AuthController extends Controller
 
         $token = $user->createApiToken($credentials['device_name'] ?? 'api');
 
-        return response()->json([
-            'message' => 'Connexion reussie.',
-            'token_type' => 'Bearer',
-            'access_token' => $token,
-            'user' => $this->serializeUser($user),
-        ]);
+        return response()
+            ->json([
+                'message' => 'Connexion reussie.',
+                'user' => $this->serializeUser($user),
+            ])
+            ->withCookie($this->makeAuthCookie($token))
+            ->withCookie($this->makeCsrfCookie());
     }
 
     public function me(Request $request): JsonResponse
@@ -64,18 +71,18 @@ class AuthController extends Controller
             $token->delete();
         }
 
-        return response()->json([
+        return $this->withClearedAuthCookies(response()->json([
             'message' => 'Deconnexion reussie.',
-        ]);
+        ]));
     }
 
     public function logoutAll(Request $request): JsonResponse
     {
         $request->user()->tokens()->delete();
 
-        return response()->json([
+        return $this->withClearedAuthCookies(response()->json([
             'message' => 'Toutes les sessions ont ete fermees.',
-        ]);
+        ]));
     }
 
     /**
@@ -89,5 +96,54 @@ class AuthController extends Controller
             'email' => $user->email,
             'role' => $user->role?->nom,
         ];
+    }
+
+    private function makeAuthCookie(string $token): SymfonyCookie
+    {
+        return cookie(
+            name: self::AUTH_COOKIE,
+            // Plafond dur cote navigateur (I1) : passe ce delai, le cookie est
+            // detruit par le navigateur, peu importe l activite. Le serveur
+            // applique en plus une expiration glissante de
+            // session_inactivity_hours via last_used_at.
+            value: $token,
+            minutes: $this->cookieLifetimeMinutes(),
+            path: (string) config('session.path', '/'),
+            domain: config('session.domain'),
+            secure: (bool) config('session.secure', false),
+            httpOnly: true,
+            raw: false,
+            sameSite: (string) config('session.same_site', 'lax'),
+        );
+    }
+
+    private function makeCsrfCookie(): SymfonyCookie
+    {
+        return cookie(
+            name: self::CSRF_COOKIE,
+            value: Str::random(40),
+            minutes: $this->cookieLifetimeMinutes(),
+            path: (string) config('session.path', '/'),
+            domain: config('session.domain'),
+            secure: (bool) config('session.secure', false),
+            httpOnly: false,
+            raw: false,
+            sameSite: (string) config('session.same_site', 'lax'),
+        );
+    }
+
+    private function cookieLifetimeMinutes(): int
+    {
+        return (int) config('auth.session_cookie_max_hours', 168) * 60;
+    }
+
+    private function withClearedAuthCookies(JsonResponse $response): JsonResponse
+    {
+        $path = (string) config('session.path', '/');
+        $domain = config('session.domain');
+
+        return $response
+            ->withCookie(Cookie::forget(self::AUTH_COOKIE, $path, $domain))
+            ->withCookie(Cookie::forget(self::CSRF_COOKIE, $path, $domain));
     }
 }

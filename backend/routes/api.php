@@ -27,7 +27,9 @@ use App\Http\Controllers\Api\Admin\RegleFideliteController;
 use App\Http\Controllers\Api\Admin\VarianteCoiffureController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\Client\AvisController as ClientAvisController;
 use App\Http\Controllers\Api\Client\CatalogueController as ClientCatalogueController;
+use App\Http\Controllers\Api\Client\ClientSessionController;
 use App\Http\Controllers\Api\Client\PaymentController as ClientPaymentController;
 use App\Http\Controllers\Api\Client\ReservationAvailabilityController as ClientReservationAvailabilityController;
 use App\Http\Controllers\Api\Client\ReservationController as ClientReservationController;
@@ -38,23 +40,33 @@ use Illuminate\Support\Facades\Route;
 Route::get('/documentation', [DocumentationController::class, 'ui']);
 Route::get('/openapi.json', [DocumentationController::class, 'openApi']);
 Route::get('/seo/{slug?}', [SeoController::class, 'show'])->where('slug', '.*');
-Route::post('/analytics/events', [AnalyticsController::class, 'store']);
+Route::post('/analytics/events', [AnalyticsController::class, 'store'])->middleware('throttle:30,1');
 Route::get('/reservations/disponibilites', ClientReservationAvailabilityController::class);
 
 Route::prefix('client')->name('client.')->group(function (): void {
     Route::get('/catalogue', [ClientCatalogueController::class, 'index'])->name('catalogue.index');
     Route::get('/catalogue/{coiffure}', [ClientCatalogueController::class, 'show'])->name('catalogue.show');
-    Route::post('/catalogue/{coiffure}/avis', [ClientCatalogueController::class, 'storeAvis'])->name('catalogue.avis.store');
+    // Lookup tel international (Phase 5 etape 1).
+    Route::get('/lookup', [ClientCatalogueController::class, 'lookup'])->middleware('throttle:5,1')->name('lookup');
+    // Magic link + session client (Phase 5 etape 2).
+    Route::post('/auth/magic-link', [ClientSessionController::class, 'verify'])->middleware('throttle:10,1')->name('auth.magic-link');
+    Route::middleware('auth.client.session')->group(function (): void {
+        Route::get('/session', [ClientSessionController::class, 'session'])->name('session');
+        Route::delete('/session', [ClientSessionController::class, 'logout'])->name('session.logout');
+    });
     Route::get('/reservations/disponibilites', ClientReservationAvailabilityController::class)->name('reservations.availability');
-    Route::post('/reservations', [ClientReservationController::class, 'store'])->name('reservations.store');
-    Route::post('/paiements/stripe/confirmer', [ClientPaymentController::class, 'confirmStripeCheckout'])->name('payments.stripe.confirm');
+    Route::post('/reservations', [ClientReservationController::class, 'store'])->middleware('throttle:10,1')->name('reservations.store');
+    Route::post('/paiements/stripe/confirmer', [ClientPaymentController::class, 'confirmStripeCheckout'])->middleware('throttle:20,1')->name('payments.stripe.confirm');
     Route::post('/paiements/stripe/webhook', [ClientPaymentController::class, 'stripeWebhook'])->name('payments.stripe.webhook');
-    Route::post('/paiements/paytech/confirmer', [ClientPaymentController::class, 'confirmPaytechReturn'])->name('payments.paytech.confirm');
+    Route::post('/paiements/paytech/confirmer', [ClientPaymentController::class, 'confirmPaytechReturn'])->middleware('throttle:20,1')->name('payments.paytech.confirm');
     Route::post('/paiements/paytech/ipn', [ClientPaymentController::class, 'paytechWebhook'])->name('payments.paytech.ipn');
+    // Avis verifies post-prestation (Phase 5 etape 3).
+    Route::get('/avis/{token}', [ClientAvisController::class, 'prefill'])->name('avis.prefill');
+    Route::post('/avis/{token}', [ClientAvisController::class, 'store'])->middleware('throttle:5,1')->name('avis.store');
 });
 
 Route::prefix('auth')->group(function (): void {
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 
     Route::middleware('auth.token')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);

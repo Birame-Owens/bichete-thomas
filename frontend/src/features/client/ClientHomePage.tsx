@@ -8,37 +8,54 @@ import {
   Clock,
   CreditCard,
   Gift,
-  Heart,
   Home,
   Image as ImageIcon,
   Camera,
   Loader2,
+  LogOut,
   MapPin,
   MessageCircle,
   Music2,
   Phone,
   Scissors,
   Search,
-  Send,
   ShieldCheck,
   Sparkles,
-  Star,
   User,
   Users,
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { type FormEvent, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import PhoneInput from 'react-phone-number-input'
+import 'react-phone-number-input/style.css'
 import heroImage from '../../assets/hero.jpg'
 import {
   confirmPaytechReturn,
   confirmStripeCheckout,
-  createClientCoiffureReview,
   createClientReservation,
   getClientAvailability,
   getClientCatalogue,
   getClientCoiffureDetails,
+  getClientSession,
+  logoutClientSession,
+  verifyMagicLink,
 } from './client.api'
+import {
+  closedDaysLabel,
+  coiffureImage,
+  depositAmount,
+  discountAmount,
+  formatCurrency,
+  formatDuration,
+  formatShortDate,
+  isClosedDate,
+  promoText,
+  todayInput,
+} from './client.helpers'
+import { CoiffureCard } from './components/CoiffureCard'
+import { RatingStars } from './components/RatingStars'
+import { usePhoneLookup } from './hooks/usePhoneLookup'
 import type {
   ClientAvailability,
   ClientCatalogue,
@@ -49,8 +66,7 @@ import type {
   ClientPromotion,
   ClientReservation,
   ClientReservationPayload,
-  ClientSettings,
-  ClientCoiffureReviewPayload,
+  ClientSession,
 } from './client.types'
 
 type BookingForm = {
@@ -65,14 +81,6 @@ type BookingForm = {
   code_promo: string
   notes: string
   paymentMethod: ClientPaymentMethod
-}
-
-type ReviewForm = {
-  nom_client: string
-  telephone: string
-  email: string
-  note: number
-  commentaire: string
 }
 
 type SubmitState = {
@@ -122,61 +130,10 @@ const emptyCategories: ClientCategory[] = []
 const emptyCoiffures: ClientCoiffure[] = []
 const emptyPromotions: ClientPromotion[] = []
 
-function toInputDate(date: Date) {
-  const normalized = new Date(date)
-  normalized.setMinutes(normalized.getMinutes() - normalized.getTimezoneOffset())
-
-  return normalized.toISOString().slice(0, 10)
-}
-
-function todayInput() {
-  return toInputDate(new Date())
-}
-
-const weekDays = [
-  'lundi',
-  'mardi',
-  'mercredi',
-  'jeudi',
-  'vendredi',
-  'samedi',
-  'dimanche',
-] as const
-
-const weekDayLabels: Record<(typeof weekDays)[number], string> = {
-  lundi: 'Lundi',
-  mardi: 'Mardi',
-  mercredi: 'Mercredi',
-  jeudi: 'Jeudi',
-  vendredi: 'Vendredi',
-  samedi: 'Samedi',
-  dimanche: 'Dimanche',
-}
-
-function dayKeyFromDate(dateString: string) {
-  const date = new Date(`${dateString}T00:00:00`)
-  const dayIndex = date.getDay()
-
-  return weekDays[(dayIndex + 6) % 7]
-}
-
-function isClosedDate(dateString: string, settings?: ClientSettings) {
-  if (!settings?.jours_fermeture || settings.jours_fermeture.length === 0) {
-    return false
-  }
-
-  const key = dayKeyFromDate(dateString)
-
-  return settings.jours_fermeture.includes(key)
-}
-
-function closedDaysLabel(days: string[]) {
-  if (!days || days.length === 0) {
-    return 'Ouvert toute la semaine'
-  }
-
-  return `Ferme: ${weekDays.filter((day) => days.includes(day)).map((day) => weekDayLabels[day]).join(', ')}`
-}
+// Les helpers de formatage / calcul / dates sont externalises dans
+// ./client.helpers.ts pour permettre le memo correct des sous-composants
+// (CoiffureCard, etc.). Les composants RatingStars et CoiffureCard sont
+// dans ./components/ et memoizes (I11).
 
 function createBookingForm(coiffure?: ClientCoiffure): BookingForm {
   return {
@@ -192,99 +149,6 @@ function createBookingForm(coiffure?: ClientCoiffure): BookingForm {
     notes: '',
     paymentMethod: 'wave',
   }
-}
-
-const emptyReviewForm = (): ReviewForm => ({
-  nom_client: '',
-  telephone: '',
-  email: '',
-  note: 5,
-  commentaire: '',
-})
-
-function formatCurrency(value: number | string, devise = 'FCFA') {
-  const amount = Number(value || 0)
-
-  return `${new Intl.NumberFormat('fr-FR').format(amount)} ${devise}`
-}
-
-function formatDuration(minutes: number) {
-  if (minutes < 60) {
-    return `${minutes} min`
-  }
-
-  const hours = Math.floor(minutes / 60)
-  const remaining = minutes % 60
-
-  return remaining > 0 ? `${hours}h ${remaining}min` : `${hours}h`
-}
-
-function formatShortDate(value?: string | null) {
-  if (!value) {
-    return '-'
-  }
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-  }).format(date)
-}
-
-function RatingStars({ value, size = 'sm' }: { value: number; size?: 'xs' | 'sm' }) {
-  const iconSize = size === 'xs' ? 'h-3.5 w-3.5' : 'h-4 w-4'
-
-  return (
-    <span className="inline-flex items-center gap-0.5 text-[#f59e0b]">
-      {Array.from({ length: 5 }, (_, index) => (
-        <Star
-          key={index}
-          className={`${iconSize} ${index < Math.round(value) ? 'fill-[#f59e0b]' : 'fill-none text-slate-300'}`}
-        />
-      ))}
-    </span>
-  )
-}
-
-function coiffureImage(coiffure: ClientCoiffure) {
-  return coiffure.image ?? coiffure.images[0]?.url ?? heroImage
-}
-
-function promoText(promo: ClientPromotion) {
-  if (promo.type_reduction === 'pourcentage') {
-    return `-${Number(promo.valeur)}%`
-  }
-
-  return `-${formatCurrency(promo.valeur)}`
-}
-
-function discountAmount(promo: ClientPromotion | null, total: number) {
-  if (!promo) {
-    return 0
-  }
-
-  if (promo.type_reduction === 'pourcentage') {
-    return Math.min(total, total * (Number(promo.valeur) / 100))
-  }
-
-  return Math.min(total, Number(promo.valeur))
-}
-
-function depositAmount(total: number, settings?: ClientSettings) {
-  if (!settings) {
-    return 0
-  }
-
-  if (Number(settings.pourcentage_acompte) > 0) {
-    return total * (Number(settings.pourcentage_acompte) / 100)
-  }
-
-  return Math.min(Number(settings.montant_acompte_defaut || 0), total)
 }
 
 function extractApiError(error: unknown) {
@@ -323,16 +187,64 @@ function ClientHomePage() {
   const [selectedCoiffure, setSelectedCoiffure] = useState<ClientCoiffure | null>(null)
   const [modalLoading, setModalLoading] = useState(false)
   const [bookingForm, setBookingForm] = useState<BookingForm>(() => createBookingForm())
+  // Phase 5 etape 1 : lookup tel international + prefill auto.
+  // Le hook debounce 300ms et n appelle l API que sur E.164 valide (libphonenumber local).
+  const phoneLookup = usePhoneLookup(bookingForm.telephone)
   const [availability, setAvailability] = useState<ClientAvailability | null>(null)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitState, setSubmitState] = useState<SubmitState>(null)
-  const [reviewForm, setReviewForm] = useState<ReviewForm>(() => emptyReviewForm())
-  const [reviewSubmitting, setReviewSubmitting] = useState(false)
-  const [reviewState, setReviewState] = useState<SubmitState>(null)
   const [pageNotice, setPageNotice] = useState<SubmitState>(null)
   const [submittedReservation, setSubmittedReservation] = useState<ClientReservation | null>(null)
+  const [clientSession, setClientSession] = useState<ClientSession | null>(null)
+
+  // Prefill non-destructif nom/prenom quand le backend retrouve un client par tel
+  // (Phase 5 etape 1). On NE PAS ECRASER ce que la cliente a deja tape : si elle
+  // a deja saisi son prenom avant que le tel devienne valide, on le respecte.
+  // Si elle veut le changer (faute de frappe en base, nom marital, etc.) elle
+  // peut le retaper a la main - le backend stockera le nom historique vu que
+  // ClientResolver matche sur tel uniquement.
+  useEffect(() => {
+    if (phoneLookup.state !== 'found' || phoneLookup.data === null) {
+      return
+    }
+    setBookingForm((current) => ({
+      ...current,
+      prenom: current.prenom.trim() === '' ? phoneLookup.data?.prenom ?? '' : current.prenom,
+      nom: current.nom.trim() === '' ? phoneLookup.data?.nom ?? '' : current.nom,
+    }))
+  }, [phoneLookup.state, phoneLookup.data])
+
+  // Phase 5 etape 2 : verifie silencieusement si un cookie de session valide
+  // existe deja. 401 = pas de session = silence. Permet le prefill auto meme
+  // quand la cliente revient directement sur la page sans passer par le lien.
+  useEffect(() => {
+    let ignore = false
+    getClientSession()
+      .then((data) => {
+        if (!ignore) setClientSession(data)
+      })
+      .catch(() => {})
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  // Prefill non-destructif depuis la session active (Phase 5 etape 2).
+  // Complemente le prefill du phoneLookup (etape 1) en ajoutant le telephone.
+  // S execute quand la session change OU quand le modal s ouvre (selectedCoiffure).
+  useEffect(() => {
+    if (!clientSession || !selectedCoiffure) {
+      return
+    }
+    setBookingForm((current) => ({
+      ...current,
+      telephone: current.telephone.trim() === '' ? clientSession.telephone : current.telephone,
+      prenom: current.prenom.trim() === '' ? clientSession.prenom : current.prenom,
+      nom: current.nom.trim() === '' ? clientSession.nom : current.nom,
+    }))
+  }, [clientSession, selectedCoiffure])
 
   useEffect(() => {
     let ignore = false
@@ -362,6 +274,30 @@ function ClientHomePage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+
+    // Magic link WhatsApp (Phase 5 etape 2) : le lien contient ?magic_token=...
+    // On consomme le token immediatement et on nettoie l URL pour qu un reload
+    // ne le rejoue pas (le token est single-use cote backend de toute facon).
+    const magicToken = params.get('magic_token')
+    if (magicToken) {
+      window.history.replaceState({}, '', window.location.pathname)
+      verifyMagicLink(magicToken)
+        .then((response) => {
+          setClientSession(response.data)
+          setPageNotice({
+            type: 'success',
+            message: `Connexion reussie. Bonjour ${response.data.prenom} !`,
+          })
+        })
+        .catch(() => {
+          setPageNotice({
+            type: 'error',
+            message: 'Ce lien de connexion est invalide ou a deja ete utilise.',
+          })
+        })
+      return
+    }
+
     const sessionId = params.get('stripe_session_id')
     const paymentStatus = params.get('paiement')
 
@@ -532,16 +468,15 @@ function ClientHomePage() {
     }))
   }
 
-  function updateReviewField<K extends keyof ReviewForm>(key: K, value: ReviewForm[K]) {
-    setReviewForm((current) => ({
-      ...current,
-      [key]: value,
-    }))
-  }
-
-  function toggleFavorite(id: number) {
-    setFavoriteIds((current) => (current.includes(id) ? current.filter((favoriteId) => favoriteId !== id) : [...current, id]))
-  }
+  // useCallback pour stabiliser les references entre re-renders et permettre
+  // au memo de CoiffureCard de fonctionner (sinon nouveau callback a chaque
+  // render -> memo casse -> 8 cartes re-rendent a chaque frappe). Pareil
+  // pour openDetails plus bas.
+  const toggleFavorite = useCallback((id: number) => {
+    setFavoriteIds((current) =>
+      current.includes(id) ? current.filter((favoriteId) => favoriteId !== id) : [...current, id],
+    )
+  }, [])
 
   function toggleOption(option: ClientCoiffureOption) {
     setBookingForm((current) => {
@@ -559,19 +494,26 @@ function ClientHomePage() {
   function closeDetails() {
     setSelectedCoiffure(null)
     setSubmitState(null)
-    setReviewState(null)
-    setReviewForm(emptyReviewForm())
     setSubmittedReservation(null)
     setAvailability(null)
     setAvailabilityLoading(false)
   }
 
-  async function openDetails(coiffure: ClientCoiffure) {
+  async function handleLogout() {
+    try {
+      await logoutClientSession()
+    } finally {
+      setClientSession(null)
+    }
+  }
+
+  // useCallback : stabilise la reference pour que CoiffureCard memo bite.
+  // Toutes les valeurs capturees sont des setters (stables) ou des helpers
+  // au niveau module (stables) donc deps array vide suffit.
+  const openDetails = useCallback(async (coiffure: ClientCoiffure) => {
     setSelectedCoiffure(coiffure)
     setBookingForm(createBookingForm(coiffure))
     setSubmitState(null)
-    setReviewState(null)
-    setReviewForm(emptyReviewForm())
     setSubmittedReservation(null)
     setAvailability(null)
     setAvailabilityLoading(true)
@@ -590,45 +532,7 @@ function ClientHomePage() {
     } finally {
       setModalLoading(false)
     }
-  }
-
-  async function handleReviewSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    if (!selectedCoiffure) {
-      return
-    }
-
-    if (reviewForm.nom_client.trim() === '' || reviewForm.commentaire.trim().length < 8) {
-      setReviewState({ type: 'error', message: 'Ajoutez votre nom et un commentaire plus detaille.' })
-      return
-    }
-
-    const payload: ClientCoiffureReviewPayload = {
-      nom_client: reviewForm.nom_client.trim(),
-      telephone: reviewForm.telephone.trim() === '' ? null : reviewForm.telephone.trim(),
-      email: reviewForm.email.trim() === '' ? null : reviewForm.email.trim(),
-      note: reviewForm.note,
-      commentaire: reviewForm.commentaire.trim(),
-    }
-
-    setReviewSubmitting(true)
-    setReviewState(null)
-
-    try {
-      const response = await createClientCoiffureReview(selectedCoiffure.id, payload)
-      setReviewState({ type: 'success', message: response.message ?? 'Merci pour votre avis.' })
-      setReviewForm(emptyReviewForm())
-
-      if (response.data.statut === 'approuve') {
-        setSelectedCoiffure(await getClientCoiffureDetails(selectedCoiffure.id))
-      }
-    } catch (error) {
-      setReviewState({ type: 'error', message: extractApiError(error) })
-    } finally {
-      setReviewSubmitting(false)
-    }
-  }
+  }, [])
 
   async function handleReservationSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -751,13 +655,26 @@ function ClientHomePage() {
               >
                 <Bell className="h-5 w-5" />
               </button>
-              <button
-                type="button"
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976]"
-                aria-label="Profil client"
-              >
-                <User className="h-5 w-5" />
-              </button>
+              {clientSession ? (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  title="Se deconnecter"
+                  className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#fff0f6] px-3 text-sm font-black text-[#f31976]"
+                >
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline">{clientSession.prenom}</span>
+                  <LogOut className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976]"
+                  aria-label="Profil client"
+                >
+                  <User className="h-5 w-5" />
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -862,36 +779,14 @@ function ClientHomePage() {
             ) : (
               <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
                 {featuredCoiffures.map((coiffure) => (
-                  <article key={coiffure.id} className="group overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
-                    <div className="relative aspect-[4/3] bg-rose-50">
-                      <img src={coiffureImage(coiffure)} alt={coiffure.nom} className="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => toggleFavorite(coiffure.id)}
-                        className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-[#f31976] shadow-sm"
-                        aria-label="Ajouter aux favoris"
-                      >
-                        <Heart className={`h-5 w-5 ${favoriteIds.includes(coiffure.id) ? 'fill-[#f31976]' : ''}`} />
-                      </button>
-                    </div>
-                    <div className="p-4">
-                      <p className="line-clamp-1 text-sm font-black text-slate-950 sm:text-base">{coiffure.nom}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">{coiffure.categorie?.nom ?? 'Coiffure'}</p>
-                      <p className="mt-3 text-xs font-semibold text-slate-500">A partir de</p>
-                      <div className="mt-1 flex items-end justify-between gap-2">
-                        <p className="text-sm font-black text-[#f31976]">{formatCurrency(coiffure.prix_min, devise)}</p>
-                        <p className="text-xs font-bold text-slate-500">{formatDuration(coiffure.duree_min_minutes)}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => openDetails(coiffure)}
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-3 py-3 text-sm font-black text-white transition group-hover:bg-[#f31976]"
-                      >
-                        Details
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </article>
+                  <CoiffureCard
+                    key={coiffure.id}
+                    coiffure={coiffure}
+                    isFavorite={favoriteIds.includes(coiffure.id)}
+                    devise={devise}
+                    onToggleFavorite={toggleFavorite}
+                    onOpenDetails={openDetails}
+                  />
                 ))}
               </div>
             )}
@@ -1220,12 +1115,48 @@ function ClientHomePage() {
               ) : null}
 
               <div className="mt-5 grid grid-cols-2 gap-3">
+                {/*
+                 * Telephone en PREMIER champ : le hook usePhoneLookup va
+                 * (Phase 5 etape 1) appeler /client/lookup en debounce 300ms
+                 * et auto-prefill prenom + nom si le client est connu. Mettre
+                 * le tel d abord cree donc un effet "magique" : la cliente
+                 * tape son numero, ses autres champs se remplissent tout seuls.
+                 */}
+                <label className="col-span-2 block">
+                  <span className="flex items-center gap-2 text-[11px] font-black uppercase text-slate-500">
+                    Telephone
+                    {phoneLookup.state === 'loading' ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-[#f31976]" aria-hidden />
+                    ) : null}
+                    {phoneLookup.state === 'found' && phoneLookup.data?.prenom ? (
+                      <span className="flex items-center gap-1 rounded-full bg-[#fff0f6] px-2 py-0.5 text-[10px] font-black normal-case text-[#f31976]">
+                        <Check className="h-3 w-3" aria-hidden />
+                        Bonjour {phoneLookup.data.prenom} !
+                      </span>
+                    ) : null}
+                  </span>
+                  <PhoneInput
+                    international
+                    defaultCountry="SN"
+                    value={bookingForm.telephone || undefined}
+                    onChange={(value) => updateBookingField('telephone', value ?? '')}
+                    placeholder="77 123 45 67"
+                    autoComplete="tel"
+                    required
+                    numberInputProps={{
+                      className:
+                        'h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10',
+                    }}
+                    className="mt-1.5 flex items-center gap-2"
+                  />
+                </label>
                 <label className="block">
                   <span className="text-[11px] font-black uppercase text-slate-500">Prenom</span>
                   <input
                     value={bookingForm.prenom}
                     onChange={(event) => updateBookingField('prenom', event.target.value)}
                     required
+                    autoComplete="given-name"
                     className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
@@ -1235,24 +1166,17 @@ function ClientHomePage() {
                     value={bookingForm.nom}
                     onChange={(event) => updateBookingField('nom', event.target.value)}
                     required
+                    autoComplete="family-name"
                     className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
-                <label className="block">
-                  <span className="text-[11px] font-black uppercase text-slate-500">Telephone</span>
-                  <input
-                    value={bookingForm.telephone}
-                    onChange={(event) => updateBookingField('telephone', event.target.value)}
-                    required
-                    className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
-                  />
-                </label>
-                <label className="block">
+                <label className="col-span-2 block">
                   <span className="text-[11px] font-black uppercase text-slate-500">Email</span>
                   <input
                     type="email"
                     value={bookingForm.email}
                     onChange={(event) => updateBookingField('email', event.target.value)}
+                    autoComplete="email"
                     className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
@@ -1327,8 +1251,12 @@ function ClientHomePage() {
                     return (
                       <label
                         key={method.value}
-                        className={`block min-h-[94px] cursor-pointer select-none rounded-2xl border px-2 py-3 text-center transition ${
-                          checked ? 'border-[#f31976] bg-[#fff0f6]' : 'border-slate-200 bg-white'
+                        className={`block min-h-[94px] select-none rounded-2xl border px-2 py-3 text-center transition ${
+                          !configured
+                            ? 'cursor-not-allowed opacity-40'
+                            : checked
+                              ? 'cursor-pointer border-[#f31976] bg-[#fff0f6]'
+                              : 'cursor-pointer border-slate-200 bg-white'
                         }`}
                       >
                         <input
@@ -1336,6 +1264,7 @@ function ClientHomePage() {
                           name="mode_paiement"
                           value={method.value}
                           checked={checked}
+                          disabled={!configured}
                           onChange={() => updateBookingField('paymentMethod', method.value)}
                           className="sr-only"
                         />
@@ -1353,7 +1282,7 @@ function ClientHomePage() {
                           </span>
                         </span>
                         <span className="mt-2 hidden text-xs font-bold text-slate-500 sm:block">
-                          {configured ? method.detail : method.value === 'carte_bancaire' ? 'Stripe a verifier' : 'PayTech a verifier'}
+                          {configured ? method.detail : 'Non disponible'}
                         </span>
                       </label>
                     )
@@ -1429,79 +1358,6 @@ function ClientHomePage() {
                 {bookingForm.paymentMethod === 'carte_bancaire' ? 'Continuer vers Stripe' : 'Continuer vers PayTech'}
               </button>
             </form>
-
-            <section className="border-t border-slate-100 bg-white p-4 sm:p-6 lg:col-span-2">
-              <form onSubmit={handleReviewSubmit} className="rounded-3xl bg-slate-950 p-4 text-white">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-black">Ajouter votre commentaire</p>
-                    <p className="mt-1 text-xs font-bold text-white/55">Votre avis aide les prochaines clientes a choisir.</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: 5 }, (_, index) => {
-                      const note = index + 1
-
-                      return (
-                        <button
-                          key={note}
-                          type="button"
-                          onClick={() => updateReviewField('note', note)}
-                          className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[#f59e0b]"
-                          aria-label={`${note} etoiles`}
-                        >
-                          <Star className={`h-5 w-5 ${note <= reviewForm.note ? 'fill-[#f59e0b]' : 'fill-none text-white/40'}`} />
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <input
-                    value={reviewForm.nom_client}
-                    onChange={(event) => updateReviewField('nom_client', event.target.value)}
-                    placeholder="Votre nom"
-                    required
-                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
-                  />
-                  <input
-                    value={reviewForm.telephone}
-                    onChange={(event) => updateReviewField('telephone', event.target.value)}
-                    placeholder="Telephone"
-                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
-                  />
-                </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-[0.7fr_1.3fr]">
-                  <input
-                    type="email"
-                    value={reviewForm.email}
-                    onChange={(event) => updateReviewField('email', event.target.value)}
-                    placeholder="Email optionnel"
-                    className="h-11 rounded-2xl border border-white/10 bg-white/10 px-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
-                  />
-                  <textarea
-                    value={reviewForm.commentaire}
-                    onChange={(event) => updateReviewField('commentaire', event.target.value)}
-                    placeholder="Votre experience avec cette coiffure"
-                    required
-                    rows={2}
-                    className="min-h-11 rounded-2xl border border-white/10 bg-white/10 px-3 py-3 text-sm font-bold text-white outline-none placeholder:text-white/45 focus:border-white/40"
-                  />
-                </div>
-                {reviewState ? (
-                  <p className={`mt-3 rounded-2xl px-3 py-2 text-xs font-bold ${reviewState.type === 'success' ? 'bg-emerald-400/15 text-emerald-100' : 'bg-rose-400/15 text-rose-100'}`}>
-                    {reviewState.message}
-                  </p>
-                ) : null}
-                <button
-                  type="submit"
-                  disabled={reviewSubmitting}
-                  className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#d80f63] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {reviewSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Publier mon avis
-                </button>
-              </form>
-            </section>
           </div>
         </div>
       ) : null}

@@ -6,7 +6,6 @@ import LoginPanel from '../components/auth/LoginPanel'
 import { login } from '../services/authService'
 import {
   setRememberMe as persistRememberMe,
-  setToken,
   setUser,
 } from '../lib/authStorage'
 
@@ -33,7 +32,6 @@ function LoginPage() {
     try {
       const response = await login(identifier.trim(), password, 'frontend')
 
-      setToken(response.access_token)
       setUser(response.user)
       persistRememberMe(rememberMe)
 

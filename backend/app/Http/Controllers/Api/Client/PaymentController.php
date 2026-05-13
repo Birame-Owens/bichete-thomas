@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\Client;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendMagicLinkNotification;
+use App\Jobs\SendPaymentReceiptNotifications;
 use App\Models\Paiement;
 use App\Models\Reservation;
-use App\Services\PaymentReceiptNotificationService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -16,10 +18,6 @@ use Illuminate\Validation\ValidationException;
 class PaymentController extends Controller
 {
     private const INCOMING_TYPES = ['acompte', 'solde', 'complet', 'ajustement'];
-
-    public function __construct(private readonly PaymentReceiptNotificationService $receiptNotifications)
-    {
-    }
 
     public function confirmStripeCheckout(Request $request): JsonResponse
     {
@@ -122,7 +120,10 @@ class PaymentController extends Controller
         if ($payment->statut !== 'valide') {
             $this->markPaymentAsPaid($payment, $payment->reference ?: 'paytech-return-' . $payment->id);
         } else {
-            $this->receiptNotifications->send($payment->fresh(['reservation.client', 'reservation.details', 'client']));
+            // Paiement deja valide (cas du retour PayTech post-webhook) : on
+            // re-pousse l envoi du recu en queue (I6) au cas ou le webhook
+            // n aurait pas reussi a notifier.
+            SendPaymentReceiptNotifications::dispatch($payment->id);
         }
 
         return response()->json([
@@ -144,8 +145,14 @@ class PaymentController extends Controller
             ]);
         }
 
-        $response = Http::withToken((string) $secret)
-            ->get('https://api.stripe.com/v1/checkout/sessions/' . rawurlencode($sessionId));
+        try {
+            $response = Http::withToken((string) $secret)
+                ->get('https://api.stripe.com/v1/checkout/sessions/' . rawurlencode($sessionId));
+        } catch (ConnectionException) {
+            throw ValidationException::withMessages([
+                'session_id' => 'Stripe est temporairement inaccessible. Reessayez dans quelques instants.',
+            ]);
+        }
 
         if ($response->failed()) {
             throw ValidationException::withMessages([
@@ -281,14 +288,33 @@ class PaymentController extends Controller
 
     private function markPaymentAsPaid(Paiement $payment, string $reference): void
     {
-        $payment->forceFill([
-            'statut' => 'valide',
-            'reference' => $reference,
-            'date_paiement' => now(),
-        ])->save();
+        // UPDATE atomique : si deux requetes concurrentes arrivent (IPN + retour
+        // client, ou IPN retente par PayTech/Stripe), une seule obtient affected=1.
+        // L autre sort ici sans dispatcher un second recu.
+        $affected = Paiement::query()
+            ->where('id', $payment->id)
+            ->where('statut', '!=', 'valide')
+            ->update([
+                'statut' => 'valide',
+                'reference' => $reference,
+                'date_paiement' => now(),
+            ]);
 
+        if ($affected === 0) {
+            return;
+        }
+
+        $payment->refresh();
         $this->syncReservationPaymentState($payment->reservation_id);
-        $this->receiptNotifications->send($payment->fresh(['reservation.client', 'reservation.details', 'client']));
+        // Notif asynchrone (I6) : la requete webhook Stripe/PayTech repond
+        // immediatement (~50 ms au lieu de 1-5 s avec les appels HTTP
+        // Twilio/WhatsApp/Mail synchrones). Un worker queue:work consomme
+        // la queue Redis et envoie le recu en arriere-plan.
+        SendPaymentReceiptNotifications::dispatch($payment->id);
+        // Magic link (Phase 5 etape 2) : lien de session 90j envoye par WhatsApp
+        // apres chaque paiement confirme. Si WhatsApp n est pas configure, le
+        // job log un warning et sort proprement (pas d exception).
+        SendMagicLinkNotification::dispatch($payment->id);
     }
 
     private function markPaymentAsCanceled(Paiement $payment, string $reference): void

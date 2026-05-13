@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendPaymentReceiptNotifications;
 use App\Models\Caisse;
 use App\Models\Client;
 use App\Models\MouvementCaisse;
 use App\Models\Paiement;
 use App\Models\ParametreSysteme;
 use App\Models\Reservation;
-use App\Services\PaymentReceiptNotificationService;
+use App\Services\ClientResolver;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class PaiementController extends Controller
 {
@@ -26,9 +28,7 @@ class PaiementController extends Controller
     private const METHODS = ['especes', 'wave', 'orange_money', 'carte_bancaire', 'virement', 'autre'];
     private const STATUSES = ['en_attente', 'valide', 'annule', 'rembourse'];
 
-    public function __construct(private readonly PaymentReceiptNotificationService $receiptNotifications)
-    {
-    }
+    public function __construct(private readonly ClientResolver $clientResolver) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -51,7 +51,9 @@ class PaiementController extends Controller
         $data = $this->validatedPaymentData($request);
 
         $paiement = DB::transaction(fn (): Paiement => $this->persistPayment($data));
-        $this->receiptNotifications->send($paiement);
+        // Notif recue en queue (I6) : la requete admin repond sans attendre
+        // Twilio/WhatsApp/Mail.
+        SendPaymentReceiptNotifications::dispatch($paiement->id);
 
         return response()->json([
             'message' => 'Paiement enregistre.',
@@ -75,7 +77,8 @@ class PaiementController extends Controller
         $data = $this->validatedPaymentData($request, $paiement);
 
         $paiement = DB::transaction(fn (): Paiement => $this->persistPayment($data, $paiement));
-        $this->receiptNotifications->send($paiement);
+        // Notif recue en queue (I6).
+        SendPaymentReceiptNotifications::dispatch($paiement->id);
 
         return response()->json([
             'message' => 'Paiement mis a jour.',
@@ -224,7 +227,7 @@ class PaiementController extends Controller
             'client' => ['nullable', 'array'],
             'client.nom' => ['required_with:client', 'string', 'max:255'],
             'client.prenom' => ['required_with:client', 'string', 'max:255'],
-            'client.telephone' => ['required_with:client', 'string', 'max:50'],
+            'client.telephone' => ['required_with:client', 'string', 'max:30', (new Phone())->country(['SN'])->international()],
             'client.email' => ['nullable', 'email', 'max:255'],
             'client.source' => ['sometimes', Rule::in(['en_ligne', 'physique'])],
             'type' => [$paiement ? 'sometimes' : 'required', Rule::in(self::TYPES)],
@@ -328,7 +331,7 @@ class PaiementController extends Controller
         }
 
         if (! $data['client_id'] && ! empty($data['client'])) {
-            $data['client_id'] = $this->findOrCreateClient($data['client'])->id;
+            $data['client_id'] = $this->clientResolver->findOrCreate($data['client'])->id;
         }
 
         unset($data['client']);
@@ -503,40 +506,6 @@ class PaiementController extends Controller
             ->sum('montant');
 
         return max((float) $incoming - (float) $refunds, 0);
-    }
-
-    /**
-     * @param array<string, mixed> $data
-     */
-    private function findOrCreateClient(array $data): Client
-    {
-        $telephone = trim((string) $data['telephone']);
-        $client = Client::query()->where('telephone', $telephone)->first();
-
-        if ($client) {
-            if ($client->est_blackliste) {
-                throw ValidationException::withMessages([
-                    'client.telephone' => 'Ce telephone appartient a un client dans la liste noire.',
-                ]);
-            }
-
-            return $client;
-        }
-
-        $client = Client::query()->create([
-            'nom' => trim((string) $data['nom']),
-            'prenom' => trim((string) $data['prenom']),
-            'telephone' => $telephone,
-            'email' => $data['email'] ?? null,
-            'source' => $data['source'] ?? 'physique',
-        ]);
-
-        $client->preferences()->create([
-            'notifications_whatsapp' => true,
-            'notifications_promos' => true,
-        ]);
-
-        return $client;
     }
 
     /**

@@ -114,4 +114,25 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | API Token Session (I1)
+    |--------------------------------------------------------------------------
+    |
+    | session_inactivity_hours : duree apres laquelle un token est invalide
+    | s il n a pas ete utilise. Le middleware AuthenticateApiToken refresh
+    | last_used_at sur chaque requete (toutes les 5 min), donc tant que
+    | l utilisateur fait au moins une requete dans la fenetre, sa session
+    | reste vivante. Sliding window.
+    |
+    | session_cookie_max_hours : plafond dur cote cookie navigateur. Meme
+    | si last_used_at est recent, au-dela de cette duree depuis l emission
+    | le cookie est detruit par le navigateur. Anti-vol-de-cookie longue
+    | duree. 168h = 7 jours.
+    |
+    */
+
+    'session_inactivity_hours' => (int) env('AUTH_SESSION_INACTIVITY_HOURS', 2),
+    'session_cookie_max_hours' => (int) env('AUTH_SESSION_COOKIE_MAX_HOURS', 168),
+
 ];

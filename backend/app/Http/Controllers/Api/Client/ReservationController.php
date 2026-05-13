@@ -7,10 +7,12 @@ use App\Models\Client;
 use App\Models\CodePromo;
 use App\Models\Coiffure;
 use App\Models\Paiement;
-use App\Models\ParametreSysteme;
 use App\Models\Reservation;
+use App\Services\ClientResolver;
+use App\Support\SystemSettings;
 use Carbon\Carbon;
 use Closure;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +20,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class ReservationController extends Controller
 {
@@ -39,13 +42,19 @@ class ReservationController extends Controller
         'dimanche',
     ];
 
+    public function __construct(private readonly ClientResolver $clientResolver) {}
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
             'client' => ['required', 'array'],
             'client.nom' => ['required', 'string', 'max:255'],
             'client.prenom' => ['required', 'string', 'max:255'],
-            'client.telephone' => ['required', 'string', 'max:50'],
+            // Tel international accepte (SN par defaut, fallback international pour
+            // touristes/expats). La rule Phone tolere les espaces/tirets/parens
+            // (parsing libphonenumber). La normalisation E.164 a la persistence
+            // est faite par ClientResolver::findOrCreate.
+            'client.telephone' => ['required', 'string', 'max:30', (new Phone())->country(['SN'])->international()],
             'client.email' => ['nullable', 'email', 'max:255'],
             'coiffure_id' => ['required', 'integer', 'exists:coiffures,id'],
             'variante_coiffure_id' => ['required', 'integer', 'exists:variantes_coiffures,id'],
@@ -79,7 +88,13 @@ class ReservationController extends Controller
      */
     private function createReservation(array $data): array
     {
-        $client = $this->findOrCreateClient($data['client']);
+        // Source 'en_ligne' : ce flow est le checkout client public.
+        // Message blacklist explicite pour le contexte client (vs admin).
+        $client = $this->clientResolver->findOrCreate(
+            $data['client'],
+            defaultSource: 'en_ligne',
+            blacklistMessage: 'Ce telephone ne peut pas effectuer de reservation en ligne.',
+        );
         $coiffure = Coiffure::query()
             ->with(['variantes', 'options'])
             ->where('actif', true)
@@ -215,46 +230,6 @@ class ReservationController extends Controller
         };
     }
 
-    /**
-     * @param array<string, mixed> $data
-     */
-    private function findOrCreateClient(array $data): Client
-    {
-        $telephone = trim((string) $data['telephone']);
-        $nom = Str::lower(trim((string) $data['nom']));
-        $prenom = Str::lower(trim((string) $data['prenom']));
-        $client = Client::query()
-            ->whereRaw('LOWER(nom) = ?', [$nom])
-            ->whereRaw('LOWER(prenom) = ?', [$prenom])
-            ->where('telephone', $telephone)
-            ->first();
-
-        if ($client) {
-            if ($client->est_blackliste) {
-                throw ValidationException::withMessages([
-                    'client.telephone' => 'Ce telephone ne peut pas effectuer de reservation en ligne.',
-                ]);
-            }
-
-            return $client;
-        }
-
-        $client = Client::query()->create([
-            'nom' => trim((string) $data['nom']),
-            'prenom' => trim((string) $data['prenom']),
-            'telephone' => $telephone,
-            'email' => $data['email'] ?? null,
-            'source' => 'en_ligne',
-        ]);
-
-        $client->preferences()->create([
-            'notifications_whatsapp' => true,
-            'notifications_promos' => true,
-        ]);
-
-        return $client;
-    }
-
     private function ensureWithinBusinessHours(Carbon $startsAt, Carbon $endsAt): void
     {
         $open = (string) $this->settingValue('heure_ouverture', '09:00');
@@ -289,6 +264,14 @@ class ReservationController extends Controller
 
     private function ensureSalonCapacity(string $date, string $hour): void
     {
+        // Advisory lock PostgreSQL pour serialiser les reservations concurrentes
+        // sur la meme journee (B2). On le saute sur les autres drivers (sqlite
+        // utilise en tests : pas de concurrence, pas besoin) sinon le SQL
+        // pg_advisory_xact_lock fait planter pg-only.
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('SELECT pg_advisory_xact_lock(hashtext(?))', ["reservation_capacity:{$date}"]);
+        }
+
         $dailyLimit = max(1, (int) $this->settingValue('limite_reservations_par_jour', 15));
         $slotLimit = max(1, (int) $this->settingValue('limite_reservations_par_creneau', 3));
         $dailyCount = Reservation::query()
@@ -399,9 +382,16 @@ class ReservationController extends Controller
             $payload['customer_email'] = $reservation->client->email;
         }
 
-        $response = Http::asForm()
-            ->withToken((string) $secret)
-            ->post('https://api.stripe.com/v1/checkout/sessions', $payload);
+        try {
+            $response = Http::asForm()
+                ->withToken((string) $secret)
+                ->post('https://api.stripe.com/v1/checkout/sessions', $payload);
+        } catch (ConnectionException) {
+            // Stripe inaccessible (DNS, reseau) : erreur propre plutot que stack trace.
+            throw ValidationException::withMessages([
+                'mode_paiement' => 'Le paiement par carte bancaire est temporairement indisponible. Essayez Wave ou Orange Money.',
+            ]);
+        }
 
         if ($response->failed()) {
             throw ValidationException::withMessages([
@@ -455,31 +445,38 @@ class ReservationController extends Controller
         );
         $ipnUrl = config('services.paytech.ipn_url') ?? config('app.url') . '/api/client/paiements/paytech/ipn';
 
-        $response = Http::asForm()
-            ->withHeaders([
-                'Accept' => 'application/json',
-                'API_KEY' => (string) $apiKey,
-                'API_SECRET' => (string) $apiSecret,
-            ])
-            ->post(rtrim((string) config('services.paytech.base_url'), '/') . '/payment/request-payment', [
-                'item_name' => "Acompte reservation #{$reservation->id}",
-                'item_price' => (int) round((float) $payment->montant),
-                'currency' => 'XOF',
-                'ref_command' => $refCommand,
-                'command_name' => "Acompte reservation #{$reservation->id} - Bichette Thomas",
-                'env' => config('services.paytech.env', 'test'),
-                'target_payment' => $targetPayment,
-                'ipn_url' => $ipnUrl,
-                'success_url' => $successUrl,
-                'cancel_url' => $cancelUrl,
-                'custom_field' => json_encode([
-                    'reservation_id' => $reservation->id,
-                    'paiement_id' => $payment->id,
+        try {
+            $response = Http::asForm()
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                    'API_KEY' => (string) $apiKey,
+                    'API_SECRET' => (string) $apiSecret,
+                ])
+                ->post(rtrim((string) config('services.paytech.base_url'), '/') . '/payment/request-payment', [
+                    'item_name' => "Acompte reservation #{$reservation->id}",
+                    'item_price' => (int) round((float) $payment->montant),
+                    'currency' => 'XOF',
                     'ref_command' => $refCommand,
-                    'mode_paiement' => $payment->mode_paiement,
-                    'email' => $client->email,
-                ], JSON_THROW_ON_ERROR),
+                    'command_name' => "Acompte reservation #{$reservation->id} - Bichette Thomas",
+                    'env' => config('services.paytech.env', 'test'),
+                    'target_payment' => $targetPayment,
+                    'ipn_url' => $ipnUrl,
+                    'success_url' => $successUrl,
+                    'cancel_url' => $cancelUrl,
+                    'custom_field' => json_encode([
+                        'reservation_id' => $reservation->id,
+                        'paiement_id' => $payment->id,
+                        'ref_command' => $refCommand,
+                        'mode_paiement' => $payment->mode_paiement,
+                        'email' => $client->email,
+                    ], JSON_THROW_ON_ERROR),
+                ]);
+        } catch (ConnectionException) {
+            // PayTech inaccessible (DNS, reseau) : erreur propre plutot que stack trace.
+            throw ValidationException::withMessages([
+                'mode_paiement' => 'Le paiement mobile est temporairement indisponible. Reessayez dans quelques instants.',
             ]);
+        }
 
         if ($response->failed()) {
             throw ValidationException::withMessages([
@@ -631,9 +628,8 @@ class ReservationController extends Controller
 
     private function settingValue(string $key, mixed $default): mixed
     {
-        $setting = ParametreSysteme::query()->where('cle', $key)->first();
-
-        return $setting?->valeur['value'] ?? $default;
+        // Delegue a SystemSettings (cache I7) : 1 SELECT au cold-start, 0 ensuite.
+        return SystemSettings::get($key, $default);
     }
 
     /**

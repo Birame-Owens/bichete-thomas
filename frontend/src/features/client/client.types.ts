@@ -210,3 +210,34 @@ export type ClientStripeConfirmation = {
   message?: string
   data: ClientPayment
 }
+
+// Phase 5 etape 1 : lookup public d un client par telephone E.164.
+// Privacy-first cote backend : la reponse ne contient JAMAIS email/id/telephone.
+export type ClientLookupResponse = {
+  found: boolean
+  nom: string | null
+  prenom: string | null
+}
+
+// Phase 5 etape 2 : session client persistante via cookie httpOnly.
+export type ClientSession = {
+  nom: string
+  prenom: string
+  telephone: string
+}
+
+export type ClientMagicLinkVerifyResponse = {
+  message: string
+  data: ClientSession
+}
+
+// Phase 5 etape 3 : avis verifies post-prestation via lien WhatsApp.
+export type AvisPrefill = {
+  prenom: string
+  coiffure_nom: string
+}
+
+export type AvisVerifiePayload = {
+  note: number
+  commentaire: string
+}

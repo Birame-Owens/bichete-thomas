@@ -10,6 +10,8 @@ use App\Models\CodePromo;
 use App\Models\Coiffure;
 use App\Models\ParametreSysteme;
 use App\Models\Reservation;
+use App\Services\ClientResolver;
+use App\Support\PhoneNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -428,5 +430,44 @@ class CatalogueController extends Controller
         $setting = ParametreSysteme::query()->where('cle', $key)->first();
 
         return $setting?->valeur['value'] ?? $default;
+    }
+
+    /**
+     * Lookup public d un client par telephone (Phase 5 etape 1).
+     *
+     * Retourne strictement {found, nom, prenom}. Aucun email, aucun id, aucun
+     * historique : un attaquant qui possede un tel ne doit pas pouvoir extraire
+     * l email (data leak). Le nom est OK car deja visible a l accueil physique.
+     *
+     * Throttle:5,1 sur la route empeche tout usage en annuaire inverse. Avec
+     * le debounce frontend (300ms), un utilisateur lambda fait 1 lookup par
+     * reservation, donc 5/min est largement suffisant.
+     *
+     * Tel invalide => found:false en 200 OK (pas 422) pour ne pas leaker la
+     * validite d un format ni distinguer "valide mais inconnu" de "non parsable".
+     */
+    public function lookup(Request $request, ClientResolver $resolver): JsonResponse
+    {
+        $request->validate([
+            'tel' => ['required', 'string', 'max:30'],
+        ]);
+
+        $e164 = PhoneNumber::normalize($request->string('tel')->toString());
+
+        if ($e164 === null) {
+            return response()->json([
+                'found' => false,
+                'nom' => null,
+                'prenom' => null,
+            ]);
+        }
+
+        $client = $resolver->findByPhone($e164);
+
+        return response()->json([
+            'found' => $client !== null,
+            'nom' => $client?->nom,
+            'prenom' => $client?->prenom,
+        ]);
     }
 }

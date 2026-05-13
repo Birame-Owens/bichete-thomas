@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ParametreSysteme;
+use App\Support\SystemSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -332,15 +333,12 @@ class ParametreSystemeController extends Controller
 
     private function settingValue(string $key): mixed
     {
-        $value = ParametreSysteme::query()->where('cle', $key)->value('valeur');
-
-        if (is_string($value)) {
-            $decoded = json_decode($value, true);
-
-            return $decoded['value'] ?? null;
-        }
-
-        return is_array($value) ? ($value['value'] ?? null) : null;
+        // Delegue a SystemSettings (cache I7). Comme la validation se fait avant
+        // l update, on lit ici la valeur AVANT modif - exactement ce qu il
+        // faut pour les checks de coherence (heure_ouverture vs heure_fermeture,
+        // seuil_retard vs seuil_absence). Apres l update, le model event saved
+        // flush le cache automatiquement.
+        return SystemSettings::get($key);
     }
 
     private function rawValue(mixed $value): mixed

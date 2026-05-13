@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\Api\AuthController;
 use App\Models\PersonalAccessToken;
 use Closure;
 use Illuminate\Http\Request;
@@ -10,17 +11,32 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticateApiToken
 {
+    private const MUTATING_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
     /**
      * @param Closure(Request): Response $next
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $plainTextToken = $request->bearerToken();
+        $cookieToken = $request->cookie(AuthController::AUTH_COOKIE);
+        $bearerToken = $request->bearerToken();
+        $plainTextToken = $cookieToken ?: $bearerToken;
 
         if (! $plainTextToken) {
             return response()->json([
                 'message' => 'Token absent.',
             ], 401);
+        }
+
+        if ($cookieToken && in_array($request->method(), self::MUTATING_METHODS, true)) {
+            $csrfCookie = (string) $request->cookie(AuthController::CSRF_COOKIE);
+            $csrfHeader = (string) $request->header('X-XSRF-TOKEN');
+
+            if ($csrfCookie === '' || $csrfHeader === '' || ! hash_equals($csrfCookie, $csrfHeader)) {
+                return response()->json([
+                    'message' => 'CSRF token mismatch.',
+                ], 419);
+            }
         }
 
         $accessToken = PersonalAccessToken::query()
@@ -31,6 +47,19 @@ class AuthenticateApiToken
         if (! $accessToken || ($accessToken->expires_at && $accessToken->expires_at->isPast())) {
             return response()->json([
                 'message' => 'Token invalide ou expire.',
+            ], 401);
+        }
+
+        // Sliding-window inactivity check (I1) : si le token n a pas ete utilise
+        // depuis plus de session_inactivity_hours, on le considere abandonne et
+        // on force une re-authentification. last_used_at est rafraichi tous les
+        // 5 min ci-dessous tant que l utilisateur fait des requetes, donc une
+        // session active ne meurt jamais.
+        $inactivityHours = (int) config('auth.session_inactivity_hours', 6);
+
+        if ($accessToken->last_used_at && $accessToken->last_used_at->lt(now()->subHours($inactivityHours))) {
+            return response()->json([
+                'message' => 'Session expiree pour cause d inactivite.',
             ], 401);
         }
 

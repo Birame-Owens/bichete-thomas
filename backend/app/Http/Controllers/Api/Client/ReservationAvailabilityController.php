@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\Client;
 
 use App\Http\Controllers\Controller;
-use App\Models\ParametreSysteme;
 use App\Models\Reservation;
+use App\Support\SystemSettings;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -108,9 +108,9 @@ class ReservationAvailabilityController extends Controller
 
     private function settingValue(string $key, mixed $default): mixed
     {
-        $setting = ParametreSysteme::query()->where('cle', $key)->first();
-
-        return $setting?->valeur['value'] ?? $default;
+        // Delegue a SystemSettings (cache I7) : avant ce controller faisait
+        // 5 SELECT par requete de disponibilite, maintenant 0 sur cache hit.
+        return SystemSettings::get($key, $default);
     }
 
     /**
