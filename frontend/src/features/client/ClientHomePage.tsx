@@ -802,13 +802,14 @@ function ClientHomePage() {
                 )
               })}
               </nav>
-              <a
-                href={settings?.telephone_whatsapp ? `https://wa.me/${settings.telephone_whatsapp.replace(/\D/g, '')}` : '#contact'}
+              <button
+                type="button"
+                onClick={() => (clientSession ? handleLogout() : openClientAuth('login'))}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] shadow-sm sm:hidden"
-                aria-label="Contact"
+                aria-label="Profil client"
               >
-                <MessageCircle className="h-5 w-5" />
-              </a>
+                <User className="h-5 w-5" />
+              </button>
               <button
                 type="button"
                 className="hidden h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-800 shadow-sm sm:grid"
