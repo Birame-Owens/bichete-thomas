@@ -111,8 +111,8 @@ const clientNavItems: ClientNavItem[] = [
 const benefits: Array<{ label: string; detail: string; icon: LucideIcon }> = [
   { label: 'Diagnostic', detail: 'Conseil avant pose', icon: MessageCircle },
   { label: 'Finition', detail: 'Details soignes', icon: Sparkles },
-  { label: 'Planning', detail: 'Creneaux visibles', icon: CalendarCheck },
-  { label: 'Paiement', detail: 'Acompte securise', icon: ShieldCheck },
+  { label: 'Planning', detail: 'Créneaux visibles', icon: CalendarCheck },
+  { label: 'Paiement', detail: 'Acompte sécurisé', icon: ShieldCheck },
 ]
 
 const paymentMethods: Array<{
@@ -755,7 +755,7 @@ function ClientHomePage() {
 
   return (
     <div className="min-h-screen bg-[#fdfafd] text-slate-950">
-      <header id="accueil" className="sticky top-0 z-30 border-b border-[#f7d6e5] bg-white/95 backdrop-blur">
+      <header id="accueil" className="fixed top-0 left-0 right-0 z-30 border-b border-[#f7d6e5] bg-white/95 backdrop-blur">
         <div className="mx-auto w-full max-w-[1440px] px-3 py-2 sm:px-5 lg:px-8">
           <div className="flex items-center gap-2 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-3">
             <a href="/" className="flex shrink-0 items-center gap-3">
@@ -844,6 +844,9 @@ function ClientHomePage() {
         </div>
       </header>
 
+      {/* Spacer compensant la hauteur du header fixed (~60px) */}
+      <div className="h-[60px]" />
+
       {pageNotice ? (
         <div className="mx-auto w-full max-w-[1440px] px-3 pt-3 sm:px-5 lg:px-8">
           <div
@@ -873,17 +876,34 @@ function ClientHomePage() {
                 className="h-full w-full object-cover object-[55%_center] opacity-90 md:hidden"
               />
               <div className="absolute inset-0 hidden bg-gradient-to-r from-black/70 via-[#f31976]/45 to-transparent md:block" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent md:hidden" />
             </div>
             <div className="relative flex min-h-[430px] items-end p-5 sm:min-h-[560px] sm:p-10 lg:min-h-[620px] lg:p-14">
+              <div className="pb-4 md:hidden">
+                <p className="text-[9px] font-black uppercase tracking-[0.28em] text-white/80">
+                  Salon de coiffure à Dakar
+                </p>
+                <h1 className="font-display mt-3 text-3xl leading-tight text-white">
+                  Bichette Thomas
+                </h1>
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('catalogue')}
+                  className="mt-5 inline-flex min-h-11 items-center gap-2 bg-white px-5 text-xs font-black uppercase tracking-[0.18em] text-[#d80f63]"
+                >
+                  Choisir une coiffure
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
               <div className="hidden max-w-3xl pb-8 md:block">
                 <p className="inline-flex border border-white/40 px-3 py-1 text-[9px] font-black uppercase tracking-[0.28em] text-white/85 backdrop-blur sm:text-[10px]">
-                  Salon de coiffure a Dakar
+                  Salon de coiffure à Dakar
                 </p>
                 <h1 className="font-display mt-5 max-w-2xl text-4xl leading-none text-white sm:text-6xl lg:text-7xl">
                   Bichette Thomas
                 </h1>
                 <p className="mt-5 max-w-xl text-sm font-semibold leading-6 text-white/90 sm:text-base sm:leading-7">
-                  Coiffures protectrices, poses soignees et reservations simples, avec une touche rose signature et un service pense pour votre rythme.
+                  Coiffures protectrices, poses soignées et réservations simples, avec une touche rose signature et un service pensé pour votre rythme.
                 </p>
                 <button
                   type="button"
@@ -982,7 +1002,7 @@ function ClientHomePage() {
                   <div>
                     <div className="text-center">
                       <h2 className="text-4xl font-light uppercase tracking-[0.24em] text-slate-950">Populaires</h2>
-                      <p className="mt-3 text-sm font-semibold italic text-slate-500">Les coiffures les plus demandees au salon</p>
+                      <p className="mt-3 text-sm font-semibold italic text-slate-500">Les coiffures les plus demandées au salon</p>
                     </div>
                     <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10 xl:grid-cols-6">
                       {popularCoiffures.map((coiffure) => (
@@ -1003,7 +1023,7 @@ function ClientHomePage() {
                   <div>
                     <div className="text-center">
                       <h2 className="text-4xl font-light uppercase tracking-[0.24em] text-slate-950">A la une</h2>
-                      <p className="mt-3 text-sm font-semibold italic text-slate-500">Selection visible sur la page d accueil</p>
+                      <p className="mt-3 text-sm font-semibold italic text-slate-500">Sélection visible sur la page d'accueil</p>
                     </div>
                     <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10 xl:grid-cols-6">
                       {homeVisibleCoiffures.map((coiffure) => (
@@ -1051,7 +1071,7 @@ function ClientHomePage() {
                   <article key={promo.id} className="flex items-center justify-between gap-4 bg-[#1a1116] p-6 text-white">
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.32em] text-white/50">Offre limitee</p>
-                      <p className="mt-3 text-3xl font-light uppercase tracking-[0.12em] text-white">{promoText(promo)} reservation</p>
+                      <p className="mt-3 text-3xl font-light uppercase tracking-[0.12em] text-white">{promoText(promo)} réservation</p>
                       <p className="mt-3 text-sm font-semibold text-white/70">
                         Code : <span className="font-black text-white">{promo.code}</span>
                       </p>
@@ -1076,10 +1096,10 @@ function ClientHomePage() {
             <div className="px-1 lg:px-8">
               <p className="text-[10px] font-black uppercase tracking-[0.32em] text-[#f31976]">A propos de nous</p>
               <h2 className="font-display mt-4 text-4xl leading-tight text-slate-950 sm:text-5xl">
-                Un salon pense pour sublimer chaque coiffure, du choix au rendez-vous.
+                Un salon pensé pour sublimer chaque coiffure, du choix au rendez-vous.
               </h2>
               <p className="mt-5 max-w-2xl text-sm font-semibold leading-7 text-slate-600 sm:text-base">
-                Bichette Thomas accompagne les clientes avec des coiffures elegantes, protectrices et adaptees au quotidien. La reservation en ligne garde l experience simple : vous voyez les styles, les prix, les durees et les horaires avant de confirmer.
+                Bichette Thomas accompagne les clientes avec des coiffures élégantes, protectrices et adaptées au quotidien. La réservation en ligne garde l'expérience simple : vous voyez les styles, les prix, les durées et les horaires avant de confirmer.
               </p>
               <div className="mt-7 grid grid-cols-3 gap-3 text-center">
                 <div className="border border-[#f7d6e5] px-3 py-4">
@@ -1120,7 +1140,7 @@ function ClientHomePage() {
             </div>
 
             <aside id="contact" className="bg-white p-5">
-              <p className="text-lg font-black text-slate-950">Reservation rapide</p>
+              <p className="text-lg font-black text-slate-950">Réservation rapide</p>
               <p className="mt-2 text-sm font-semibold text-slate-500">
                 Choisissez une coiffure dans le catalogue et envoyez votre demande au salon.
               </p>
@@ -1269,7 +1289,7 @@ function ClientHomePage() {
               </div>
 
               <p className="mt-5 text-sm font-semibold leading-7 text-slate-600">
-                {selectedCoiffure.description ?? 'Une prestation soignee, adaptee a votre style et au temps disponible au salon.'}
+                {selectedCoiffure.description ?? 'Une prestation soignée, adaptée à votre style et au temps disponible au salon.'}
               </p>
 
               <div className="mt-5 grid grid-cols-2 gap-3">
@@ -1289,7 +1309,7 @@ function ClientHomePage() {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-black text-[#f31976]">Finaliser la demande</p>
-                  <h3 className="mt-1 text-2xl font-black text-slate-950">Votre reservation</h3>
+                  <h3 className="mt-1 text-2xl font-black text-slate-950">Votre réservation</h3>
                 </div>
                 <div className="hidden items-center gap-2 rounded-2xl bg-[#fff0f6] px-4 py-3 text-sm font-black text-[#d80f63] sm:flex">
                   <Clock className="h-4 w-4" />

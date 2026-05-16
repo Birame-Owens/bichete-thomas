@@ -70,7 +70,7 @@ class CatalogueController extends Controller
                 'promotions' => $this->activePromotions(),
                 'settings' => [
                     'devise' => $this->settingValue('devise', 'FCFA'),
-                    'telephone_whatsapp' => $this->settingValue('telephone_whatsapp', '765923402'),
+                    'telephone_whatsapp' => $this->settingValue('telephone_whatsapp', '221778153939'),
                     'heure_ouverture' => $this->settingValue('heure_ouverture', '09:00'),
                     'heure_fermeture' => $this->settingValue('heure_fermeture', '19:00'),
                     'jours_fermeture' => $this->settingValue('jours_fermeture', []),

@@ -81,7 +81,7 @@ function ClientCategoryPage() {
     }
 
     confirmNaboopayReturn(paymentId, signature)
-      .then((response) => setSubmitMessage(response.message ?? 'Paiement NabooPay valide. Votre reservation est securisee.'))
+      .then((response) => setSubmitMessage(response.message ?? 'Paiement NabooPay validé. Votre réservation est sécurisée.'))
       .catch(() => setSubmitMessage('Retour NabooPay recu. La confirmation sera appliquee par webhook.'))
       .finally(() => window.history.replaceState({}, '', window.location.pathname))
   }, [])
@@ -221,8 +221,8 @@ function ClientCategoryPage() {
 
   return (
     <div className="min-h-screen bg-[#fdfafd] text-slate-950">
-      <div className="mx-auto w-full max-w-[1440px] px-3 pb-12 pt-3 sm:px-5 lg:px-8">
-        <header className="z-30 border-b border-[#f7d6e5] bg-white/95 px-2 py-2 backdrop-blur sm:px-3 lg:sticky lg:top-0">
+      <header className="fixed top-0 left-0 right-0 z-30 border-b border-[#f7d6e5] bg-white/95 backdrop-blur">
+        <div className="mx-auto w-full max-w-[1440px] px-3 py-2 sm:px-5 lg:px-8">
           <div className="flex items-center gap-2 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-3">
             <button type="button" onClick={() => navigate('/')} className="flex shrink-0 items-center gap-3 text-left">
               <img src="/logo bichette.jpg" alt="Bichette Thomas" className="h-11 w-11 shrink-0 rounded-2xl object-cover object-center sm:h-12 sm:w-12" />
@@ -281,8 +281,13 @@ function ClientCategoryPage() {
               </button>
             </div>
           </div>
-        </header>
+        </div>
+      </header>
 
+      {/* Spacer compensant la hauteur du header fixed (~60px) */}
+      <div className="h-[60px]" />
+
+      <div className="mx-auto w-full max-w-[1440px] px-3 pb-12 pt-3 sm:px-5 lg:px-8">
         {submitMessage ? (
           <div className="mt-3 bg-[#fff0f6] px-5 py-4 text-sm font-bold text-[#b01258]">
             {submitMessage}
@@ -302,7 +307,7 @@ function ClientCategoryPage() {
                 {activeCategory?.nom ?? 'Toutes les coiffures'}
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-sm font-semibold leading-6 text-slate-500 sm:leading-7">
-                {activeCategory?.description ?? 'Explorez les styles disponibles et ouvrez les details pour comparer les photos, les durees et les prix.'}
+                {activeCategory?.description ?? 'Explorez les styles disponibles et ouvrez les détails pour comparer les photos, les durées et les prix.'}
               </p>
             </div>
           </section>
@@ -431,7 +436,7 @@ function ClientCategoryPage() {
                 </div>
 
                 <p className="mt-5 text-sm font-semibold leading-7 text-slate-600">
-                  {selectedCoiffure.description ?? 'Une prestation soignee, adaptee a votre style et au temps disponible au salon.'}
+                  {selectedCoiffure.description ?? 'Une prestation soignée, adaptée à votre style et au temps disponible au salon.'}
                 </p>
 
                 <div className="mt-5 grid grid-cols-2 gap-3">
@@ -450,7 +455,7 @@ function ClientCategoryPage() {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-black text-[#f31976]">Finaliser la demande</p>
-                    <h3 className="mt-1 text-2xl font-black text-slate-950">Votre reservation</h3>
+                    <h3 className="mt-1 text-2xl font-black text-slate-950">Votre réservation</h3>
                   </div>
                 </div>
                 <div className="mt-6">
@@ -521,37 +526,49 @@ function ClientCategoryPage() {
                       className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-base font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm"
                     />
                   </label>
-                  <label className="block">
-                    <span className="text-[11px] font-black uppercase text-slate-500">Paiement</span>
-                    <div className="mt-1.5 grid grid-cols-3 gap-2">
+                  <div className="col-span-2">
+                    <p className="text-sm font-black text-slate-950">Paiement de l'acompte</p>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
                       {([
-                        { value: 'wave', label: 'Wave', logo: '/wave logo.webp' },
-                        { value: 'orange_money', label: 'Orange', logo: '/om logo.webp' },
-                        { value: 'carte_bancaire', label: 'Carte', logo: null },
-                      ] as Array<{ value: ClientPaymentMethod; label: string; logo: string | null }>).map((method) => (
-                        <button
-                          key={method.value}
-                          type="button"
-                          onClick={() => setPaymentMethod(method.value)}
-                          className={`min-h-11 rounded-2xl border px-2 text-xs font-black ${
-                            paymentMethod === method.value
-                              ? 'border-[#f31976] bg-[#fff0f6] text-[#f31976]'
-                              : 'border-slate-200 bg-white text-slate-700'
-                          }`}
-                          aria-pressed={paymentMethod === method.value}
-                        >
-                          <span className="flex items-center justify-center gap-1.5">
-                            {method.logo ? (
-                              <img src={method.logo} alt="" className="h-6 w-6 rounded-full object-contain" />
-                            ) : (
-                              <CreditCard className="h-5 w-5" />
-                            )}
-                            {method.label}
-                          </span>
-                        </button>
-                      ))}
+                        { value: 'wave' as ClientPaymentMethod, label: 'Wave', detail: 'Paiement securise via NabooPay', logo: '/wave logo.webp' },
+                        { value: 'orange_money' as ClientPaymentMethod, label: 'Orange Money', detail: 'Paiement securise via NabooPay', logo: '/om logo.webp' },
+                        { value: 'carte_bancaire' as ClientPaymentMethod, label: 'Carte bancaire', detail: 'Paiement securise via NabooPay', logo: null },
+                      ]).map((method) => {
+                        const checked = paymentMethod === method.value
+                        return (
+                          <label
+                            key={method.value}
+                            className={`block min-h-[94px] cursor-pointer select-none rounded-2xl border px-2 py-3 text-center transition ${
+                              checked ? 'border-[#f31976] bg-[#fff0f6]' : 'border-slate-200 bg-white'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="mode_paiement"
+                              value={method.value}
+                              checked={checked}
+                              onChange={() => setPaymentMethod(method.value)}
+                              className="sr-only"
+                            />
+                            <span className="flex flex-col items-center justify-center gap-1.5 text-xs font-black text-slate-950 sm:flex-row sm:text-sm">
+                              {method.logo ? (
+                                <img src={method.logo} alt="" className="h-7 w-7 rounded-full object-contain" />
+                              ) : (
+                                <CreditCard className="h-5 w-5 text-[#f31976]" />
+                              )}
+                              <span>
+                                <span className="sm:hidden">
+                                  {method.value === 'orange_money' ? 'Orange' : method.value === 'carte_bancaire' ? 'Carte' : method.label}
+                                </span>
+                                <span className="hidden sm:inline">{method.label}</span>
+                              </span>
+                            </span>
+                            <span className="mt-2 hidden text-xs font-bold text-slate-500 sm:block">{method.detail}</span>
+                          </label>
+                        )
+                      })}
                     </div>
-                  </label>
+                  </div>
                 </div>
 
                 <div className="mt-4">
