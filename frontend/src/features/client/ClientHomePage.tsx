@@ -129,8 +129,9 @@ const paymentMethods: Array<{
 
 const instagramUrl = 'https://www.instagram.com/bichette_thomas/'
 const tiktokUrl = 'https://www.tiktok.com/@bichette_thomas'
-const mapsUrl = 'https://www.google.com/maps/?cid=9724705947575440818'
-const mapsEmbedUrl = 'https://www.google.com/maps?cid=9724705947575440818&output=embed'
+const mapsSearchQuery = 'Bichette Thomas salon coiffure Dakar Senegal'
+const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsSearchQuery)}`
+const mapsEmbedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(mapsSearchQuery)}&z=15&output=embed`
 
 const emptyCategories: ClientCategory[] = []
 const emptyCoiffures: ClientCoiffure[] = []
