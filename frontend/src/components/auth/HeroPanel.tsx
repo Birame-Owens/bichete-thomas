@@ -1,4 +1,5 @@
 import heroPhoto from '../../assets/hero.jpg'
+// Composant de la section héroïque de la page d'authentification
 
 function HeroPanel() {
   return (
