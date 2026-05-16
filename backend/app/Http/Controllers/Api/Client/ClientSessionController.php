@@ -36,7 +36,7 @@ class ClientSessionController extends Controller
 
         if (! $client || $client->est_blackliste) {
             return response()->json([
-                'message' => 'Aucun compte client actif ne correspond a ce telephone.',
+                'message' => 'Aucun compte client actif ne correspond à ce telephone.',
             ], 404);
         }
 
@@ -47,6 +47,11 @@ class ClientSessionController extends Controller
      * POST /api/client/auth/register
      *
      * Cree la fiche client si le numero est nouveau, puis envoie un magic link.
+     *
+     * Reponse ambigue intentionnelle : si le numero existe deja (ou est blackliste),
+     * on retourne le meme message generique sans rien faire. Un attaquant ne peut
+     * donc pas enumerer les numeros enregistres en base, ni declencher un magic
+     * link vers le telephone d autrui via cette route.
      */
     public function register(Request $request): JsonResponse
     {
@@ -56,6 +61,16 @@ class ClientSessionController extends Controller
             'telephone' => ['required', 'string', 'max:30', (new Phone())->country(['SN'])->international()],
             'email' => ['nullable', 'email', 'max:255'],
         ]);
+
+        $telephone = PhoneNumber::normalize((string) $data['telephone']);
+        $existing = $telephone ? $this->clientResolver->findByPhone($telephone) : null;
+
+        // Reponse ambigue : ne pas reveler si le numero est deja enregistre.
+        if ($existing) {
+            return response()->json([
+                'message' => 'Si ce numéro est éligible, vous recevrez un lien de connexion par WhatsApp.',
+            ], 200);
+        }
 
         $client = $this->clientResolver->findOrCreate(
             $data,

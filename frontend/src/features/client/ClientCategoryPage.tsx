@@ -31,6 +31,8 @@ function ClientCategoryPage() {
   const [submitMessage, setSubmitMessage] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  const settings = catalogue?.settings
+
   useEffect(() => {
     let ignore = false
 
@@ -530,16 +532,24 @@ function ClientCategoryPage() {
                     <p className="text-sm font-black text-slate-950">Paiement de l'acompte</p>
                     <div className="mt-3 grid grid-cols-3 gap-2">
                       {([
-                        { value: 'wave' as ClientPaymentMethod, label: 'Wave', detail: 'Paiement securise via NabooPay', logo: '/wave logo.webp' },
-                        { value: 'orange_money' as ClientPaymentMethod, label: 'Orange Money', detail: 'Paiement securise via NabooPay', logo: '/om logo.webp' },
-                        { value: 'carte_bancaire' as ClientPaymentMethod, label: 'Carte bancaire', detail: 'Paiement securise via NabooPay', logo: null },
+                        { value: 'wave' as ClientPaymentMethod, label: 'Wave', detail: 'Paiement sécurisé via NabooPay', logo: '/wave logo.webp' },
+                        { value: 'orange_money' as ClientPaymentMethod, label: 'Orange Money', detail: 'Paiement sécurisé via NabooPay', logo: '/om logo.webp' },
+                        { value: 'carte_bancaire' as ClientPaymentMethod, label: 'Carte bancaire', detail: 'Paiement sécurisé via NabooPay', logo: null },
                       ]).map((method) => {
                         const checked = paymentMethod === method.value
+                        const configured =
+                          method.value === 'carte_bancaire'
+                            ? settings?.paiements_en_ligne?.carte_bancaire !== false
+                            : settings?.paiements_en_ligne?.[method.value as 'wave' | 'orange_money'] !== false
                         return (
                           <label
                             key={method.value}
-                            className={`block min-h-[94px] cursor-pointer select-none rounded-2xl border px-2 py-3 text-center transition ${
-                              checked ? 'border-[#f31976] bg-[#fff0f6]' : 'border-slate-200 bg-white'
+                            className={`block min-h-[94px] select-none rounded-2xl border px-2 py-3 text-center transition ${
+                              !configured
+                                ? 'cursor-not-allowed opacity-40'
+                                : checked
+                                  ? 'cursor-pointer border-[#f31976] bg-[#fff0f6]'
+                                  : 'cursor-pointer border-slate-200 bg-white'
                             }`}
                           >
                             <input
@@ -547,6 +557,7 @@ function ClientCategoryPage() {
                               name="mode_paiement"
                               value={method.value}
                               checked={checked}
+                              disabled={!configured}
                               onChange={() => setPaymentMethod(method.value)}
                               className="sr-only"
                             />
@@ -563,7 +574,9 @@ function ClientCategoryPage() {
                                 <span className="hidden sm:inline">{method.label}</span>
                               </span>
                             </span>
-                            <span className="mt-2 hidden text-xs font-bold text-slate-500 sm:block">{method.detail}</span>
+                            <span className="mt-2 hidden text-xs font-bold text-slate-500 sm:block">
+                              {configured ? method.detail : 'Non disponible'}
+                            </span>
                           </label>
                         )
                       })}
