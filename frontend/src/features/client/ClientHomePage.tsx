@@ -755,15 +755,15 @@ function ClientHomePage() {
   return (
     <div className="min-h-screen bg-[#fdfafd] text-slate-950">
       <div className="mx-auto w-full max-w-[1440px] px-3 pb-12 pt-3 sm:px-5 lg:px-8">
-        <header id="accueil" className="z-30 border-b border-[#f7d6e5] bg-white/95 p-3 backdrop-blur lg:sticky lg:top-0">
-          <div className="grid gap-3 lg:grid-cols-[auto_1fr_auto] lg:items-center">
-            <a href="/" className="flex min-w-0 items-center gap-3">
+        <header id="accueil" className="z-30 border-b border-[#f7d6e5] bg-white/95 px-2 py-2 backdrop-blur sm:px-3 lg:sticky lg:top-0">
+          <div className="flex items-center gap-2 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-3">
+            <a href="/" className="flex shrink-0 items-center gap-3">
               <img
                 src="/logo bichette.jpg"
                 alt="Bichette Thomas"
-                className="h-12 w-12 shrink-0 rounded-2xl object-cover object-center"
+                className="h-11 w-11 shrink-0 rounded-2xl object-cover object-center sm:h-12 sm:w-12"
               />
-              <div className="min-w-0">
+              <div className="hidden min-w-0 sm:block">
                 <p className="font-display text-xl leading-5 text-slate-950 sm:text-2xl">
                   Bichette <span className="text-[#f31976]">Thomas</span>
                 </p>
@@ -774,18 +774,18 @@ function ClientHomePage() {
               </div>
             </a>
 
-            <label className="relative flex h-11 min-w-0 items-center lg:mx-auto lg:w-full lg:max-w-xl">
-              <Search className="pointer-events-none absolute left-4 h-4 w-4 text-slate-400" />
+            <label className="relative flex h-11 min-w-0 flex-1 items-center lg:mx-auto lg:w-full lg:max-w-xl">
+              <Search className="pointer-events-none absolute left-3 h-4 w-4 text-slate-400 sm:left-4" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Rechercher une coiffure..."
-                className="h-full w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-base font-bold outline-none transition focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm"
+                placeholder="Rechercher"
+                className="h-full w-full rounded-full border border-slate-200 bg-white pl-9 pr-3 text-base font-bold outline-none transition focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:pl-10 sm:pr-4 sm:text-sm"
               />
             </label>
 
-            <div className="flex items-center justify-between gap-2 lg:justify-end">
-              <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto lg:flex-none lg:gap-2">
+            <div className="flex shrink-0 items-center justify-end gap-2">
+              <nav className="hidden min-w-0 flex-1 gap-1 overflow-x-auto sm:flex lg:flex-none lg:gap-2">
               {clientNavItems.map((item) => {
                 const Icon = item.icon
 
@@ -802,9 +802,16 @@ function ClientHomePage() {
                 )
               })}
               </nav>
+              <a
+                href={settings?.telephone_whatsapp ? `https://wa.me/${settings.telephone_whatsapp.replace(/\D/g, '')}` : '#contact'}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] shadow-sm sm:hidden"
+                aria-label="Contact"
+              >
+                <MessageCircle className="h-5 w-5" />
+              </a>
               <button
                 type="button"
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-800 shadow-sm"
+                className="hidden h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-800 shadow-sm sm:grid"
                 aria-label="Notifications"
               >
                 <Bell className="h-5 w-5" />
@@ -824,7 +831,7 @@ function ClientHomePage() {
                 <button
                   type="button"
                   onClick={() => openClientAuth('login')}
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976]"
+                  className="hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] sm:grid"
                   aria-label="Profil client"
                 >
                   <User className="h-5 w-5" />
@@ -861,10 +868,10 @@ function ClientHomePage() {
                 alt=""
                 className="h-full w-full object-cover object-[55%_center] opacity-90 md:hidden"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-[#f31976]/40 to-transparent sm:bg-gradient-to-r sm:from-black/70 sm:via-[#f31976]/45 sm:to-transparent" />
+              <div className="absolute inset-0 hidden bg-gradient-to-r from-black/70 via-[#f31976]/45 to-transparent md:block" />
             </div>
-            <div className="relative flex min-h-[520px] items-end p-5 sm:min-h-[620px] sm:p-10 lg:p-14">
-              <div className="max-w-3xl pb-8">
+            <div className="relative flex min-h-[430px] items-end p-5 sm:min-h-[560px] sm:p-10 lg:min-h-[620px] lg:p-14">
+              <div className="hidden max-w-3xl pb-8 md:block">
                 <p className="inline-flex border border-white/40 px-3 py-1 text-[9px] font-black uppercase tracking-[0.28em] text-white/85 backdrop-blur sm:text-[10px]">
                   Salon de coiffure a Dakar
                 </p>
