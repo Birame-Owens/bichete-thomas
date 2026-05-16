@@ -222,11 +222,11 @@ function ClientCategoryPage() {
   return (
     <div className="min-h-screen bg-[#fdfafd] text-slate-950">
       <div className="mx-auto w-full max-w-[1440px] px-3 pb-12 pt-3 sm:px-5 lg:px-8">
-        <header className="z-30 border-b border-[#f7d6e5] bg-white/95 p-3 backdrop-blur lg:sticky lg:top-0">
-          <div className="grid gap-3 lg:grid-cols-[auto_1fr_auto] lg:items-center">
-            <button type="button" onClick={() => navigate('/')} className="flex min-w-0 items-center gap-3 text-left">
-              <img src="/logo bichette.jpg" alt="Bichette Thomas" className="h-12 w-12 shrink-0 rounded-2xl object-cover object-center" />
-              <div className="min-w-0">
+        <header className="z-30 border-b border-[#f7d6e5] bg-white/95 px-2 py-2 backdrop-blur sm:px-3 lg:sticky lg:top-0">
+          <div className="flex items-center gap-2 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-3">
+            <button type="button" onClick={() => navigate('/')} className="flex shrink-0 items-center gap-3 text-left">
+              <img src="/logo bichette.jpg" alt="Bichette Thomas" className="h-11 w-11 shrink-0 rounded-2xl object-cover object-center sm:h-12 sm:w-12" />
+              <div className="hidden min-w-0 sm:block">
                 <p className="font-display text-xl leading-5 text-slate-950 sm:text-2xl">Bichette <span className="text-[#f31976]">Thomas</span></p>
                 <p className="mt-1 flex items-center gap-1 text-[11px] font-bold text-slate-500">
                   <MapPin className="h-3.5 w-3.5 text-[#f31976]" />
@@ -235,18 +235,18 @@ function ClientCategoryPage() {
               </div>
             </button>
 
-            <label className="relative flex h-11 min-w-0 items-center lg:mx-auto lg:w-full lg:max-w-xl">
-              <Search className="pointer-events-none absolute left-4 h-4 w-4 text-slate-400" />
+            <label className="relative flex h-11 min-w-0 flex-1 items-center lg:mx-auto lg:w-full lg:max-w-xl">
+              <Search className="pointer-events-none absolute left-3 h-4 w-4 text-slate-400 sm:left-4" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Rechercher une coiffure..."
-                className="h-full w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-base font-bold outline-none transition focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm"
+                placeholder="Rechercher"
+                className="h-full w-full rounded-full border border-slate-200 bg-white pl-9 pr-3 text-base font-bold outline-none transition focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:pl-10 sm:pr-4 sm:text-sm"
               />
             </label>
 
-            <div className="flex items-center justify-between gap-2 lg:justify-end">
-              <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto lg:flex-none lg:gap-2">
+            <div className="flex shrink-0 items-center justify-end gap-2">
+              <nav className="hidden min-w-0 flex-1 gap-1 overflow-x-auto sm:flex lg:flex-none lg:gap-2">
                 {[
                   { label: 'Accueil', icon: Home, onClick: () => navigate('/') },
                   { label: 'A propos', icon: Users, onClick: () => navigate('/#apropos') },
@@ -266,10 +266,17 @@ function ClientCategoryPage() {
                   )
                 })}
               </nav>
-              <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-800 shadow-sm" aria-label="Notifications">
+              <button
+                type="button"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] shadow-sm sm:hidden"
+                aria-label="Profil client"
+              >
+                <User className="h-5 w-5" />
+              </button>
+              <button type="button" className="hidden h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-800 shadow-sm sm:grid" aria-label="Notifications">
                 <Bell className="h-5 w-5" />
               </button>
-              <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976]" aria-label="Profil client">
+              <button type="button" className="hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] sm:grid" aria-label="Profil client">
                 <User className="h-5 w-5" />
               </button>
             </div>
