@@ -5,6 +5,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 // du parcours principal et le visiteur du catalogue les charge de toute facon.
 import LoginPage from './pages/LoginPage'
 import ClientHomePage from './features/client/ClientHomePage'
+import ClientCategoryPage from './features/client/ClientCategoryPage'
 import AvisPage from './features/client/AvisPage'
 import RequireAuth from './features/auth/RequireAuth'
 
@@ -85,6 +86,8 @@ function App() {
     <Routes>
       <Route path="/" element={<ClientHomePage />} />
       <Route path="/client" element={<ClientHomePage />} />
+      <Route path="/categories" element={<ClientCategoryPage />} />
+      <Route path="/categories/:categoryId" element={<ClientCategoryPage />} />
       <Route path="/avis/:token" element={<AvisPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />

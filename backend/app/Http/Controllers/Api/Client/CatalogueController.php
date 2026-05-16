@@ -22,7 +22,7 @@ class CatalogueController extends Controller
     {
         $categoryId = $request->integer('categorie_id') ?: null;
         $search = trim($request->string('search')->toString());
-        $paytechEnabled = filled(config('services.paytech.api_key')) && filled(config('services.paytech.api_secret'));
+        $naboopayEnabled = filled(config('services.naboopay.api_key'));
 
         $categories = CategorieCoiffure::query()
             ->where('actif', true)
@@ -56,6 +56,8 @@ class CatalogueController extends Controller
                         ->orWhereHas('categorie', fn ($categoryQuery) => $categoryQuery->where('nom', 'ilike', "%{$search}%"));
                 });
             })
+            ->orderByDesc('est_populaire')
+            ->orderByDesc('est_nouveaute')
             ->latest()
             ->limit(24)
             ->get()
@@ -77,9 +79,9 @@ class CatalogueController extends Controller
                     'limite_reservations_par_jour' => $this->settingValue('limite_reservations_par_jour', 15),
                     'limite_reservations_par_creneau' => $this->settingValue('limite_reservations_par_creneau', 3),
                     'paiements_en_ligne' => [
-                        'wave' => $paytechEnabled,
-                        'orange_money' => $paytechEnabled,
-                        'carte_bancaire' => filled(config('services.stripe.secret')),
+                        'wave' => $naboopayEnabled,
+                        'orange_money' => $naboopayEnabled,
+                        'carte_bancaire' => $naboopayEnabled,
                     ],
                 ],
             ],
@@ -176,6 +178,8 @@ class CatalogueController extends Controller
             'nom' => $coiffure->nom,
             'description' => $coiffure->description,
             'image' => $mainImage,
+            'est_populaire' => (bool) $coiffure->est_populaire,
+            'est_nouveaute' => (bool) $coiffure->est_nouveaute,
             'categorie' => $coiffure->categorie ? [
                 'id' => $coiffure->categorie->id,
                 'nom' => $coiffure->categorie->nom,

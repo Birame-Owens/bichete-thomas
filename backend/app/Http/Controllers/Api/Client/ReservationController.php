@@ -65,12 +65,14 @@ class ReservationController extends Controller
             'code_promo' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'mode_paiement' => ['required', Rule::in(self::ONLINE_PAYMENT_METHODS)],
+            'idempotency_key' => ['nullable', 'string', 'max:120'],
             'reference_paiement' => ['nullable', 'string', 'max:255'],
             'success_url' => ['nullable', 'string', 'max:2048', $this->redirectUrlRule(true)],
             'cancel_url' => ['nullable', 'string', 'max:2048', $this->redirectUrlRule()],
         ]);
 
-        $result = DB::transaction(fn (): array => $this->createReservation($data));
+        $idempotencyKey = $this->normalizedIdempotencyKey($request, $data);
+        $result = DB::transaction(fn (): array => $this->createReservation($data, $idempotencyKey));
 
         return response()->json([
             'message' => $result['message'],
@@ -86,10 +88,21 @@ class ReservationController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function createReservation(array $data): array
+    private function createReservation(array $data, ?string $idempotencyKey): array
     {
         // Source 'en_ligne' : ce flow est le checkout client public.
         // Message blacklist explicite pour le contexte client (vs admin).
+        if ($idempotencyKey) {
+            $existingPayment = Paiement::query()
+                ->where('idempotency_key', $idempotencyKey)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingPayment) {
+                return $this->idempotentReservationResponse($existingPayment);
+            }
+        }
+
         $client = $this->clientResolver->findOrCreate(
             $data['client'],
             defaultSource: 'en_ligne',
@@ -192,26 +205,43 @@ class ReservationController extends Controller
             (string) $data['mode_paiement'],
             $data['reference_paiement'] ?? null,
             $deposit > 0 ? $deposit : $total,
-            $total
+            $total,
+            $idempotencyKey
         );
         $checkoutUrl = null;
 
-        if ($payment->mode_paiement === 'carte_bancaire') {
-            $checkoutUrl = $this->createStripeCheckoutSession($payment, $reservation, $data);
-        } elseif (in_array($payment->mode_paiement, ['wave', 'orange_money'], true)) {
-            $checkoutUrl = $this->createPaytechCheckoutSession($payment, $reservation, $client, $data);
-        }
+        $checkoutUrl = $this->createNaboopayCheckoutSession($payment, $reservation, $client, $data);
 
         return [
             'message' => match ($payment->mode_paiement) {
-                'carte_bancaire' => 'Reservation creee. Continuez vers Stripe pour payer l acompte.',
-                'wave', 'orange_money' => 'Reservation creee. Continuez vers PayTech pour payer l acompte.',
+                'carte_bancaire' => 'Reservation creee. Continuez vers NabooPay pour payer l acompte par carte.',
+                'wave', 'orange_money' => 'Reservation creee. Continuez vers NabooPay pour payer l acompte.',
                 default => 'Paiement enregistre. Le salon validera la transaction avant confirmation.',
             },
             'reservation' => $reservation->load(['client', 'details', 'codePromo']),
             'payment' => $payment->fresh(['reservation', 'client']),
             'checkout_url' => $checkoutUrl,
             'requires_redirect' => $checkoutUrl !== null,
+        ];
+    }
+
+    private function normalizedIdempotencyKey(Request $request, array $data): ?string
+    {
+        $key = trim((string) ($data['idempotency_key'] ?? $request->header('Idempotency-Key', '')));
+
+        return $key === '' ? null : hash('sha256', $key);
+    }
+
+    private function idempotentReservationResponse(Paiement $payment): array
+    {
+        $payment->loadMissing(['reservation.client', 'reservation.details', 'reservation.codePromo', 'client']);
+
+        return [
+            'message' => 'Reservation deja creee. Reprise du meme paiement.',
+            'reservation' => $payment->reservation,
+            'payment' => $payment,
+            'checkout_url' => $payment->reference ? $this->naboopayCheckoutUrl((string) $payment->reference) : null,
+            'requires_redirect' => $payment->statut === 'en_attente' && $payment->reference !== null,
         ];
     }
 
@@ -304,7 +334,8 @@ class ReservationController extends Controller
         string $method,
         ?string $reference,
         float $amount,
-        float $reservationTotal
+        float $reservationTotal,
+        ?string $idempotencyKey
     ): Paiement {
         $amount = max($amount, 1);
         $paymentDate = now();
@@ -319,9 +350,10 @@ class ReservationController extends Controller
             'statut' => 'en_attente',
             'date_paiement' => $paymentDate,
             'reference' => $reference ? trim($reference) : null,
+            'idempotency_key' => $idempotencyKey,
             'notes' => match ($method) {
-                'carte_bancaire' => 'Paiement carte bancaire initie depuis l espace client via Stripe.',
-                'wave', 'orange_money' => 'Paiement mobile money initie depuis l espace client via PayTech.',
+                'carte_bancaire' => 'Paiement carte bancaire initie depuis l espace client via NabooPay.',
+                'wave', 'orange_money' => 'Paiement mobile money initie depuis l espace client via NabooPay.',
                 default => 'Paiement initie depuis l espace client.',
             },
             'recu_envoye' => false,
@@ -515,6 +547,139 @@ class ReservationController extends Controller
             'orange_money' => 'Orange Money',
             default => 'Orange Money',
         };
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function createNaboopayCheckoutSession(Paiement $payment, Reservation $reservation, Client $client, array $data): string
+    {
+        $apiKey = config('services.naboopay.api_key');
+
+        if (! $apiKey) {
+            throw ValidationException::withMessages([
+                'mode_paiement' => 'NabooPay n est pas encore configure.',
+            ]);
+        }
+
+        $successUrl = $this->appendQuery(
+            $data['success_url'] ?? config('services.naboopay.success_url') ?? config('app.url') . '/client?paiement=naboopay_success',
+            [
+                'paiement_id' => $payment->id,
+                'signature' => $this->naboopayReturnSignature($payment->id),
+            ]
+        );
+        $errorUrl = $this->appendQuery(
+            $data['cancel_url'] ?? config('services.naboopay.error_url') ?? config('app.url') . '/client?paiement=naboopay_cancel',
+            ['paiement_id' => $payment->id]
+        );
+
+        $payload = [
+            'order_id' => 'BT-' . $payment->id . '-' . Str::upper(Str::random(8)),
+            'method_of_payment' => $this->naboopayMethods($payment->mode_paiement),
+            'products' => [[
+                'name' => "Acompte reservation #{$reservation->id}",
+                'description' => 'Bichette Thomas - Salon de Coiffure',
+                'amount' => (int) round((float) $payment->montant),
+                'price' => (int) round((float) $payment->montant),
+                'quantity' => 1,
+            ]],
+            'customer' => [
+                'first_name' => $client->prenom,
+                'last_name' => $client->nom,
+                'phone' => $this->internationalPhone($client->telephone),
+                'email' => $client->email,
+            ],
+            'success_url' => $successUrl,
+            'error_url' => $errorUrl,
+            'is_escrow' => false,
+            'is_merchant' => false,
+            'fees_customer_side' => (bool) config('services.naboopay.fees_customer_side', true),
+        ];
+
+        if ($payment->idempotency_key) {
+            $payload['metadata'] = [
+                'reservation_id' => $reservation->id,
+                'paiement_id' => $payment->id,
+                'idempotency_key' => $payment->idempotency_key,
+            ];
+        }
+
+        try {
+            $response = Http::acceptJson()
+                ->asJson()
+                ->withToken((string) $apiKey)
+                ->post(rtrim((string) config('services.naboopay.base_url'), '/') . '/api/v2/transactions', $payload);
+        } catch (ConnectionException) {
+            throw ValidationException::withMessages([
+                'mode_paiement' => 'NabooPay est temporairement indisponible. Reessayez dans quelques instants.',
+            ]);
+        }
+
+        if ($response->failed()) {
+            throw ValidationException::withMessages([
+                'mode_paiement' => $response->json('error') ?? 'NabooPay n a pas pu initialiser le paiement.',
+            ]);
+        }
+
+        $payload = $response->json();
+        $checkoutUrl = $payload['checkout_url']
+            ?? $payload['checkoutUrl']
+            ?? $payload['checkout_url_payment']
+            ?? $payload['payment_url']
+            ?? $payload['url']
+            ?? null;
+        $orderId = $payload['order_id'] ?? $payload['orderId'] ?? $this->naboopayOrderIdFromUrl((string) $checkoutUrl);
+
+        if (! $checkoutUrl || ! $orderId) {
+            throw ValidationException::withMessages([
+                'mode_paiement' => 'NabooPay n a pas retourne de lien de paiement valide.',
+            ]);
+        }
+
+        $payment->forceFill([
+            'reference' => (string) $orderId,
+            'notes' => trim(($payment->notes ? "{$payment->notes}\n" : '') . "Order ID NabooPay: {$orderId}"),
+        ])->save();
+
+        return (string) $checkoutUrl;
+    }
+
+    private function naboopayCheckoutUrl(string $orderId): string
+    {
+        return 'https://checkout.naboopay.com/checkout/' . rawurlencode($orderId);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function naboopayMethods(string $method): array
+    {
+        return match ($method) {
+            'wave' => ['wave'],
+            'orange_money' => ['orange_money'],
+            'carte_bancaire' => ['visa', 'master_card'],
+            default => ['wave', 'orange_money'],
+        };
+    }
+
+    private function naboopayOrderIdFromUrl(string $url): ?string
+    {
+        if (preg_match('~/checkout/([^/?#]+)~', $url, $matches) === 1) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
+    private function naboopayReturnSignature(int|string $paymentId): string
+    {
+        return hash_hmac('sha256', 'naboopay-return|' . $paymentId, $this->naboopayReturnSecret());
+    }
+
+    private function naboopayReturnSecret(): string
+    {
+        return (string) config('app.key') . '|' . (string) config('services.naboopay.webhook_secret') . '|' . (string) config('services.naboopay.api_key');
     }
 
     /**

@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'statut',
     'date_paiement',
     'reference',
+    'idempotency_key',
     'notes',
     'recu_envoye',
     'recu_envoye_at',

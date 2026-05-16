@@ -54,6 +54,15 @@ return [
         'cancel_url' => env('PAYTECH_CANCEL_URL'),
     ],
 
+    'naboopay' => [
+        'base_url' => env('NABOOPAY_BASE_URL', 'https://api.naboopay.com'),
+        'api_key' => env('NABOOPAY_API_KEY'),
+        'webhook_secret' => env('NABOOPAY_WEBHOOK_SECRET'),
+        'success_url' => env('NABOOPAY_SUCCESS_URL'),
+        'error_url' => env('NABOOPAY_ERROR_URL'),
+        'fees_customer_side' => env('NABOOPAY_FEES_CUSTOMER_SIDE', true),
+    ],
+
     'whatsapp' => [
         'base_url' => env('WHATSAPP_CLOUD_API_URL', 'https://graph.facebook.com/v25.0'),
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),

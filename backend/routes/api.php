@@ -49,6 +49,8 @@ Route::prefix('client')->name('client.')->group(function (): void {
     // Lookup tel international (Phase 5 etape 1).
     Route::get('/lookup', [ClientCatalogueController::class, 'lookup'])->middleware('throttle:5,1')->name('lookup');
     // Magic link + session client (Phase 5 etape 2).
+    Route::post('/auth/login', [ClientSessionController::class, 'login'])->middleware('throttle:5,1')->name('auth.login');
+    Route::post('/auth/register', [ClientSessionController::class, 'register'])->middleware('throttle:5,1')->name('auth.register');
     Route::post('/auth/magic-link', [ClientSessionController::class, 'verify'])->middleware('throttle:10,1')->name('auth.magic-link');
     Route::middleware('auth.client.session')->group(function (): void {
         Route::get('/session', [ClientSessionController::class, 'session'])->name('session');
@@ -60,6 +62,8 @@ Route::prefix('client')->name('client.')->group(function (): void {
     Route::post('/paiements/stripe/webhook', [ClientPaymentController::class, 'stripeWebhook'])->name('payments.stripe.webhook');
     Route::post('/paiements/paytech/confirmer', [ClientPaymentController::class, 'confirmPaytechReturn'])->middleware('throttle:20,1')->name('payments.paytech.confirm');
     Route::post('/paiements/paytech/ipn', [ClientPaymentController::class, 'paytechWebhook'])->name('payments.paytech.ipn');
+    Route::post('/paiements/naboopay/confirmer', [ClientPaymentController::class, 'confirmNaboopayReturn'])->middleware('throttle:20,1')->name('payments.naboopay.confirm');
+    Route::post('/paiements/naboopay/webhook', [ClientPaymentController::class, 'naboopayWebhook'])->name('payments.naboopay.webhook');
     // Avis verifies post-prestation (Phase 5 etape 3).
     Route::get('/avis/{token}', [ClientAvisController::class, 'prefill'])->name('avis.prefill');
     Route::post('/avis/{token}', [ClientAvisController::class, 'store'])->middleware('throttle:5,1')->name('avis.store');

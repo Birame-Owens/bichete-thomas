@@ -1,7 +1,6 @@
 import axios from 'axios'
 import {
   Bell,
-  Calendar,
   CalendarCheck,
   Check,
   ChevronRight,
@@ -32,6 +31,7 @@ import 'react-phone-number-input/style.css'
 import heroImage from '../../assets/hero.jpg'
 import {
   confirmPaytechReturn,
+  confirmNaboopayReturn,
   confirmStripeCheckout,
   createClientReservation,
   getClientAvailability,
@@ -39,6 +39,8 @@ import {
   getClientCoiffureDetails,
   getClientSession,
   logoutClientSession,
+  registerClient,
+  requestClientLogin,
   verifyMagicLink,
 } from './client.api'
 import {
@@ -88,6 +90,15 @@ type SubmitState = {
   message: string
 } | null
 
+type ClientAuthMode = 'login' | 'register'
+
+type ClientAuthForm = {
+  prenom: string
+  nom: string
+  telephone: string
+  email: string
+}
+
 type ClientNavItem = {
   id: string
   label: string
@@ -96,17 +107,15 @@ type ClientNavItem = {
 
 const clientNavItems: ClientNavItem[] = [
   { id: 'accueil', label: 'Accueil', icon: Home },
-  { id: 'catalogue', label: 'Coiffures', icon: Scissors },
-  { id: 'promos', label: 'Promos', icon: Gift },
-  { id: 'reservations', label: 'Reserver', icon: Calendar },
+  { id: 'apropos', label: 'A propos', icon: Users },
   { id: 'contact', label: 'Contact', icon: MessageCircle },
 ]
 
 const benefits: Array<{ label: string; detail: string; icon: LucideIcon }> = [
-  { label: 'Coiffeuses', detail: 'Expertes', icon: Users },
-  { label: 'Produits', detail: 'Selection premium', icon: Sparkles },
-  { label: 'Paiement', detail: 'Acompte clair', icon: CreditCard },
-  { label: 'Satisfaction', detail: 'Suivi attentif', icon: ShieldCheck },
+  { label: 'Diagnostic', detail: 'Conseil avant pose', icon: MessageCircle },
+  { label: 'Finition', detail: 'Details soignes', icon: Sparkles },
+  { label: 'Planning', detail: 'Creneaux visibles', icon: CalendarCheck },
+  { label: 'Paiement', detail: 'Acompte securise', icon: ShieldCheck },
 ]
 
 const paymentMethods: Array<{
@@ -116,9 +125,9 @@ const paymentMethods: Array<{
   icon: LucideIcon
   logo?: string
 }> = [
-  { value: 'wave', label: 'Wave', detail: 'Paiement securise via PayTech', icon: Phone, logo: '/wave logo.webp' },
-  { value: 'orange_money', label: 'Orange Money', detail: 'Paiement securise via PayTech', icon: Phone, logo: '/om logo.webp' },
-  { value: 'carte_bancaire', label: 'Carte bancaire', detail: 'Paiement securise Stripe', icon: CreditCard },
+  { value: 'wave', label: 'Wave', detail: 'Paiement securise via NabooPay', icon: Phone, logo: '/wave logo.webp' },
+  { value: 'orange_money', label: 'Orange Money', detail: 'Paiement securise via NabooPay', icon: Phone, logo: '/om logo.webp' },
+  { value: 'carte_bancaire', label: 'Carte bancaire', detail: 'Paiement securise via NabooPay', icon: CreditCard },
 ]
 
 const instagramUrl = 'https://www.instagram.com/bichette_thomas/'
@@ -148,6 +157,15 @@ function createBookingForm(coiffure?: ClientCoiffure): BookingForm {
     code_promo: '',
     notes: '',
     paymentMethod: 'wave',
+  }
+}
+
+function createClientAuthForm(session?: ClientSession | null): ClientAuthForm {
+  return {
+    prenom: session?.prenom ?? '',
+    nom: session?.nom ?? '',
+    telephone: session?.telephone ?? '',
+    email: '',
   }
 }
 
@@ -181,7 +199,6 @@ function ClientHomePage() {
   const [catalogue, setCatalogue] = useState<ClientCatalogue | null>(null)
   const [loading, setLoading] = useState(true)
   const [catalogueError, setCatalogueError] = useState<string | null>(null)
-  const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [favoriteIds, setFavoriteIds] = useState<number[]>([])
   const [selectedCoiffure, setSelectedCoiffure] = useState<ClientCoiffure | null>(null)
@@ -198,6 +215,12 @@ function ClientHomePage() {
   const [pageNotice, setPageNotice] = useState<SubmitState>(null)
   const [submittedReservation, setSubmittedReservation] = useState<ClientReservation | null>(null)
   const [clientSession, setClientSession] = useState<ClientSession | null>(null)
+  const [showClientAuth, setShowClientAuth] = useState(false)
+  const [clientAuthMode, setClientAuthMode] = useState<ClientAuthMode>('login')
+  const [clientAuthForm, setClientAuthForm] = useState<ClientAuthForm>(() => createClientAuthForm())
+  const [clientAuthSubmitting, setClientAuthSubmitting] = useState(false)
+  const [clientAuthNotice, setClientAuthNotice] = useState<SubmitState>(null)
+  const [selectedGalleryImage, setSelectedGalleryImage] = useState<string | null>(null)
 
   // Prefill non-destructif nom/prenom quand le backend retrouve un client par tel
   // (Phase 5 etape 1). On NE PAS ECRASER ce que la cliente a deja tape : si elle
@@ -348,6 +371,46 @@ function ClientHomePage() {
       return
     }
 
+    if (paymentStatus === 'naboopay_cancel') {
+      window.setTimeout(() => {
+        setPageNotice({ type: 'error', message: 'Paiement NabooPay annule. Le creneau ne sera pas confirme.' })
+      }, 0)
+      return
+    }
+
+    if (paymentStatus === 'naboopay_success') {
+      const paymentId = params.get('paiement_id')
+      const signature = params.get('signature')
+
+      if (!paymentId || !signature) {
+        window.setTimeout(() => {
+          setPageNotice({
+            type: 'success',
+            message: 'Retour NabooPay recu. La confirmation sera appliquee par webhook.',
+          })
+          window.history.replaceState({}, '', window.location.pathname)
+        }, 0)
+        return
+      }
+
+      confirmNaboopayReturn(paymentId, signature)
+        .then((response) => {
+          setPageNotice({
+            type: 'success',
+            message: response.message ?? 'Paiement NabooPay valide. Votre reservation est securisee.',
+          })
+          window.history.replaceState({}, '', window.location.pathname)
+        })
+        .catch(() => {
+          setPageNotice({
+            type: 'success',
+            message: 'Retour NabooPay recu. La confirmation sera appliquee par webhook.',
+          })
+          window.history.replaceState({}, '', window.location.pathname)
+        })
+      return
+    }
+
     if (!sessionId) {
       return
     }
@@ -431,22 +494,60 @@ function ClientHomePage() {
   const promotions = catalogue?.promotions ?? emptyPromotions
   const devise = settings?.devise ?? 'FCFA'
 
-  const filteredCoiffures = useMemo(() => {
+  const popularCoiffures = useMemo(() => {
     const query = search.trim().toLowerCase()
 
     return coiffures.filter((coiffure) => {
-      const matchesCategory = activeCategoryId === null || coiffure.categorie?.id === activeCategoryId
+      if (!coiffure.est_populaire) {
+        return false
+      }
+
       const matchesSearch =
         query === ''
         || coiffure.nom.toLowerCase().includes(query)
         || (coiffure.description ?? '').toLowerCase().includes(query)
         || (coiffure.categorie?.nom ?? '').toLowerCase().includes(query)
 
-      return matchesCategory && matchesSearch
-    })
-  }, [activeCategoryId, coiffures, search])
+      return matchesSearch
+    }).slice(0, 6)
+  }, [coiffures, search])
 
-  const featuredCoiffures = filteredCoiffures.slice(0, 8)
+  const homeVisibleCoiffures = useMemo(() => {
+    const query = search.trim().toLowerCase()
+
+    return coiffures.filter((coiffure) => {
+      if (!coiffure.est_nouveaute || coiffure.est_populaire) {
+        return false
+      }
+
+      const matchesSearch =
+        query === ''
+        || coiffure.nom.toLowerCase().includes(query)
+        || (coiffure.description ?? '').toLowerCase().includes(query)
+        || (coiffure.categorie?.nom ?? '').toLowerCase().includes(query)
+
+      return matchesSearch
+    }).slice(0, 6)
+  }, [coiffures, search])
+
+  const fallbackHomeCoiffures = useMemo(() => {
+    if (popularCoiffures.length > 0 || homeVisibleCoiffures.length > 0) {
+      return []
+    }
+
+    const query = search.trim().toLowerCase()
+
+    return coiffures.filter((coiffure) => {
+      const matchesSearch =
+        query === ''
+        || coiffure.nom.toLowerCase().includes(query)
+        || (coiffure.description ?? '').toLowerCase().includes(query)
+        || (coiffure.categorie?.nom ?? '').toLowerCase().includes(query)
+
+      return matchesSearch
+    }).slice(0, 6)
+  }, [coiffures, homeVisibleCoiffures.length, popularCoiffures.length, search])
+
   const selectedVariant = selectedCoiffure?.variantes.find((variant) => String(variant.id) === bookingForm.varianteId)
   const selectedOptions = selectedCoiffure?.options.filter((option) => bookingForm.optionIds.includes(option.id)) ?? []
   const selectedPromo =
@@ -466,6 +567,48 @@ function ClientHomePage() {
       ...current,
       [key]: value,
     }))
+  }
+
+  function updateClientAuthField<K extends keyof ClientAuthForm>(key: K, value: ClientAuthForm[K]) {
+    setClientAuthForm((current) => ({
+      ...current,
+      [key]: value,
+    }))
+  }
+
+  function openClientAuth(mode: ClientAuthMode = 'login') {
+    setClientAuthMode(mode)
+    setClientAuthForm(createClientAuthForm(clientSession))
+    setClientAuthNotice(null)
+    setShowClientAuth(true)
+  }
+
+  async function handleClientAuthSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setClientAuthSubmitting(true)
+    setClientAuthNotice(null)
+
+    try {
+      const response = clientAuthMode === 'login'
+        ? await requestClientLogin(clientAuthForm.telephone.trim())
+        : await registerClient({
+            prenom: clientAuthForm.prenom.trim(),
+            nom: clientAuthForm.nom.trim(),
+            telephone: clientAuthForm.telephone.trim(),
+            email: clientAuthForm.email.trim() === '' ? null : clientAuthForm.email.trim(),
+          })
+
+      setClientAuthNotice({
+        type: 'success',
+        message: response.debug_magic_url
+          ? `${response.message} Lien dev : ${response.debug_magic_url}`
+          : response.message,
+      })
+    } catch (error) {
+      setClientAuthNotice({ type: 'error', message: extractApiError(error) })
+    } finally {
+      setClientAuthSubmitting(false)
+    }
   }
 
   // useCallback pour stabiliser les references entre re-renders et permettre
@@ -493,6 +636,7 @@ function ClientHomePage() {
 
   function closeDetails() {
     setSelectedCoiffure(null)
+    setSelectedGalleryImage(null)
     setSubmitState(null)
     setSubmittedReservation(null)
     setAvailability(null)
@@ -512,6 +656,7 @@ function ClientHomePage() {
   // au niveau module (stables) donc deps array vide suffit.
   const openDetails = useCallback(async (coiffure: ClientCoiffure) => {
     setSelectedCoiffure(coiffure)
+    setSelectedGalleryImage(coiffureImage(coiffure))
     setBookingForm(createBookingForm(coiffure))
     setSubmitState(null)
     setSubmittedReservation(null)
@@ -523,6 +668,7 @@ function ClientHomePage() {
     try {
       const details = await getClientCoiffureDetails(coiffure.id)
       setSelectedCoiffure(details)
+      setSelectedGalleryImage(coiffureImage(details))
       setBookingForm((current) => ({
         ...current,
         varianteId: details.variantes[0]?.id ? String(details.variantes[0].id) : current.varianteId,
@@ -552,7 +698,6 @@ function ClientHomePage() {
       return
     }
 
-    const isCardPayment = bookingForm.paymentMethod === 'carte_bancaire'
     const payload: ClientReservationPayload = {
       client: {
         nom: bookingForm.nom.trim(),
@@ -568,11 +713,18 @@ function ClientHomePage() {
       code_promo: bookingForm.code_promo.trim() === '' ? null : bookingForm.code_promo.trim(),
       notes: bookingForm.notes.trim() === '' ? null : bookingForm.notes.trim(),
       mode_paiement: bookingForm.paymentMethod,
+      idempotency_key: [
+        'client-home-reservation',
+        selectedCoiffure.id,
+        selectedVariant.id,
+        bookingForm.telephone.trim(),
+        bookingForm.date_reservation,
+        bookingForm.heure_debut,
+        bookingForm.paymentMethod,
+      ].join('|'),
       reference_paiement: null,
-      success_url: isCardPayment
-        ? `${window.location.origin}${window.location.pathname}?paiement=stripe_success&stripe_session_id={CHECKOUT_SESSION_ID}`
-        : `${window.location.origin}${window.location.pathname}?paiement=paytech_success`,
-      cancel_url: `${window.location.origin}${window.location.pathname}?paiement=${isCardPayment ? 'stripe_cancel' : 'paytech_cancel'}`,
+      success_url: `${window.location.origin}${window.location.pathname}?paiement=naboopay_success`,
+      cancel_url: `${window.location.origin}${window.location.pathname}?paiement=naboopay_cancel`,
     }
 
     setSubmitting(true)
@@ -597,12 +749,18 @@ function ClientHomePage() {
     }
   }
 
+  const detailGalleryImages = selectedCoiffure
+    ? selectedCoiffure.images.length > 0
+      ? selectedCoiffure.images
+      : [{ id: 0, url: coiffureImage(selectedCoiffure), alt: selectedCoiffure.nom, principale: true }]
+    : []
+
   return (
-    <div className="min-h-screen bg-[#fbf8fa] text-slate-950">
-      <div className="mx-auto w-full max-w-[1320px] px-3 pb-12 pt-3 sm:px-5 lg:px-6">
+    <div className="min-h-screen bg-[#fdfafd] text-slate-950">
+      <div className="mx-auto w-full max-w-[1440px] px-3 pb-12 pt-3 sm:px-5 lg:px-8">
         <header
           id="accueil"
-          className="z-30 rounded-[28px] border border-slate-100 bg-white/95 p-3 shadow-sm backdrop-blur lg:sticky lg:top-3"
+          className="z-30 border-b border-[#f7d6e5] bg-white/95 p-3 backdrop-blur lg:sticky lg:top-0"
         >
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex min-w-[220px] flex-1 items-center gap-3">
@@ -629,7 +787,7 @@ function ClientHomePage() {
                     key={item.id}
                     type="button"
                     onClick={() => scrollToSection(item.id)}
-                    className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-black text-slate-600 transition hover:bg-[#fff0f6] hover:text-[#f31976]"
+                    className="inline-flex h-10 shrink-0 items-center gap-2 px-3 text-xs font-black uppercase tracking-[0.14em] text-slate-600 transition hover:bg-[#fff0f6] hover:text-[#f31976]"
                   >
                     <Icon className="h-4 w-4" />
                     {item.label}
@@ -669,6 +827,7 @@ function ClientHomePage() {
               ) : (
                 <button
                   type="button"
+                  onClick={() => openClientAuth('login')}
                   className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976]"
                   aria-label="Profil client"
                 >
@@ -690,24 +849,28 @@ function ClientHomePage() {
             </div>
           ) : null}
 
-          <section className="relative mt-3 overflow-hidden rounded-[28px] bg-[#f31976] text-white shadow-lg">
+          <section className="relative mt-3 overflow-hidden bg-[#f31976] text-white">
             <div className="absolute inset-0">
               <img src={heroImage} alt="" className="h-full w-full object-cover object-[68%_center] opacity-90 sm:object-center" />
-              <div className="absolute inset-0 bg-gradient-to-br from-[#f31976]/95 via-[#f31976]/88 to-[#f31976]/52 sm:bg-gradient-to-r sm:from-[#f31976] sm:via-[#f31976]/72 sm:to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-[#f31976]/40 to-transparent sm:bg-gradient-to-r sm:from-black/70 sm:via-[#f31976]/45 sm:to-transparent" />
             </div>
-            <div className="relative grid min-h-[430px] items-center gap-6 p-6 sm:min-h-72 sm:p-9 lg:grid-cols-[1.05fr_0.95fr]">
-              <div className="max-w-xl">
-                <p className="text-sm font-black uppercase text-white/75">Reservation en ligne</p>
-                <h2 className="mt-3 text-4xl font-black leading-tight sm:text-5xl">Revelez votre beaute</h2>
-                <p className="mt-4 max-w-sm text-base font-semibold leading-7 text-white/85">
-                  Choisissez votre coiffure, trouvez un horaire libre et envoyez votre demande en quelques clics.
+            <div className="relative flex min-h-[68vh] items-end p-5 sm:min-h-[620px] sm:p-10 lg:p-14">
+              <div className="max-w-3xl pb-8">
+                <p className="inline-flex border border-white/40 px-3 py-1 text-[10px] font-black uppercase tracking-[0.34em] text-white/85 backdrop-blur">
+                  Salon de coiffure a Dakar
+                </p>
+                <h1 className="font-display mt-5 max-w-2xl text-5xl leading-none text-white sm:text-7xl lg:text-8xl">
+                  Bichette Thomas
+                </h1>
+                <p className="mt-5 max-w-xl text-base font-semibold leading-7 text-white/85 sm:text-lg">
+                  Coiffures protectrices, poses soignees et reservations simples, avec une touche rose signature et un service pense pour votre rythme.
                 </p>
                 <button
                   type="button"
                   onClick={() => scrollToSection('catalogue')}
-                  className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-[#d80f63] shadow-sm"
+                  className="mt-7 inline-flex min-h-12 items-center gap-2 bg-white px-6 text-xs font-black uppercase tracking-[0.2em] text-[#d80f63] shadow-sm"
                 >
-                  Reserver maintenant
+                  Choisir une coiffure
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
@@ -720,9 +883,9 @@ function ClientHomePage() {
             </div>
           ) : null}
 
-          <section id="categories" className="mt-7">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xl font-black text-slate-950">Categories</h2>
+          <section id="categories" className="border-b border-[#f7d6e5] bg-white py-7">
+            <div className="flex items-center justify-between gap-3 px-1">
+              <h2 className="text-xl font-light uppercase tracking-[0.18em] text-slate-950">Categories</h2>
               <div className="text-right text-sm font-bold text-slate-500">
                 <p>{settings?.heure_ouverture ?? '09:00'} - {settings?.heure_fermeture ?? '19:00'}</p>
                 <p className="text-xs font-semibold text-slate-400">
@@ -731,101 +894,199 @@ function ClientHomePage() {
               </div>
             </div>
 
-            <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+            <div className="mt-5 flex gap-8 overflow-x-auto px-1 pb-3 sm:gap-10 lg:justify-center">
+              <button
+                type="button"
+                onClick={() => window.location.assign('/categories')}
+                className="group flex min-w-[82px] flex-col items-center gap-3"
+              >
+                <span
+                  className="grid h-20 w-20 place-items-center rounded-full border-2 border-transparent bg-[#fff0f6] text-xs font-black uppercase tracking-[0.14em] text-[#f31976] transition group-hover:border-[#f31976] sm:h-24 sm:w-24"
+                >
+                  Tout
+                </span>
+                <span className="w-24 truncate text-center text-[11px] font-black uppercase tracking-[0.18em] text-slate-600">
+                  Tous styles
+                </span>
+              </button>
               {categories.map((category) => (
                 <button
                   key={category.id}
                   type="button"
-                  onClick={() => setActiveCategoryId(category.id)}
-                  className={`grid min-h-20 min-w-24 place-items-center rounded-3xl border px-4 text-center text-sm font-black transition ${
-                    activeCategoryId === category.id
-                      ? 'border-[#f31976] bg-[#f31976] text-white'
-                      : 'border-slate-100 bg-white text-slate-800'
-                  }`}
+                  onClick={() => window.location.assign(`/categories/${category.id}`)}
+                  className="group flex min-w-[82px] flex-col items-center gap-3"
                 >
-                  {category.image ? (
-                    <img src={category.image} alt="" className="mb-2 h-9 w-9 rounded-2xl object-cover" />
-                  ) : null}
-                  {category.nom}
+                  <span
+                    className="h-20 w-20 overflow-hidden rounded-full border-2 border-transparent bg-[#fff0f6] transition group-hover:border-[#f31976] sm:h-24 sm:w-24"
+                  >
+                    {category.image ? (
+                      <img src={category.image} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+                    ) : (
+                      <span className="grid h-full w-full place-items-center text-[#f31976]">
+                        <Scissors className="h-7 w-7" />
+                      </span>
+                    )}
+                  </span>
+                  <span className="w-24 truncate text-center text-[11px] font-black uppercase tracking-[0.18em] text-slate-600 group-hover:text-[#f31976]">
+                    {category.nom}
+                  </span>
                 </button>
               ))}
             </div>
           </section>
 
-          <section id="catalogue" className="mt-7">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-2xl font-black text-slate-950">Nos coiffures populaires</h2>
-                <p className="mt-1 text-sm font-semibold text-slate-500">{featuredCoiffures.length} coiffure(s) disponible(s)</p>
-              </div>
+          <section id="catalogue" className="py-12">
+            <div className="flex items-center justify-end">
               <button
                 type="button"
                 onClick={() => {
-                  setActiveCategoryId(null)
-                  setSearch('')
+                  window.location.assign('/categories')
                 }}
-                className="text-sm font-black text-[#f31976]"
+                className="border-b border-[#f31976] pb-1 text-xs font-black uppercase tracking-[0.18em] text-[#f31976]"
               >
-                Voir tout
+                Voir le catalogue
               </button>
             </div>
 
             {loading ? (
-              <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-                {Array.from({ length: 8 }, (_, index) => (
-                  <div key={index} className="h-72 animate-pulse rounded-3xl bg-white" />
+              <div className="mt-8 grid grid-cols-2 gap-x-3 gap-y-9 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                {Array.from({ length: 6 }, (_, index) => (
+                  <div key={index} className="h-60 animate-pulse bg-white" />
                 ))}
               </div>
             ) : (
-              <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-                {featuredCoiffures.map((coiffure) => (
-                  <CoiffureCard
-                    key={coiffure.id}
-                    coiffure={coiffure}
-                    isFavorite={favoriteIds.includes(coiffure.id)}
-                    devise={devise}
-                    onToggleFavorite={toggleFavorite}
-                    onOpenDetails={openDetails}
-                  />
-                ))}
+              <div className="space-y-16">
+                {popularCoiffures.length > 0 ? (
+                  <div>
+                    <div className="text-center">
+                      <h2 className="text-4xl font-light uppercase tracking-[0.24em] text-slate-950">Populaires</h2>
+                      <p className="mt-3 text-sm font-semibold italic text-slate-500">Les coiffures les plus demandees au salon</p>
+                    </div>
+                    <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10 xl:grid-cols-6">
+                      {popularCoiffures.map((coiffure) => (
+                        <CoiffureCard
+                          key={coiffure.id}
+                          coiffure={coiffure}
+                          isFavorite={favoriteIds.includes(coiffure.id)}
+                          devise={devise}
+                          onToggleFavorite={toggleFavorite}
+                          onOpenDetails={openDetails}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {homeVisibleCoiffures.length > 0 ? (
+                  <div>
+                    <div className="text-center">
+                      <h2 className="text-4xl font-light uppercase tracking-[0.24em] text-slate-950">A la une</h2>
+                      <p className="mt-3 text-sm font-semibold italic text-slate-500">Selection visible sur la page d accueil</p>
+                    </div>
+                    <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10 xl:grid-cols-6">
+                      {homeVisibleCoiffures.map((coiffure) => (
+                        <CoiffureCard
+                          key={coiffure.id}
+                          coiffure={coiffure}
+                          isFavorite={favoriteIds.includes(coiffure.id)}
+                          devise={devise}
+                          onToggleFavorite={toggleFavorite}
+                          onOpenDetails={openDetails}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {fallbackHomeCoiffures.length > 0 ? (
+                  <div>
+                    <div className="text-center">
+                      <h2 className="text-4xl font-light uppercase tracking-[0.24em] text-slate-950">Selection</h2>
+                      <p className="mt-3 text-sm font-semibold italic text-slate-500">Quelques coiffures du catalogue</p>
+                    </div>
+                    <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10 xl:grid-cols-6">
+                      {fallbackHomeCoiffures.map((coiffure) => (
+                        <CoiffureCard
+                          key={coiffure.id}
+                          coiffure={coiffure}
+                          isFavorite={favoriteIds.includes(coiffure.id)}
+                          devise={devise}
+                          onToggleFavorite={toggleFavorite}
+                          onOpenDetails={openDetails}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             )}
           </section>
 
-          <section id="promos" className="mt-7">
+          <section id="promos" className="py-10">
             {promotions.length > 0 ? (
               <div className="grid gap-4 lg:grid-cols-2">
                 {promotions.map((promo) => (
-                  <article key={promo.id} className="flex items-center justify-between gap-4 rounded-3xl bg-[#fff0f6] p-5 shadow-sm">
+                  <article key={promo.id} className="flex items-center justify-between gap-4 bg-[#1a1116] p-6 text-white">
                     <div>
-                      <p className="text-base font-black text-[#d80f63]">{promoText(promo)} sur votre reservation</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-700">
-                        Code : <span className="font-black text-slate-950">{promo.code}</span>
+                      <p className="text-[10px] font-black uppercase tracking-[0.32em] text-white/50">Offre limitee</p>
+                      <p className="mt-3 text-3xl font-light uppercase tracking-[0.12em] text-white">{promoText(promo)} reservation</p>
+                      <p className="mt-3 text-sm font-semibold text-white/70">
+                        Code : <span className="font-black text-white">{promo.code}</span>
                       </p>
                     </div>
-                    <div className="grid h-16 w-16 shrink-0 place-items-center rounded-3xl bg-white text-[#f31976]">
+                    <div className="grid h-16 w-16 shrink-0 place-items-center bg-white text-[#f31976]">
                       <Gift className="h-9 w-9" />
                     </div>
                   </article>
                 ))}
               </div>
             ) : (
-              <div className="rounded-3xl bg-white p-5 text-sm font-bold text-slate-500 shadow-sm">
+              <div className="bg-white p-5 text-sm font-bold text-slate-500">
                 Les promotions actives apparaitront ici.
               </div>
             )}
           </section>
 
-          <section id="reservations" className="mt-8 grid gap-5 xl:grid-cols-[1fr_360px]">
+          <section id="apropos" className="grid gap-7 border-y border-[#f7d6e5] bg-white py-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <div className="min-h-[360px] overflow-hidden bg-[#fff0f6]">
+              <img src={heroImage} alt="" className="h-full min-h-[360px] w-full object-cover" loading="lazy" />
+            </div>
+            <div className="px-1 lg:px-8">
+              <p className="text-[10px] font-black uppercase tracking-[0.32em] text-[#f31976]">A propos de nous</p>
+              <h2 className="font-display mt-4 text-4xl leading-tight text-slate-950 sm:text-5xl">
+                Un salon pense pour sublimer chaque coiffure, du choix au rendez-vous.
+              </h2>
+              <p className="mt-5 max-w-2xl text-sm font-semibold leading-7 text-slate-600 sm:text-base">
+                Bichette Thomas accompagne les clientes avec des coiffures elegantes, protectrices et adaptees au quotidien. La reservation en ligne garde l experience simple : vous voyez les styles, les prix, les durees et les horaires avant de confirmer.
+              </p>
+              <div className="mt-7 grid grid-cols-3 gap-3 text-center">
+                <div className="border border-[#f7d6e5] px-3 py-4">
+                  <p className="text-2xl font-black text-[#f31976]">{categories.length}</p>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Categories</p>
+                </div>
+                <div className="border border-[#f7d6e5] px-3 py-4">
+                  <p className="text-2xl font-black text-[#f31976]">{coiffures.length}</p>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Coiffures</p>
+                </div>
+                <div className="border border-[#f7d6e5] px-3 py-4">
+                  <p className="text-2xl font-black text-[#f31976]">{settings?.limite_reservations_par_creneau ?? 3}</p>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Par creneau</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="reservations" className="mt-10 grid gap-5 xl:grid-cols-[1fr_360px]">
             <div>
-              <h2 className="text-2xl font-black text-slate-950">Pourquoi nous choisir ?</h2>
-              <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.32em] text-[#f31976]">Experience</p>
+              <h2 className="mt-2 text-3xl font-light uppercase tracking-[0.14em] text-slate-950">Pourquoi nous choisir ?</h2>
+              <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
                 {benefits.map((benefit) => {
                   const Icon = benefit.icon
 
                   return (
-                    <article key={benefit.label} className="rounded-3xl bg-white p-5 text-center shadow-sm">
-                      <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#fff0f6] text-[#f31976]">
+                    <article key={benefit.label} className="bg-white p-5 text-center">
+                      <div className="mx-auto grid h-12 w-12 place-items-center bg-[#fff0f6] text-[#f31976]">
                         <Icon className="h-6 w-6" />
                       </div>
                       <p className="mt-3 text-sm font-black text-slate-950">{benefit.label}</p>
@@ -836,7 +1097,7 @@ function ClientHomePage() {
               </div>
             </div>
 
-            <aside id="contact" className="rounded-3xl bg-white p-5 shadow-sm">
+            <aside id="contact" className="bg-white p-5">
               <p className="text-lg font-black text-slate-950">Reservation rapide</p>
               <p className="mt-2 text-sm font-semibold text-slate-500">
                 Choisissez une coiffure dans le catalogue et envoyez votre demande au salon.
@@ -936,9 +1197,9 @@ function ClientHomePage() {
       </div>
 
       {selectedCoiffure ? (
-        <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:px-5 sm:py-8">
-          <div className="mx-auto grid max-w-6xl gap-0 overflow-hidden rounded-[28px] bg-white shadow-2xl lg:grid-cols-[0.95fr_1.05fr]">
-            <section className="bg-[#fff7fb] p-4 sm:p-6">
+        <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-950/65 px-2 py-3 backdrop-blur-sm sm:px-5 sm:py-8">
+          <div className="mx-auto grid max-w-7xl gap-0 overflow-hidden bg-white shadow-2xl lg:grid-cols-[0.92fr_1.08fr]">
+            <section className="bg-[#fff7fb] p-4 sm:p-6 lg:sticky lg:top-0 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-black text-[#f31976]">{selectedCoiffure.categorie?.nom ?? 'Coiffure'}</p>
@@ -947,15 +1208,19 @@ function ClientHomePage() {
                 <button
                   type="button"
                   onClick={closeDetails}
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white text-slate-950 shadow-sm"
+                className="grid h-11 w-11 shrink-0 place-items-center bg-white text-slate-950 shadow-sm"
                   aria-label="Fermer"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="relative mt-5 overflow-hidden rounded-3xl bg-white">
-                <img src={coiffureImage(selectedCoiffure)} alt={selectedCoiffure.nom} className="aspect-[4/3] w-full object-cover" />
+              <div className="relative mt-5 block w-full overflow-hidden bg-white text-left">
+                <img
+                  src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)}
+                  alt={selectedCoiffure.nom}
+                  className="aspect-[4/3] w-full object-cover"
+                />
                 {modalLoading ? (
                   <div className="absolute inset-0 grid place-items-center bg-white/70">
                     <Loader2 className="h-8 w-8 animate-spin text-[#f31976]" />
@@ -963,11 +1228,21 @@ function ClientHomePage() {
                 ) : null}
               </div>
 
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                {(selectedCoiffure.images.length > 0 ? selectedCoiffure.images.slice(0, 3) : [{ id: 0, url: heroImage, alt: null, principale: true }]).map((image) => (
-                  <div key={image.id} className="aspect-square overflow-hidden rounded-2xl bg-white">
+              <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
+                {detailGalleryImages.map((image) => (
+                  <button
+                    key={`${image.id}-${image.url}`}
+                    type="button"
+                    onClick={() => setSelectedGalleryImage(image.url)}
+                    className={`aspect-square overflow-hidden bg-white ring-offset-2 transition ${
+                      (selectedGalleryImage ?? coiffureImage(selectedCoiffure)) === image.url
+                        ? 'ring-2 ring-[#f31976]'
+                        : 'hover:ring-2 hover:ring-[#f31976]/30'
+                    }`}
+                    aria-label="Afficher cette photo"
+                  >
                     <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover" />
-                  </div>
+                  </button>
                 ))}
               </div>
 
@@ -976,18 +1251,18 @@ function ClientHomePage() {
               </p>
 
               <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-3xl bg-white p-4">
+                <div className="bg-white p-4">
                   <p className="text-xs font-black uppercase text-slate-400">Prix</p>
                   <p className="mt-1 text-lg font-black text-slate-950">{formatCurrency(selectedCoiffure.prix_min, devise)}</p>
                 </div>
-                <div className="rounded-3xl bg-white p-4">
+                <div className="bg-white p-4">
                   <p className="text-xs font-black uppercase text-slate-400">Duree</p>
                   <p className="mt-1 text-lg font-black text-slate-950">{formatDuration(selectedCoiffure.duree_min_minutes)}</p>
                 </div>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-3xl bg-white p-4">
+                <div className="bg-white p-4">
                   <p className="text-xs font-black uppercase text-slate-400">Avis</p>
                   <div className="mt-2 flex items-center gap-2">
                     <RatingStars value={selectedCoiffure.avis_resume?.moyenne ?? 0} />
@@ -997,7 +1272,7 @@ function ClientHomePage() {
                   </div>
                   <p className="mt-1 text-xs font-bold text-slate-500">{selectedCoiffure.avis_resume?.total ?? 0} commentaire(s)</p>
                 </div>
-                <div className="rounded-3xl bg-white p-4">
+                <div className="bg-white p-4">
                   <p className="text-xs font-black uppercase text-slate-400">Fiabilite</p>
                   <p className="mt-1 text-lg font-black text-slate-950">
                     {selectedCoiffure.avis.some((avis) => avis.verifie) ? 'Verifie' : 'En cours'}
@@ -1006,7 +1281,7 @@ function ClientHomePage() {
                 </div>
               </div>
 
-              <div className="mt-5 rounded-3xl bg-white p-4">
+              <div className="mt-5 bg-white p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-black text-slate-950">Commentaires clientes</p>
                   <MessageCircle className="h-4 w-4 text-[#f31976]" />
@@ -1014,7 +1289,7 @@ function ClientHomePage() {
                 {selectedCoiffure.avis.length > 0 ? (
                   <div className="mt-3 space-y-3">
                     {selectedCoiffure.avis.map((avis) => (
-                      <article key={avis.id} className="rounded-2xl border border-slate-100 bg-white p-3">
+                      <article key={avis.id} className="border border-slate-100 bg-white p-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-black text-slate-950">{avis.nom_client}</p>
@@ -1030,7 +1305,7 @@ function ClientHomePage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-3 rounded-2xl bg-[#fff7fb] px-3 py-3 text-sm font-bold text-slate-500">
+                  <p className="mt-3 bg-[#fff7fb] px-3 py-3 text-sm font-bold text-slate-500">
                     Aucun commentaire publie pour cette coiffure pour le moment.
                   </p>
                 )}
@@ -1291,11 +1566,11 @@ function ClientHomePage() {
 
                 {bookingForm.paymentMethod !== 'carte_bancaire' ? (
                   <div className="mt-4 rounded-3xl bg-[#fff0f6] p-4 text-sm font-bold text-[#b01258]">
-                    Vous serez redirigee vers PayTech pour payer par {selectedPaymentMethod?.label}. Le paiement sera valide automatiquement par IPN.
+                    Vous serez redirigee vers NabooPay pour payer par {selectedPaymentMethod?.label}. Le paiement sera valide automatiquement par webhook.
                   </div>
                 ) : (
                   <div className="mt-4 rounded-3xl bg-[#fff0f6] p-4 text-sm font-bold text-[#b01258]">
-                    Vous serez redirigee vers Stripe pour payer par carte bancaire. Le paiement sera valide automatiquement au retour.
+                    Vous serez redirigee vers NabooPay pour payer par carte bancaire. Le paiement sera valide automatiquement au retour ou par webhook.
                   </div>
                 )}
               </div>
@@ -1355,9 +1630,129 @@ function ClientHomePage() {
                 className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 py-4 text-base font-black text-white shadow-lg transition disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CalendarCheck className="h-5 w-5" />}
-                {bookingForm.paymentMethod === 'carte_bancaire' ? 'Continuer vers Stripe' : 'Continuer vers PayTech'}
+                Continuer vers NabooPay
               </button>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {showClientAuth ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 px-3 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-[28px] bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
+              <div>
+                <p className="text-sm font-black text-[#f31976]">Espace client</p>
+                <h2 className="mt-1 text-2xl font-black text-slate-950">
+                  {clientAuthMode === 'login' ? 'Connexion' : 'Inscription'}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowClientAuth(false)}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-50 text-slate-950"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-5">
+              <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
+                {(['login', 'register'] as ClientAuthMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => {
+                      setClientAuthMode(mode)
+                      setClientAuthNotice(null)
+                    }}
+                    className={`min-h-10 rounded-xl px-3 text-sm font-black transition ${
+                      clientAuthMode === mode ? 'bg-white text-[#f31976] shadow-sm' : 'text-slate-500'
+                    }`}
+                  >
+                    {mode === 'login' ? 'Connexion' : 'Inscription'}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleClientAuthSubmit} className="mt-5 grid grid-cols-2 gap-3">
+                {clientAuthMode === 'register' ? (
+                  <>
+                    <label className="block">
+                      <span className="text-[11px] font-black uppercase text-slate-500">Prenom</span>
+                      <input
+                        value={clientAuthForm.prenom}
+                        onChange={(event) => updateClientAuthField('prenom', event.target.value)}
+                        required
+                        autoComplete="given-name"
+                        className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-[11px] font-black uppercase text-slate-500">Nom</span>
+                      <input
+                        value={clientAuthForm.nom}
+                        onChange={(event) => updateClientAuthField('nom', event.target.value)}
+                        required
+                        autoComplete="family-name"
+                        className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                      />
+                    </label>
+                  </>
+                ) : null}
+
+                <label className="col-span-2 block">
+                  <span className="text-[11px] font-black uppercase text-slate-500">Telephone WhatsApp</span>
+                  <PhoneInput
+                    international
+                    defaultCountry="SN"
+                    value={clientAuthForm.telephone || undefined}
+                    onChange={(value) => updateClientAuthField('telephone', value ?? '')}
+                    placeholder="77 123 45 67"
+                    autoComplete="tel"
+                    required
+                    numberInputProps={{
+                      className:
+                        'h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10',
+                    }}
+                    className="mt-1.5 flex items-center gap-2"
+                  />
+                </label>
+
+                {clientAuthMode === 'register' ? (
+                  <label className="col-span-2 block">
+                    <span className="text-[11px] font-black uppercase text-slate-500">Email</span>
+                    <input
+                      type="email"
+                      value={clientAuthForm.email}
+                      onChange={(event) => updateClientAuthField('email', event.target.value)}
+                      autoComplete="email"
+                      className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                    />
+                  </label>
+                ) : null}
+
+                {clientAuthNotice ? (
+                  <div
+                    className={`col-span-2 rounded-3xl px-4 py-3 text-sm font-bold ${
+                      clientAuthNotice.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                    }`}
+                  >
+                    {clientAuthNotice.message}
+                  </div>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={clientAuthSubmitting}
+                  className="col-span-2 mt-1 flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 text-sm font-black text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {clientAuthSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageCircle className="h-5 w-5" />}
+                  Recevoir le lien WhatsApp
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       ) : null}

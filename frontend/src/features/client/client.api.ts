@@ -4,6 +4,7 @@ import type {
   AvisPrefill,
   AvisVerifiePayload,
   ClientApiItem,
+  ClientAuthRequestResponse,
   ClientAvailability,
   ClientCatalogue,
   ClientCategory,
@@ -12,6 +13,7 @@ import type {
   ClientCoiffureReviewResponse,
   ClientLookupResponse,
   ClientMagicLinkVerifyResponse,
+  ClientRegisterPayload,
   ClientReservationPayload,
   ClientReservationResponse,
   ClientSession,
@@ -113,12 +115,31 @@ export async function confirmPaytechReturn(paymentId: string, signature: string)
   return response.data
 }
 
+export async function confirmNaboopayReturn(paymentId: string, signature: string) {
+  const response = await apiClient.post<ClientStripeConfirmation>('/client/paiements/naboopay/confirmer', {
+    paiement_id: paymentId,
+    signature,
+  })
+
+  return response.data
+}
+
 // -----------------------------------------------------------------
 // Phase 5 etape 2 : session client via magic link WhatsApp
 // -----------------------------------------------------------------
 
 export async function verifyMagicLink(token: string) {
   const response = await apiClient.post<ClientMagicLinkVerifyResponse>('/client/auth/magic-link', { token })
+  return response.data
+}
+
+export async function requestClientLogin(telephone: string) {
+  const response = await apiClient.post<ClientAuthRequestResponse>('/client/auth/login', { telephone })
+  return response.data
+}
+
+export async function registerClient(payload: ClientRegisterPayload) {
+  const response = await apiClient.post<ClientAuthRequestResponse>('/client/auth/register', payload)
   return response.data
 }
 

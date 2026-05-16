@@ -1,0 +1,541 @@
+import { CalendarCheck, ChevronLeft, CreditCard, Loader2, MapPin, Phone, Scissors, X } from 'lucide-react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import PhoneInput from 'react-phone-number-input'
+import 'react-phone-number-input/style.css'
+import { useNavigate, useParams } from 'react-router-dom'
+import { confirmNaboopayReturn, createClientReservation, getClientAvailability, getClientCatalogue, getClientCoiffureDetails } from './client.api'
+import { coiffureImage, formatCurrency, formatDuration, isClosedDate, todayInput } from './client.helpers'
+import { CoiffureCard } from './components/CoiffureCard'
+import type { ClientAvailability, ClientCatalogue, ClientCoiffure, ClientPaymentMethod } from './client.types'
+
+const emptyFavorites: number[] = []
+
+function ClientCategoryPage() {
+  const { categoryId } = useParams()
+  const navigate = useNavigate()
+  const parsedCategoryId = categoryId ? Number(categoryId) : null
+  const [catalogue, setCatalogue] = useState<ClientCatalogue | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedCoiffure, setSelectedCoiffure] = useState<ClientCoiffure | null>(null)
+  const [selectedGalleryImage, setSelectedGalleryImage] = useState<string | null>(null)
+  const [modalLoading, setModalLoading] = useState(false)
+  const [variantId, setVariantId] = useState('')
+  const [dateReservation, setDateReservation] = useState(todayInput())
+  const [heureDebut, setHeureDebut] = useState('')
+  const [availability, setAvailability] = useState<ClientAvailability | null>(null)
+  const [availabilityLoading, setAvailabilityLoading] = useState(false)
+  const [clientForm, setClientForm] = useState({ prenom: '', nom: '', telephone: '', email: '' })
+  const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('wave')
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    let ignore = false
+
+    getClientCatalogue()
+      .then((data) => {
+        if (!ignore) {
+          setCatalogue(data)
+          setError(null)
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setError('Le catalogue est indisponible pour le moment.')
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const paymentStatus = params.get('paiement')
+
+    if (paymentStatus === 'naboopay_cancel') {
+      setSubmitMessage('Paiement NabooPay annule. Le creneau ne sera pas confirme.')
+      window.history.replaceState({}, '', window.location.pathname)
+      return
+    }
+
+    if (paymentStatus !== 'naboopay_success') {
+      return
+    }
+
+    const paymentId = params.get('paiement_id')
+    const signature = params.get('signature')
+
+    if (!paymentId || !signature) {
+      setSubmitMessage('Retour NabooPay recu. La confirmation sera appliquee par webhook.')
+      window.history.replaceState({}, '', window.location.pathname)
+      return
+    }
+
+    confirmNaboopayReturn(paymentId, signature)
+      .then((response) => setSubmitMessage(response.message ?? 'Paiement NabooPay valide. Votre reservation est securisee.'))
+      .catch(() => setSubmitMessage('Retour NabooPay recu. La confirmation sera appliquee par webhook.'))
+      .finally(() => window.history.replaceState({}, '', window.location.pathname))
+  }, [])
+
+  const categories = catalogue?.categories ?? []
+  const devise = catalogue?.settings.devise ?? 'FCFA'
+  const activeCategory = categories.find((category) => category.id === parsedCategoryId)
+
+  const coiffures = useMemo(() => {
+    const list = catalogue?.coiffures ?? []
+
+    if (!parsedCategoryId) {
+      return list
+    }
+
+    return list.filter((coiffure) => coiffure.categorie?.id === parsedCategoryId)
+  }, [catalogue?.coiffures, parsedCategoryId])
+
+  const detailGalleryImages = selectedCoiffure
+    ? selectedCoiffure.images.length > 0
+      ? selectedCoiffure.images
+      : [{ id: 0, url: coiffureImage(selectedCoiffure), alt: selectedCoiffure.nom, principale: true }]
+    : []
+
+  const selectedVariant = selectedCoiffure?.variantes.find((variant) => String(variant.id) === variantId)
+
+  useEffect(() => {
+    if (!selectedCoiffure || dateReservation === '') {
+      return
+    }
+
+    if (isClosedDate(dateReservation, catalogue?.settings)) {
+      setAvailability(null)
+      setHeureDebut('')
+      return
+    }
+
+    let ignore = false
+    setAvailabilityLoading(true)
+
+    getClientAvailability(dateReservation, 60)
+      .then((data) => {
+        if (ignore) return
+        setAvailability(data)
+        const firstAvailable = data.creneaux.find((slot) => slot.disponible)
+        setHeureDebut((current) => data.creneaux.some((slot) => slot.heure === current && slot.disponible) ? current : firstAvailable?.heure ?? '')
+      })
+      .catch(() => {
+        if (!ignore) setAvailability(null)
+      })
+      .finally(() => {
+        if (!ignore) setAvailabilityLoading(false)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [catalogue?.settings, dateReservation, selectedCoiffure])
+
+  async function openDetails(coiffure: ClientCoiffure) {
+    setSelectedCoiffure(coiffure)
+    setSelectedGalleryImage(coiffureImage(coiffure))
+    setVariantId(coiffure.variantes[0]?.id ? String(coiffure.variantes[0].id) : '')
+    setSubmitMessage(null)
+    setModalLoading(true)
+
+    try {
+      const details = await getClientCoiffureDetails(coiffure.id)
+      setSelectedCoiffure(details)
+      setSelectedGalleryImage(coiffureImage(details))
+      setVariantId(details.variantes[0]?.id ? String(details.variantes[0].id) : '')
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  async function submitReservation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selectedCoiffure || !selectedVariant || heureDebut === '') {
+      setSubmitMessage('Choisissez une variante et un horaire disponible.')
+      return
+    }
+
+    setSubmitting(true)
+    setSubmitMessage(null)
+    try {
+      const response = await createClientReservation({
+        client: {
+          prenom: clientForm.prenom.trim(),
+          nom: clientForm.nom.trim(),
+          telephone: clientForm.telephone.trim(),
+          email: clientForm.email.trim() === '' ? null : clientForm.email.trim(),
+        },
+        coiffure_id: selectedCoiffure.id,
+        variante_coiffure_id: selectedVariant.id,
+        option_ids: [],
+        date_reservation: dateReservation,
+        heure_debut: heureDebut,
+        code_promo: null,
+        notes: null,
+        mode_paiement: paymentMethod,
+        idempotency_key: [
+          'client-category-reservation',
+          selectedCoiffure.id,
+          selectedVariant.id,
+          clientForm.telephone.trim(),
+          dateReservation,
+          heureDebut,
+          paymentMethod,
+        ].join('|'),
+        reference_paiement: null,
+        success_url: `${window.location.origin}${window.location.pathname}?paiement=naboopay_success`,
+        cancel_url: `${window.location.origin}${window.location.pathname}?paiement=naboopay_cancel`,
+      })
+
+      if (response.requires_redirect && response.checkout_url) {
+        window.location.href = response.checkout_url
+        return
+      }
+
+      setSubmitMessage(response.message ?? 'Reservation envoyee.')
+    } catch {
+      setSubmitMessage('Reservation impossible pour le moment.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-[#fdfafd] text-slate-950">
+      <div className="mx-auto w-full max-w-[1440px] px-3 pb-12 pt-3 sm:px-5 lg:px-8">
+        <header className="border-b border-[#f7d6e5] bg-white/95 p-3 backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="inline-flex min-h-11 items-center gap-2 px-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 hover:text-[#f31976]"
+            >
+              <ChevronLeft className="h-4 w-4" />
+                Accueil
+            </button>
+            <div className="flex items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#f31976] text-sm font-black text-white">BT</div>
+              <div>
+                <p className="font-display text-2xl leading-6">Bichette <span className="text-[#f31976]">Thomas</span></p>
+                <p className="mt-1 flex items-center gap-1 text-xs font-bold text-slate-500">
+                  <MapPin className="h-3.5 w-3.5 text-[#f31976]" />
+                  Dakar, Senegal
+                </p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {submitMessage ? (
+          <div className="mt-3 bg-[#fff0f6] px-5 py-4 text-sm font-bold text-[#b01258]">
+            {submitMessage}
+          </div>
+        ) : null}
+
+        <main>
+          <section className="bg-white py-9 sm:py-12">
+            <div className="mx-auto max-w-4xl text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.34em] text-slate-400">
+                <button type="button" onClick={() => navigate('/')} className="hover:text-[#f31976]">
+                  Accueil
+                </button>
+                <span className="mx-2 text-slate-300">/</span> <span className="text-slate-950">Categorie</span>
+              </p>
+              <h1 className="mt-5 text-5xl font-light uppercase leading-none tracking-[0.22em] text-slate-950 sm:text-7xl">
+                {activeCategory?.nom ?? 'Toutes les coiffures'}
+              </h1>
+              <p className="mx-auto mt-5 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
+                {activeCategory?.description ?? 'Explorez les styles disponibles et ouvrez les details pour comparer les photos, les durees et les prix.'}
+              </p>
+            </div>
+          </section>
+
+          <section className="border-y border-[#f0e6eb] bg-[#fdfbfd]">
+            <div className="flex min-h-16 items-center justify-between gap-4 px-2 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+              <div className="flex items-center gap-5">
+                <span className="text-slate-950">Categories</span>
+                <span className="hidden h-5 w-px bg-slate-200 sm:block" />
+                <span>{coiffures.length} coiffure(s)</span>
+              </div>
+              <span className="hidden text-slate-950 sm:inline">Trier par nouveautes</span>
+            </div>
+          </section>
+
+          <section className="border-b border-[#f7d6e5] bg-white py-5">
+            <div className="flex gap-8 overflow-x-auto px-1 pb-3 sm:gap-10 lg:justify-center">
+              <button
+                type="button"
+                onClick={() => navigate('/categories')}
+                className="group flex min-w-[82px] flex-col items-center gap-3"
+              >
+                <span className={`grid h-20 w-20 place-items-center rounded-full border-2 text-xs font-black uppercase tracking-[0.14em] transition sm:h-24 sm:w-24 ${!parsedCategoryId ? 'border-[#f31976] bg-[#f31976] text-white' : 'border-transparent bg-[#fff0f6] text-[#f31976] group-hover:border-[#f31976]'}`}>
+                  Tout
+                </span>
+                <span className="w-24 truncate text-center text-[11px] font-black uppercase tracking-[0.18em] text-slate-600">Tous styles</span>
+              </button>
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  type="button"
+                  onClick={() => navigate(`/categories/${category.id}`)}
+                  className="group flex min-w-[82px] flex-col items-center gap-3"
+                >
+                  <span className={`h-20 w-20 overflow-hidden rounded-full border-2 bg-[#fff0f6] transition sm:h-24 sm:w-24 ${category.id === parsedCategoryId ? 'border-[#f31976]' : 'border-transparent group-hover:border-[#f31976]'}`}>
+                    {category.image ? (
+                      <img src={category.image} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+                    ) : (
+                      <span className="grid h-full w-full place-items-center text-[#f31976]">
+                        <Scissors className="h-7 w-7" />
+                      </span>
+                    )}
+                  </span>
+                  <span className="w-24 truncate text-center text-[11px] font-black uppercase tracking-[0.18em] text-slate-600 group-hover:text-[#f31976]">
+                    {category.nom}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="py-8">
+            {error ? <div className="bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">{error}</div> : null}
+            {loading ? (
+              <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                {Array.from({ length: 12 }, (_, index) => <div key={index} className="h-52 animate-pulse bg-white" />)}
+              </div>
+            ) : coiffures.length > 0 ? (
+              <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                {coiffures.map((coiffure) => (
+                  <CoiffureCard
+                    key={coiffure.id}
+                    coiffure={coiffure}
+                    isFavorite={emptyFavorites.includes(coiffure.id)}
+                    devise={devise}
+                    onToggleFavorite={() => {}}
+                    onOpenDetails={openDetails}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white px-5 py-16 text-center text-sm font-bold text-slate-500">
+                Aucune coiffure active dans cette categorie pour le moment.
+              </div>
+            )}
+          </section>
+        </main>
+
+        <footer className="mt-6 border-t border-[#f7d6e5] bg-white px-5 py-6 text-xs font-bold text-slate-500">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>Bichette Thomas - Dakar, Senegal</span>
+            {catalogue?.settings.telephone_whatsapp ? (
+              <a href={`https://wa.me/${catalogue.settings.telephone_whatsapp.replace(/\D/g, '')}`} className="inline-flex items-center gap-2 text-[#f31976]">
+                <Phone className="h-4 w-4" />
+                WhatsApp {catalogue.settings.telephone_whatsapp}
+              </a>
+            ) : null}
+          </div>
+        </footer>
+      </div>
+
+      {selectedCoiffure ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/65 px-3 py-5 backdrop-blur-sm">
+          <div className="mx-auto max-w-5xl bg-white shadow-2xl">
+            <div className="grid gap-0 lg:grid-cols-[0.9fr_1.1fr]">
+              <section className="bg-[#fff7fb] p-4 sm:p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-black text-[#f31976]">{selectedCoiffure.categorie?.nom ?? 'Coiffure'}</p>
+                    <h2 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">{selectedCoiffure.nom}</h2>
+                  </div>
+                  <button type="button" onClick={() => setSelectedCoiffure(null)} className="grid h-11 w-11 place-items-center bg-white" aria-label="Fermer">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="relative mt-5 overflow-hidden bg-white">
+                  <img src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)} alt={selectedCoiffure.nom} className="aspect-[4/3] w-full object-cover" />
+                  {modalLoading ? (
+                    <div className="absolute inset-0 grid place-items-center bg-white/70">
+                      <Loader2 className="h-8 w-8 animate-spin text-[#f31976]" />
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
+                  {detailGalleryImages.map((image) => (
+                    <button
+                      key={`${image.id}-${image.url}`}
+                      type="button"
+                      onClick={() => setSelectedGalleryImage(image.url)}
+                      className={`aspect-square overflow-hidden bg-white ring-offset-2 transition ${(selectedGalleryImage ?? coiffureImage(selectedCoiffure)) === image.url ? 'ring-2 ring-[#f31976]' : 'hover:ring-2 hover:ring-[#f31976]/30'}`}
+                    >
+                      <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <form onSubmit={submitReservation} className="p-4 sm:p-6">
+                <p className="text-sm font-semibold leading-7 text-slate-600">
+                  {selectedCoiffure.description ?? 'Une prestation soignee, adaptee a votre style et au temps disponible au salon.'}
+                </p>
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <div className="bg-[#fff7fb] p-4">
+                    <p className="text-xs font-black uppercase text-slate-400">Prix</p>
+                    <p className="mt-1 text-lg font-black text-slate-950">{formatCurrency(selectedCoiffure.prix_min, devise)}</p>
+                  </div>
+                  <div className="bg-[#fff7fb] p-4">
+                    <p className="text-xs font-black uppercase text-slate-400">Duree</p>
+                    <p className="mt-1 text-lg font-black text-slate-950">{formatDuration(selectedCoiffure.duree_min_minutes)}</p>
+                  </div>
+                </div>
+                <div className="mt-6">
+                  <p className="text-sm font-black text-slate-950">Variantes</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {selectedCoiffure.variantes.map((variant) => (
+                      <label key={variant.id} className={`block cursor-pointer border p-4 ${variantId === String(variant.id) ? 'border-[#f31976] bg-[#fff0f6]' : 'border-slate-200 bg-white'}`}>
+                        <input
+                          type="radio"
+                          name="variant"
+                          value={variant.id}
+                          checked={variantId === String(variant.id)}
+                          onChange={() => setVariantId(String(variant.id))}
+                          className="sr-only"
+                        />
+                        <p className="text-sm font-black text-slate-950">{variant.nom}</p>
+                        <p className="mt-2 flex items-center justify-between gap-2 text-sm font-bold text-slate-500">
+                          {formatDuration(variant.duree_minutes)}
+                          <span className="text-[#f31976]">{formatCurrency(variant.prix, devise)}</span>
+                        </p>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <label className="col-span-2 block">
+                    <span className="text-[11px] font-black uppercase text-slate-500">Telephone WhatsApp</span>
+                    <PhoneInput
+                      international
+                      defaultCountry="SN"
+                      value={clientForm.telephone || undefined}
+                      onChange={(value) => setClientForm((current) => ({ ...current, telephone: value ?? '' }))}
+                      placeholder="77 123 45 67"
+                      required
+                      numberInputProps={{
+                        className: 'h-11 w-full border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976]',
+                      }}
+                      className="mt-1.5 flex items-center gap-2"
+                    />
+                  </label>
+                  <label className="col-span-2 block">
+                    <span className="text-[11px] font-black uppercase text-slate-500">Prenom</span>
+                    <input
+                      value={clientForm.prenom}
+                      onChange={(event) => setClientForm((current) => ({ ...current, prenom: event.target.value }))}
+                      required
+                      className="mt-1.5 h-11 w-full border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-black uppercase text-slate-500">Nom</span>
+                    <input
+                      value={clientForm.nom}
+                      onChange={(event) => setClientForm((current) => ({ ...current, nom: event.target.value }))}
+                      required
+                      className="mt-1.5 h-11 w-full border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-black uppercase text-slate-500">Date</span>
+                    <input
+                      type="date"
+                      min={todayInput()}
+                      value={dateReservation}
+                      onChange={(event) => setDateReservation(event.target.value)}
+                      required
+                      className="mt-1.5 h-11 w-full border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-black uppercase text-slate-500">Paiement</span>
+                    <div className="mt-1.5 grid grid-cols-3 gap-2">
+                      {([
+                        { value: 'wave', label: 'Wave', logo: '/wave logo.webp' },
+                        { value: 'orange_money', label: 'Orange', logo: '/om logo.webp' },
+                        { value: 'carte_bancaire', label: 'Carte', logo: null },
+                      ] as Array<{ value: ClientPaymentMethod; label: string; logo: string | null }>).map((method) => (
+                        <button
+                          key={method.value}
+                          type="button"
+                          onClick={() => setPaymentMethod(method.value)}
+                          className={`min-h-11 border px-2 text-xs font-black ${
+                            paymentMethod === method.value
+                              ? 'border-[#f31976] bg-[#fff0f6] text-[#f31976]'
+                              : 'border-slate-200 bg-white text-slate-700'
+                          }`}
+                          aria-pressed={paymentMethod === method.value}
+                        >
+                          <span className="flex items-center justify-center gap-1.5">
+                            {method.logo ? (
+                              <img src={method.logo} alt="" className="h-6 w-6 rounded-full object-contain" />
+                            ) : (
+                              <CreditCard className="h-5 w-5" />
+                            )}
+                            {method.label}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </label>
+                </div>
+
+                <div className="mt-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11px] font-black uppercase text-slate-500">Horaires</span>
+                    {availabilityLoading ? <Loader2 className="h-4 w-4 animate-spin text-[#f31976]" /> : null}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {(availability?.creneaux ?? []).map((slot) => (
+                      <button
+                        key={slot.heure}
+                        type="button"
+                        disabled={!slot.disponible}
+                        onClick={() => setHeureDebut(slot.heure)}
+                        className={`min-h-11 border px-2 text-sm font-black disabled:opacity-40 ${heureDebut === slot.heure ? 'border-[#f31976] bg-[#f31976] text-white' : 'border-slate-200 bg-white text-slate-800'}`}
+                      >
+                        {slot.heure}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {submitMessage ? <p className="mt-4 bg-[#fff0f6] px-4 py-3 text-sm font-bold text-[#b01258]">{submitMessage}</p> : null}
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 bg-[#f31976] px-5 text-xs font-black uppercase tracking-[0.18em] text-white disabled:opacity-60"
+                >
+                  {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CalendarCheck className="h-5 w-5" />}
+                  Reserver cette coiffure
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+export default ClientCategoryPage

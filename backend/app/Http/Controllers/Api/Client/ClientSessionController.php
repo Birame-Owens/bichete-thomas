@@ -3,13 +3,72 @@
 namespace App\Http\Controllers\Api\Client;
 
 use App\Http\Controllers\Controller;
+use App\Models\Client;
 use App\Services\ClientMagicLinkService;
+use App\Services\ClientResolver;
+use App\Services\WhatsappService;
+use App\Support\PhoneNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class ClientSessionController extends Controller
 {
-    public function __construct(private readonly ClientMagicLinkService $magicLink) {}
+    public function __construct(
+        private readonly ClientMagicLinkService $magicLink,
+        private readonly ClientResolver $clientResolver,
+        private readonly WhatsappService $whatsapp,
+    ) {}
+
+    /**
+     * POST /api/client/auth/login
+     *
+     * Demande un magic link par WhatsApp pour un client deja connu.
+     */
+    public function login(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'telephone' => ['required', 'string', 'max:30', (new Phone())->country(['SN'])->international()],
+        ]);
+
+        $telephone = PhoneNumber::normalize((string) $data['telephone']);
+        $client = $telephone ? $this->clientResolver->findByPhone($telephone) : null;
+
+        if (! $client || $client->est_blackliste) {
+            return response()->json([
+                'message' => 'Aucun compte client actif ne correspond a ce telephone.',
+            ], 404);
+        }
+
+        return $this->sendMagicLinkResponse($client, 'client-login-' . $client->id);
+    }
+
+    /**
+     * POST /api/client/auth/register
+     *
+     * Cree la fiche client si le numero est nouveau, puis envoie un magic link.
+     */
+    public function register(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'prenom' => ['required', 'string', 'max:255'],
+            'nom' => ['required', 'string', 'max:255'],
+            'telephone' => ['required', 'string', 'max:30', (new Phone())->country(['SN'])->international()],
+            'email' => ['nullable', 'email', 'max:255'],
+        ]);
+
+        $client = $this->clientResolver->findOrCreate(
+            $data,
+            defaultSource: 'en_ligne',
+            blacklistMessage: 'Ce telephone ne peut pas creer de compte client.',
+        );
+
+        if (! empty($data['email']) && empty($client->email)) {
+            $client->forceFill(['email' => $data['email']])->save();
+        }
+
+        return $this->sendMagicLinkResponse($client, 'client-register-' . $client->id, 201);
+    }
 
     /**
      * POST /api/client/auth/magic-link
@@ -86,5 +145,32 @@ class ClientSessionController extends Controller
 
         return response()->json(['message' => 'Deconnecte.'])
             ->withoutCookie('bt_client_session');
+    }
+
+    private function sendMagicLinkResponse(Client $client, string $context, int $status = 200): JsonResponse
+    {
+        $rawToken = $this->magicLink->generateMagicLink($client);
+        $url = $this->magicLink->buildUrl($rawToken);
+        $message = implode("\n", [
+            "Bonjour {$client->prenom},",
+            'Voici votre lien de connexion Bichette Thomas :',
+            $url,
+            '',
+            'Ce lien est valable 24h.',
+        ]);
+
+        $sent = $this->whatsapp->send($client->telephone, $message, $context);
+
+        $payload = [
+            'message' => $sent
+                ? 'Lien de connexion envoye par WhatsApp.'
+                : 'Compte pret. WhatsApp n est pas configure pour envoyer le lien automatiquement.',
+        ];
+
+        if (! app()->isProduction()) {
+            $payload['debug_magic_url'] = $url;
+        }
+
+        return response()->json($payload, $status);
     }
 }

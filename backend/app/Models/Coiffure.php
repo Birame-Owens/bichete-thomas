@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['categorie_coiffure_id', 'nom', 'description', 'image', 'actif'])]
+#[Fillable(['categorie_coiffure_id', 'nom', 'description', 'image', 'actif', 'est_populaire', 'est_nouveaute'])]
 class Coiffure extends Model
 {
     use HasFactory;
@@ -61,6 +61,8 @@ class Coiffure extends Model
     {
         return [
             'actif' => 'boolean',
+            'est_populaire' => 'boolean',
+            'est_nouveaute' => 'boolean',
         ];
     }
 }

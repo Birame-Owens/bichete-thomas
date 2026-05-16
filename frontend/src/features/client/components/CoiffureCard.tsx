@@ -31,32 +31,60 @@ function CoiffureCardBase({
   onOpenDetails,
 }: CoiffureCardProps) {
   return (
-    <article className="group overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
-      <div className="relative aspect-[4/3] bg-rose-50">
-        <img src={coiffureImage(coiffure)} alt={coiffure.nom} className="h-full w-full object-cover" loading="lazy" />
+    <article className="group cursor-pointer bg-transparent" onClick={() => onOpenDetails(coiffure)}>
+      <div className="relative aspect-[4/5] overflow-hidden bg-[#fff0f6]">
+        <img
+          src={coiffureImage(coiffure)}
+          alt={coiffure.nom}
+          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+          loading="lazy"
+        />
         <button
           type="button"
-          onClick={() => onToggleFavorite(coiffure.id)}
+          onClick={(event) => {
+            event.stopPropagation()
+            onToggleFavorite(coiffure.id)
+          }}
           className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-[#f31976] shadow-sm"
           aria-label="Ajouter aux favoris"
         >
           <Heart className={`h-5 w-5 ${isFavorite ? 'fill-[#f31976]' : ''}`} />
         </button>
-      </div>
-      <div className="p-4">
-        <p className="line-clamp-1 text-sm font-black text-slate-950 sm:text-base">{coiffure.nom}</p>
-        <p className="mt-1 text-xs font-bold text-slate-500">{coiffure.categorie?.nom ?? 'Coiffure'}</p>
-        <p className="mt-3 text-xs font-semibold text-slate-500">A partir de</p>
-        <div className="mt-1 flex items-end justify-between gap-2">
-          <p className="text-sm font-black text-[#f31976]">{formatCurrency(coiffure.prix_min, devise)}</p>
-          <p className="text-xs font-bold text-slate-500">{formatDuration(coiffure.duree_min_minutes)}</p>
+        <div className="absolute left-2 top-2 flex flex-col gap-1">
+          {coiffure.est_populaire ? (
+            <span className="bg-[#f31976] px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-white">Populaire</span>
+          ) : coiffure.est_nouveaute ? (
+            <span className="bg-white px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-slate-950">Accueil</span>
+          ) : null}
         </div>
         <button
           type="button"
-          onClick={() => onOpenDetails(coiffure)}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-3 py-3 text-sm font-black text-white transition group-hover:bg-[#f31976]"
+          onClick={(event) => {
+            event.stopPropagation()
+            onOpenDetails(coiffure)
+          }}
+          className="absolute inset-x-0 bottom-0 hidden translate-y-full bg-[#f31976] py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white transition group-hover:translate-y-0 md:block"
         >
           Details
+        </button>
+      </div>
+      <div className="pt-3 text-center">
+        <p className="line-clamp-1 text-xs font-black uppercase tracking-[0.14em] text-slate-950">{coiffure.nom}</p>
+        <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{coiffure.categorie?.nom ?? 'Coiffure'}</p>
+        <div className="mt-2 flex items-center justify-center gap-3 text-xs">
+          <p className="font-black text-[#f31976]">{formatCurrency(coiffure.prix_min, devise)}</p>
+          <span className="h-1 w-1 rounded-full bg-slate-300" />
+          <p className="font-bold text-slate-500">{formatDuration(coiffure.duree_min_minutes)}</p>
+        </div>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onOpenDetails(coiffure)
+          }}
+          className="mt-3 inline-flex min-h-9 items-center justify-center gap-1 bg-[#f31976] px-4 text-[10px] font-black uppercase tracking-[0.2em] text-white md:hidden"
+        >
+          Voir
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
