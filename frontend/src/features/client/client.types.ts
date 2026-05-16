@@ -69,6 +69,8 @@ export type ClientCoiffure = {
   nom: string
   description: string | null
   image: string | null
+  est_populaire: boolean
+  est_nouveaute: boolean
   categorie: {
     id: number
     nom: string
@@ -165,6 +167,7 @@ export type ClientReservationPayload = {
   code_promo: string | null
   notes: string | null
   mode_paiement: ClientPaymentMethod
+  idempotency_key: string | null
   reference_paiement: string | null
   success_url: string | null
   cancel_url: string | null
@@ -229,6 +232,18 @@ export type ClientSession = {
 export type ClientMagicLinkVerifyResponse = {
   message: string
   data: ClientSession
+}
+
+export type ClientAuthRequestResponse = {
+  message: string
+  debug_magic_url?: string
+}
+
+export type ClientRegisterPayload = {
+  prenom: string
+  nom: string
+  telephone: string
+  email: string | null
 }
 
 // Phase 5 etape 3 : avis verifies post-prestation via lien WhatsApp.

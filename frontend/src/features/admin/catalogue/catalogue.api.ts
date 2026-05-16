@@ -80,6 +80,8 @@ function coiffureFormData(form: CoiffureForm) {
   formData.append('nom', form.nom.trim())
   formData.append('description', cleanText(form.description) ?? '')
   appendBoolean(formData, 'actif', form.actif)
+  appendBoolean(formData, 'est_populaire', form.est_populaire)
+  appendBoolean(formData, 'est_nouveaute', form.est_nouveaute)
 
   form.option_ids.forEach((id, index) => {
     formData.append(`option_ids[${index}]`, String(id))

@@ -132,6 +132,85 @@ class PaymentController extends Controller
         ]);
     }
 
+    public function confirmNaboopayReturn(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'paiement_id' => ['required', 'integer', 'exists:paiements,id'],
+            'signature' => ['required', 'string', 'max:255'],
+        ]);
+
+        $payment = Paiement::query()->findOrFail((int) $data['paiement_id']);
+
+        if (! hash_equals($this->naboopayReturnSignature($payment->id), (string) $data['signature'])) {
+            throw ValidationException::withMessages([
+                'signature' => 'Signature de retour NabooPay invalide.',
+            ]);
+        }
+
+        if (! in_array($payment->mode_paiement, ['wave', 'orange_money', 'carte_bancaire'], true)) {
+            throw ValidationException::withMessages([
+                'paiement_id' => 'Ce paiement n est pas un paiement NabooPay.',
+            ]);
+        }
+
+        if ($payment->statut === 'valide') {
+            SendPaymentReceiptNotifications::dispatch($payment->id);
+
+            return response()->json([
+                'message' => 'Paiement NabooPay valide. Votre reservation est securisee.',
+                'data' => $payment->fresh(['reservation.client', 'client']),
+            ]);
+        }
+
+        $transaction = $this->retrieveNaboopayTransaction((string) $payment->reference);
+        $status = (string) ($transaction['transaction_status'] ?? $transaction['status'] ?? '');
+
+        if (! $this->naboopayStatusIsPaid($status)) {
+            throw ValidationException::withMessages([
+                'paiement_id' => 'NabooPay n a pas encore confirme ce paiement.',
+            ]);
+        }
+
+        $this->markPaymentAsPaid($payment, (string) ($transaction['order_id'] ?? $payment->reference));
+
+        return response()->json([
+            'message' => 'Paiement NabooPay valide. Votre reservation est securisee.',
+            'data' => $payment->fresh(['reservation.client', 'client']),
+        ]);
+    }
+
+    public function naboopayWebhook(Request $request): JsonResponse
+    {
+        if (! $this->naboopaySignatureIsValid($request->getContent(), (string) $request->header('X-Signature'))) {
+            return response()->json(['message' => 'Webhook NabooPay invalide.'], 401);
+        }
+
+        $payload = $request->json()->all();
+        $orderId = (string) ($payload['order_id'] ?? '');
+
+        if ($orderId === '') {
+            return response()->json(['message' => 'Order ID NabooPay absent.'], 400);
+        }
+
+        $payment = Paiement::query()->where('reference', $orderId)->first();
+
+        if (! $payment) {
+            Log::warning('NabooPay webhook payment not found', ['order_id' => $orderId]);
+
+            return response()->json(['received' => true]);
+        }
+
+        $status = (string) ($payload['transaction_status'] ?? $payload['status'] ?? '');
+
+        if ($this->naboopayStatusIsPaid($status)) {
+            $this->markPaymentAsPaid($payment, $orderId);
+        } elseif ($this->naboopayStatusIsCanceled($status)) {
+            $this->markPaymentAsCanceled($payment, $orderId);
+        }
+
+        return response()->json(['received' => true]);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -284,6 +363,81 @@ class PaymentController extends Controller
         }
 
         return [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function retrieveNaboopayTransaction(string $orderId): array
+    {
+        $apiKey = config('services.naboopay.api_key');
+
+        if (! $apiKey || $orderId === '') {
+            throw ValidationException::withMessages([
+                'paiement_id' => 'NabooPay n est pas configure ou la reference est absente.',
+            ]);
+        }
+
+        try {
+            $response = Http::acceptJson()
+                ->withToken((string) $apiKey)
+                ->get(rtrim((string) config('services.naboopay.base_url'), '/') . '/api/v2/transactions/' . rawurlencode($orderId));
+        } catch (ConnectionException) {
+            throw ValidationException::withMessages([
+                'paiement_id' => 'NabooPay est temporairement inaccessible. Reessayez dans quelques instants.',
+            ]);
+        }
+
+        if ($response->failed()) {
+            throw ValidationException::withMessages([
+                'paiement_id' => $response->json('error') ?? 'Impossible de verifier la transaction NabooPay.',
+            ]);
+        }
+
+        return $response->json();
+    }
+
+    private function naboopaySignatureIsValid(string $payload, string $signature): bool
+    {
+        $secret = config('services.naboopay.webhook_secret');
+
+        if (! $secret) {
+            return false;
+        }
+
+        $decoded = json_decode($payload, true);
+        if (! is_array($decoded)) {
+            return false;
+        }
+
+        $compactPayload = json_encode($decoded, JSON_UNESCAPED_SLASHES);
+        if (! is_string($compactPayload)) {
+            return false;
+        }
+
+        $expected = hash_hmac('sha256', $compactPayload, (string) $secret);
+
+        return hash_equals($expected, $signature);
+    }
+
+    private function naboopayStatusIsPaid(string $status): bool
+    {
+        return in_array(strtolower($status), ['completed', 'paid', 'success', 'successful'], true);
+    }
+
+    private function naboopayStatusIsCanceled(string $status): bool
+    {
+        return in_array(strtolower($status), ['cancelled', 'canceled', 'failed', 'error', 'expired'], true);
+    }
+
+    private function naboopayReturnSignature(int|string $paymentId): string
+    {
+        return hash_hmac('sha256', 'naboopay-return|' . $paymentId, $this->naboopayReturnSecret());
+    }
+
+    private function naboopayReturnSecret(): string
+    {
+        return (string) config('app.key') . '|' . (string) config('services.naboopay.webhook_secret') . '|' . (string) config('services.naboopay.api_key');
     }
 
     private function markPaymentAsPaid(Paiement $payment, string $reference): void

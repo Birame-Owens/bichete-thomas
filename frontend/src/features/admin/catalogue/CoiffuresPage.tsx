@@ -43,6 +43,8 @@ const emptyForm: CoiffureForm = {
   nom: '',
   description: '',
   actif: true,
+  est_populaire: false,
+  est_nouveaute: false,
   option_ids: [],
   images: [],
   variantes: [{ nom: '', prix: '', duree_minutes: '', actif: true }],
@@ -155,6 +157,8 @@ function CoiffuresPage() {
         nom: coiffure.nom,
         description: coiffure.description ?? '',
         actif: coiffure.actif,
+        est_populaire: coiffure.est_populaire,
+        est_nouveaute: coiffure.est_nouveaute,
         option_ids: coiffure.options?.map((option) => option.id) ?? [],
         images: [],
         variantes:
@@ -199,6 +203,8 @@ function CoiffuresPage() {
         nom: coiffure.nom,
         description: coiffure.description ?? '',
         actif: !coiffure.actif,
+        est_populaire: coiffure.est_populaire,
+        est_nouveaute: coiffure.est_nouveaute,
         option_ids: coiffure.options?.map((option) => option.id) ?? [],
         images: [],
         variantes:
@@ -323,6 +329,16 @@ function CoiffuresPage() {
                   <span className="rounded-full bg-[#e91e63] px-3 py-1 text-xs font-black text-white">
                     {coiffure.categorie?.nom ?? 'Sans categorie'}
                   </span>
+                  {coiffure.est_populaire && (
+                    <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-black text-[#c41468]">
+                      Populaire
+                    </span>
+                  )}
+                  {coiffure.est_nouveaute && (
+                    <span className="rounded-full bg-black/80 px-3 py-1 text-xs font-black text-white">
+                      Home
+                    </span>
+                  )}
                   {(coiffure.images?.length ?? 0) > 1 && (
                     <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-black text-[#c41468]">
                       {coiffure.images?.length} photos
@@ -460,6 +476,24 @@ function CoiffuresPage() {
                     />
                     Coiffure visible dans le catalogue
                   </label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm font-bold">
+                      <input
+                        type="checkbox"
+                        checked={form.est_populaire}
+                        onChange={(event) => setForm((current) => ({ ...current, est_populaire: event.target.checked }))}
+                      />
+                      Afficher comme populaire sur la home
+                    </label>
+                    <label className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm font-bold">
+                      <input
+                        type="checkbox"
+                        checked={form.est_nouveaute}
+                        onChange={(event) => setForm((current) => ({ ...current, est_nouveaute: event.target.checked }))}
+                      />
+                      Visible sur la home
+                    </label>
+                  </div>
                 </div>
               </section>
 

@@ -36,27 +36,25 @@ class CreateReservationTest extends TestCase
     }
 
     /**
-     * Mock les APIs externes Stripe / PayTech : on ne veut pas que les tests
+     * Mock les APIs externes Stripe / NabooPay : on ne veut pas que les tests
      * fassent de vrais appels HTTP. On simule des reponses success.
      */
     private function configurePaymentGateways(): void
     {
         // Config minimum pour que les controllers ne refusent pas le mode_paiement.
         config([
-            'services.paytech.api_key' => 'test-key',
-            'services.paytech.api_secret' => 'test-secret',
-            'services.paytech.base_url' => 'https://paytech.sn/api',
-            'services.paytech.env' => 'test',
+            'services.naboopay.api_key' => 'test-key',
+            'services.naboopay.webhook_secret' => 'test-secret',
+            'services.naboopay.base_url' => 'https://api.naboopay.com',
             'services.stripe.secret' => 'sk_test_fake',
             'services.stripe.currency' => 'xof',
         ]);
 
         // Mock les reponses HTTP que les controllers vont attendre.
         Http::fake([
-            'https://paytech.sn/*' => Http::response([
-                'success' => 1,
-                'token' => 'paytech-fake-token',
-                'redirect_url' => 'https://paytech.sn/checkout/fake',
+            'https://api.naboopay.com/*' => Http::response([
+                'order_id' => 'order_test_fake',
+                'checkout_url' => 'https://checkout.naboopay.com/checkout/order_test_fake',
             ], 200),
             'https://api.stripe.com/v1/checkout/sessions' => Http::response([
                 'id' => 'cs_test_fake',
@@ -100,6 +98,38 @@ class CreateReservationTest extends TestCase
         $this->assertDatabaseCount('clients', 1);
         $this->assertDatabaseCount('paiements', 1);
         $this->assertDatabaseHas('paiements', ['statut' => 'en_attente', 'mode_paiement' => 'wave']);
+    }
+
+    public function test_creation_reservation_est_idempotente_avec_la_meme_cle(): void
+    {
+        $coiffure = $this->createCoiffure();
+        $variante = $coiffure->variantes->first();
+        $payload = [
+            'client' => [
+                'nom' => 'Diop',
+                'prenom' => 'Awa',
+                'telephone' => '+221771234567',
+                'email' => 'awa@example.test',
+            ],
+            'coiffure_id' => $coiffure->id,
+            'variante_coiffure_id' => $variante->id,
+            'date_reservation' => Carbon::tomorrow()->toDateString(),
+            'heure_debut' => '10:00',
+            'mode_paiement' => 'wave',
+            'idempotency_key' => 'same-click-key',
+            'success_url' => 'https://example.test/success',
+            'cancel_url' => 'https://example.test/cancel',
+        ];
+
+        $first = $this->postJson('/api/client/reservations', $payload);
+        $second = $this->postJson('/api/client/reservations', $payload);
+
+        $first->assertCreated();
+        $second->assertCreated();
+        $this->assertDatabaseCount('reservations', 1);
+        $this->assertDatabaseCount('paiements', 1);
+        $this->assertSame($first->json('payment.id'), $second->json('payment.id'));
+        $this->assertSame($first->json('checkout_url'), $second->json('checkout_url'));
     }
 
     public function test_validation_refuse_les_champs_manquants(): void

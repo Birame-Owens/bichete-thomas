@@ -1,0 +1,153 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: infra/docker/php/Dockerfile.prod
+    restart: unless-stopped
+    environment:
+      APP_NAME: "Bichette Thomas"
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL:-https://bichettethomas.site}
+      APP_KEY: ${APP_KEY}
+      APP_LOCALE: fr
+      APP_FALLBACK_LOCALE: fr
+      LOG_CHANNEL: stack
+      LOG_STACK: single
+      LOG_LEVEL: warning
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-bichette_thomas}
+      DB_USERNAME: ${POSTGRES_USER:-bichette}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: null
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: redis
+      SESSION_STORE: redis
+      SESSION_DOMAIN: ${SESSION_DOMAIN:-bichettethomas.site}
+      SESSION_SECURE_COOKIE: "true"
+      SESSION_SAME_SITE: lax
+      FRONTEND_URL: ${FRONTEND_URL:-https://bichettethomas.site}
+      FILESYSTEM_DISK: local
+      MAIL_MAILER: ${MAIL_MAILER:-log}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-contact@bichettethomas.site}
+      MAIL_FROM_NAME: "Bichette Thomas"
+      NABOOPAY_BASE_URL: ${NABOOPAY_BASE_URL:-https://api.naboopay.com}
+      NABOOPAY_API_KEY: ${NABOOPAY_API_KEY}
+      NABOOPAY_WEBHOOK_SECRET: ${NABOOPAY_WEBHOOK_SECRET}
+      NABOOPAY_SUCCESS_URL: ${NABOOPAY_SUCCESS_URL:-https://bichettethomas.site/client?paiement=naboopay_success}
+      NABOOPAY_ERROR_URL: ${NABOOPAY_ERROR_URL:-https://bichettethomas.site/client?paiement=naboopay_cancel}
+      NABOOPAY_FEES_CUSTOMER_SIDE: ${NABOOPAY_FEES_CUSTOMER_SIDE:-true}
+      SEND_RECEIPT_WHATSAPP: ${SEND_RECEIPT_WHATSAPP:-false}
+      SEND_RECEIPT_EMAIL: ${SEND_RECEIPT_EMAIL:-true}
+      WHATSAPP_CLOUD_API_URL: ${WHATSAPP_CLOUD_API_URL:-https://graph.facebook.com/v25.0}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_RECEIPT_TEMPLATE_NAME: ${WHATSAPP_RECEIPT_TEMPLATE_NAME:-}
+      WHATSAPP_RECEIPT_TEMPLATE_LANGUAGE: ${WHATSAPP_RECEIPT_TEMPLATE_LANGUAGE:-fr}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrateur}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      GERANTE_EMAIL: ${GERANTE_EMAIL}
+      GERANTE_NAME: ${GERANTE_NAME:-Gerante}
+      GERANTE_PASSWORD: ${GERANTE_PASSWORD}
+    volumes:
+      - app_storage:/var/www/html/storage/app/public
+      - app_logs:/var/www/html/storage/logs
+    depends_on:
+      - postgres
+      - redis
+
+  queue:
+    build:
+      context: .
+      dockerfile: infra/docker/php/Dockerfile.prod
+    restart: unless-stopped
+    command: php artisan queue:work redis --sleep=3 --tries=3 --timeout=120
+    environment:
+      APP_NAME: "Bichette Thomas"
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL:-https://bichettethomas.site}
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-bichette_thomas}
+      DB_USERNAME: ${POSTGRES_USER:-bichette}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: redis
+      SESSION_STORE: redis
+      LOG_CHANNEL: stack
+      LOG_STACK: single
+      LOG_LEVEL: warning
+      MAIL_MAILER: ${MAIL_MAILER:-log}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-contact@bichettethomas.site}
+      MAIL_FROM_NAME: "Bichette Thomas"
+      SEND_RECEIPT_WHATSAPP: ${SEND_RECEIPT_WHATSAPP:-false}
+      SEND_RECEIPT_EMAIL: ${SEND_RECEIPT_EMAIL:-true}
+      WHATSAPP_CLOUD_API_URL: ${WHATSAPP_CLOUD_API_URL:-https://graph.facebook.com/v25.0}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_RECEIPT_TEMPLATE_NAME: ${WHATSAPP_RECEIPT_TEMPLATE_NAME:-}
+      WHATSAPP_RECEIPT_TEMPLATE_LANGUAGE: ${WHATSAPP_RECEIPT_TEMPLATE_LANGUAGE:-fr}
+    volumes:
+      - app_storage:/var/www/html/storage/app/public
+      - app_logs:/var/www/html/storage/logs
+    depends_on:
+      - backend
+      - redis
+      - postgres
+
+  nginx:
+    build:
+      context: .
+      dockerfile: infra/docker/nginx/Dockerfile.prod
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    expose:
+      - "80"
+    volumes:
+      - app_storage:/var/www/html/storage/app/public:ro
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bichette_thomas}
+      POSTGRES_USER: ${POSTGRES_USER:-bichette}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+  app_storage:
+  app_logs:

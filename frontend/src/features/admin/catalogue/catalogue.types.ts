@@ -63,6 +63,8 @@ export type Coiffure = {
   description: string | null
   image: string | null
   actif: boolean
+  est_populaire: boolean
+  est_nouveaute: boolean
   categorie?: CategorieCoiffure | null
   variantes?: VarianteCoiffure[]
   options?: OptionCoiffure[]
@@ -95,6 +97,8 @@ export type CoiffureForm = {
   nom: string
   description: string
   actif: boolean
+  est_populaire: boolean
+  est_nouveaute: boolean
   option_ids: number[]
   images: File[]
   variantes: Array<{
