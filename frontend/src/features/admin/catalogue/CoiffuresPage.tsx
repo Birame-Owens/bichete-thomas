@@ -292,7 +292,7 @@ function CoiffuresPage() {
       {error && <ErrorState label={error} />}
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:gap-6 2xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:gap-5 2xl:grid-cols-4">
           {Array.from({ length: 6 }).map((_, index) => (
             <div key={index} className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
               <div className="aspect-[4/3] animate-pulse bg-gray-100 sm:aspect-[16/11]" />
@@ -307,18 +307,18 @@ function CoiffuresPage() {
       ) : coiffures.length === 0 ? (
         <EmptyState label="Aucune coiffure ne correspond aux filtres." />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:gap-6 2xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:gap-5 2xl:grid-cols-4">
           {coiffures.map((coiffure) => (
             <article
               key={coiffure.id}
               className="group overflow-hidden rounded-xl border border-gray-100 bg-white shadow-[0_18px_36px_-32px_rgba(20,20,43,0.55)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_42px_-30px_rgba(20,20,43,0.7)]"
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-[#fff2f7] sm:aspect-[16/11]">
+              <div className="relative aspect-[4/3] max-h-80 overflow-hidden bg-[#fff2f7]">
                 {coiffure.image ? (
                   <img
                     src={coiffure.image}
                     alt={coiffure.nom}
-                    className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-105"
+                    className="h-full w-full object-cover object-[center_18%] transition duration-300 group-hover:scale-[1.03]"
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center">
@@ -511,7 +511,7 @@ function CoiffuresPage() {
                   <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {imagePreviews.slice(0, 4).map((preview, index) => (
                       <div key={`${preview}-${index}`} className="relative">
-                        <img src={preview} alt={`Apercu ${index + 1}`} className="h-20 w-full rounded-lg object-cover" />
+                        <img src={preview} alt={`Apercu ${index + 1}`} className="h-20 w-full rounded-lg object-cover object-[center_18%]" />
                         {index === 0 && (
                           <span className="absolute bottom-1 left-1 rounded bg-[#e91e63] px-2 py-0.5 text-[10px] font-black text-white">
                             principale

@@ -1,4 +1,4 @@
-import { CalendarCheck, ChevronLeft, CreditCard, Loader2, MapPin, Phone, Scissors, X } from 'lucide-react'
+import { Bell, CalendarCheck, CreditCard, Home, Loader2, MapPin, MessageCircle, Phone, Scissors, Search, User, Users, X } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import PhoneInput from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
@@ -15,6 +15,7 @@ function ClientCategoryPage() {
   const navigate = useNavigate()
   const parsedCategoryId = categoryId ? Number(categoryId) : null
   const [catalogue, setCatalogue] = useState<ClientCatalogue | null>(null)
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedCoiffure, setSelectedCoiffure] = useState<ClientCoiffure | null>(null)
@@ -91,13 +92,22 @@ function ClientCategoryPage() {
 
   const coiffures = useMemo(() => {
     const list = catalogue?.coiffures ?? []
+    const query = search.trim().toLowerCase()
 
-    if (!parsedCategoryId) {
-      return list
+    const categoryList = parsedCategoryId
+      ? list.filter((coiffure) => coiffure.categorie?.id === parsedCategoryId)
+      : list
+
+    if (query === '') {
+      return categoryList
     }
 
-    return list.filter((coiffure) => coiffure.categorie?.id === parsedCategoryId)
-  }, [catalogue?.coiffures, parsedCategoryId])
+    return categoryList.filter((coiffure) =>
+      coiffure.nom.toLowerCase().includes(query)
+      || (coiffure.description ?? '').toLowerCase().includes(query)
+      || (coiffure.categorie?.nom ?? '').toLowerCase().includes(query),
+    )
+  }, [catalogue?.coiffures, parsedCategoryId, search])
 
   const detailGalleryImages = selectedCoiffure
     ? selectedCoiffure.images.length > 0
@@ -212,25 +222,56 @@ function ClientCategoryPage() {
   return (
     <div className="min-h-screen bg-[#fdfafd] text-slate-950">
       <div className="mx-auto w-full max-w-[1440px] px-3 pb-12 pt-3 sm:px-5 lg:px-8">
-        <header className="border-b border-[#f7d6e5] bg-white/95 p-3 backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/')}
-              className="inline-flex min-h-11 items-center gap-2 px-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 hover:text-[#f31976]"
-            >
-              <ChevronLeft className="h-4 w-4" />
-                Accueil
-            </button>
-            <div className="flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#f31976] text-sm font-black text-white">BT</div>
-              <div>
-                <p className="font-display text-2xl leading-6">Bichette <span className="text-[#f31976]">Thomas</span></p>
-                <p className="mt-1 flex items-center gap-1 text-xs font-bold text-slate-500">
+        <header className="z-30 border-b border-[#f7d6e5] bg-white/95 p-3 backdrop-blur lg:sticky lg:top-0">
+          <div className="grid gap-3 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+            <button type="button" onClick={() => navigate('/')} className="flex min-w-0 items-center gap-3 text-left">
+              <img src="/logo bichette.jpg" alt="Bichette Thomas" className="h-12 w-12 shrink-0 rounded-2xl object-cover object-center" />
+              <div className="min-w-0">
+                <p className="font-display text-xl leading-5 text-slate-950 sm:text-2xl">Bichette <span className="text-[#f31976]">Thomas</span></p>
+                <p className="mt-1 flex items-center gap-1 text-[11px] font-bold text-slate-500">
                   <MapPin className="h-3.5 w-3.5 text-[#f31976]" />
                   Dakar, Senegal
                 </p>
               </div>
+            </button>
+
+            <label className="relative flex h-11 min-w-0 items-center lg:mx-auto lg:w-full lg:max-w-xl">
+              <Search className="pointer-events-none absolute left-4 h-4 w-4 text-slate-400" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Rechercher une coiffure..."
+                className="h-full w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-base font-bold outline-none transition focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm"
+              />
+            </label>
+
+            <div className="flex items-center justify-between gap-2 lg:justify-end">
+              <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto lg:flex-none lg:gap-2">
+                {[
+                  { label: 'Accueil', icon: Home, onClick: () => navigate('/') },
+                  { label: 'A propos', icon: Users, onClick: () => navigate('/#apropos') },
+                  { label: 'Contact', icon: MessageCircle, onClick: () => navigate('/#contact') },
+                ].map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={item.onClick}
+                      className="inline-flex h-10 shrink-0 items-center gap-2 px-2.5 text-[10px] font-black uppercase tracking-[0.13em] text-slate-600 transition hover:bg-[#fff0f6] hover:text-[#f31976] sm:px-3 sm:text-xs"
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </button>
+                  )
+                })}
+              </nav>
+              <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-800 shadow-sm" aria-label="Notifications">
+                <Bell className="h-5 w-5" />
+              </button>
+              <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976]" aria-label="Profil client">
+                <User className="h-5 w-5" />
+              </button>
             </div>
           </div>
         </header>
@@ -242,7 +283,7 @@ function ClientCategoryPage() {
         ) : null}
 
         <main>
-          <section className="bg-white py-9 sm:py-12">
+          <section className="bg-white py-8 sm:py-10">
             <div className="mx-auto max-w-4xl text-center">
               <p className="text-[10px] font-black uppercase tracking-[0.34em] text-slate-400">
                 <button type="button" onClick={() => navigate('/')} className="hover:text-[#f31976]">
@@ -250,10 +291,10 @@ function ClientCategoryPage() {
                 </button>
                 <span className="mx-2 text-slate-300">/</span> <span className="text-slate-950">Categorie</span>
               </p>
-              <h1 className="mt-5 text-5xl font-light uppercase leading-none tracking-[0.22em] text-slate-950 sm:text-7xl">
+              <h1 className="mx-auto mt-5 max-w-5xl text-3xl font-light uppercase leading-tight tracking-[0.16em] text-slate-950 sm:text-5xl lg:text-6xl">
                 {activeCategory?.nom ?? 'Toutes les coiffures'}
               </h1>
-              <p className="mx-auto mt-5 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
+              <p className="mx-auto mt-5 max-w-2xl text-sm font-semibold leading-6 text-slate-500 sm:leading-7">
                 {activeCategory?.description ?? 'Explorez les styles disponibles et ouvrez les details pour comparer les photos, les durees et les prix.'}
               </p>
             </div>
@@ -347,22 +388,21 @@ function ClientCategoryPage() {
       </div>
 
       {selectedCoiffure ? (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/65 px-3 py-5 backdrop-blur-sm">
-          <div className="mx-auto max-w-5xl bg-white shadow-2xl">
-            <div className="grid gap-0 lg:grid-cols-[0.9fr_1.1fr]">
-              <section className="bg-[#fff7fb] p-4 sm:p-6">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/65 px-2 py-3 backdrop-blur-sm sm:px-5 sm:py-8">
+          <div className="mx-auto grid max-w-7xl gap-0 overflow-hidden bg-white shadow-2xl lg:grid-cols-[0.92fr_1.08fr]">
+              <section className="bg-[#fff7fb] p-4 sm:p-6 lg:sticky lg:top-0 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-black text-[#f31976]">{selectedCoiffure.categorie?.nom ?? 'Coiffure'}</p>
-                    <h2 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">{selectedCoiffure.nom}</h2>
+                    <h2 className="mt-1 text-xl font-black text-slate-950 sm:text-3xl">{selectedCoiffure.nom}</h2>
                   </div>
-                  <button type="button" onClick={() => setSelectedCoiffure(null)} className="grid h-11 w-11 place-items-center bg-white" aria-label="Fermer">
+                  <button type="button" onClick={() => setSelectedCoiffure(null)} className="grid h-11 w-11 shrink-0 place-items-center bg-white text-slate-950 shadow-sm" aria-label="Fermer">
                     <X className="h-5 w-5" />
                   </button>
                 </div>
 
                 <div className="relative mt-5 overflow-hidden bg-white">
-                  <img src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)} alt={selectedCoiffure.nom} className="aspect-[4/3] w-full object-cover" />
+                  <img src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)} alt={selectedCoiffure.nom} className="aspect-[4/3] w-full bg-white object-contain" />
                   {modalLoading ? (
                     <div className="absolute inset-0 grid place-items-center bg-white/70">
                       <Loader2 className="h-8 w-8 animate-spin text-[#f31976]" />
@@ -378,31 +418,39 @@ function ClientCategoryPage() {
                       onClick={() => setSelectedGalleryImage(image.url)}
                       className={`aspect-square overflow-hidden bg-white ring-offset-2 transition ${(selectedGalleryImage ?? coiffureImage(selectedCoiffure)) === image.url ? 'ring-2 ring-[#f31976]' : 'hover:ring-2 hover:ring-[#f31976]/30'}`}
                     >
-                      <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover" />
+                      <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover object-[center_18%]" />
                     </button>
                   ))}
                 </div>
-              </section>
 
-              <form onSubmit={submitReservation} className="p-4 sm:p-6">
-                <p className="text-sm font-semibold leading-7 text-slate-600">
+                <p className="mt-5 text-sm font-semibold leading-7 text-slate-600">
                   {selectedCoiffure.description ?? 'Une prestation soignee, adaptee a votre style et au temps disponible au salon.'}
                 </p>
-                <div className="mt-6 grid grid-cols-2 gap-3">
-                  <div className="bg-[#fff7fb] p-4">
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="bg-white p-4">
                     <p className="text-xs font-black uppercase text-slate-400">Prix</p>
                     <p className="mt-1 text-lg font-black text-slate-950">{formatCurrency(selectedCoiffure.prix_min, devise)}</p>
                   </div>
-                  <div className="bg-[#fff7fb] p-4">
+                  <div className="bg-white p-4">
                     <p className="text-xs font-black uppercase text-slate-400">Duree</p>
                     <p className="mt-1 text-lg font-black text-slate-950">{formatDuration(selectedCoiffure.duree_min_minutes)}</p>
                   </div>
                 </div>
+              </section>
+
+              <form onSubmit={submitReservation} className="p-4 sm:p-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-black text-[#f31976]">Finaliser la demande</p>
+                    <h3 className="mt-1 text-2xl font-black text-slate-950">Votre reservation</h3>
+                  </div>
+                </div>
                 <div className="mt-6">
-                  <p className="text-sm font-black text-slate-950">Variantes</p>
+                  <p className="text-sm font-black text-slate-950">Variante</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     {selectedCoiffure.variantes.map((variant) => (
-                      <label key={variant.id} className={`block cursor-pointer border p-4 ${variantId === String(variant.id) ? 'border-[#f31976] bg-[#fff0f6]' : 'border-slate-200 bg-white'}`}>
+                      <label key={variant.id} className={`block cursor-pointer select-none rounded-3xl border p-4 text-left transition ${variantId === String(variant.id) ? 'border-[#f31976] bg-[#fff0f6]' : 'border-slate-200 bg-white'}`}>
                         <input
                           type="radio"
                           name="variant"
@@ -421,7 +469,7 @@ function ClientCategoryPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 grid grid-cols-2 gap-3">
+                <div className="mt-5 grid grid-cols-2 gap-3">
                   <label className="col-span-2 block">
                     <span className="text-[11px] font-black uppercase text-slate-500">Telephone WhatsApp</span>
                     <PhoneInput
@@ -432,7 +480,7 @@ function ClientCategoryPage() {
                       placeholder="77 123 45 67"
                       required
                       numberInputProps={{
-                        className: 'h-11 w-full border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976]',
+                        className: 'h-11 w-full rounded-2xl border border-slate-200 px-3 text-base font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm',
                       }}
                       className="mt-1.5 flex items-center gap-2"
                     />
@@ -443,7 +491,7 @@ function ClientCategoryPage() {
                       value={clientForm.prenom}
                       onChange={(event) => setClientForm((current) => ({ ...current, prenom: event.target.value }))}
                       required
-                      className="mt-1.5 h-11 w-full border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976]"
+                      className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-base font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm"
                     />
                   </label>
                   <label className="block">
@@ -452,7 +500,7 @@ function ClientCategoryPage() {
                       value={clientForm.nom}
                       onChange={(event) => setClientForm((current) => ({ ...current, nom: event.target.value }))}
                       required
-                      className="mt-1.5 h-11 w-full border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976]"
+                      className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-base font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm"
                     />
                   </label>
                   <label className="block">
@@ -463,7 +511,7 @@ function ClientCategoryPage() {
                       value={dateReservation}
                       onChange={(event) => setDateReservation(event.target.value)}
                       required
-                      className="mt-1.5 h-11 w-full border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976]"
+                      className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-base font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm"
                     />
                   </label>
                   <label className="block">
@@ -478,7 +526,7 @@ function ClientCategoryPage() {
                           key={method.value}
                           type="button"
                           onClick={() => setPaymentMethod(method.value)}
-                          className={`min-h-11 border px-2 text-xs font-black ${
+                          className={`min-h-11 rounded-2xl border px-2 text-xs font-black ${
                             paymentMethod === method.value
                               ? 'border-[#f31976] bg-[#fff0f6] text-[#f31976]'
                               : 'border-slate-200 bg-white text-slate-700'
@@ -511,7 +559,7 @@ function ClientCategoryPage() {
                         type="button"
                         disabled={!slot.disponible}
                         onClick={() => setHeureDebut(slot.heure)}
-                        className={`min-h-11 border px-2 text-sm font-black disabled:opacity-40 ${heureDebut === slot.heure ? 'border-[#f31976] bg-[#f31976] text-white' : 'border-slate-200 bg-white text-slate-800'}`}
+                        className={`min-h-11 rounded-2xl border px-2 text-sm font-black disabled:opacity-40 ${heureDebut === slot.heure ? 'border-[#f31976] bg-[#f31976] text-white' : 'border-slate-200 bg-white text-slate-800'}`}
                       >
                         {slot.heure}
                       </button>
@@ -524,13 +572,12 @@ function ClientCategoryPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 bg-[#f31976] px-5 text-xs font-black uppercase tracking-[0.18em] text-white disabled:opacity-60"
+                  className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 text-xs font-black uppercase tracking-[0.16em] text-white shadow-lg disabled:opacity-60"
                 >
                   {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CalendarCheck className="h-5 w-5" />}
                   Reserver cette coiffure
                 </button>
               </form>
-            </div>
           </div>
         </div>
       ) : null}

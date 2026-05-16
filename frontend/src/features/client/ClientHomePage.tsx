@@ -28,7 +28,6 @@ import type { LucideIcon } from 'lucide-react'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import PhoneInput from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
-import heroImage from '../../assets/hero.jpg'
 import {
   confirmPaytechReturn,
   confirmNaboopayReturn,
@@ -50,13 +49,11 @@ import {
   discountAmount,
   formatCurrency,
   formatDuration,
-  formatShortDate,
   isClosedDate,
   promoText,
   todayInput,
 } from './client.helpers'
 import { CoiffureCard } from './components/CoiffureCard'
-import { RatingStars } from './components/RatingStars'
 import { usePhoneLookup } from './hooks/usePhoneLookup'
 import type {
   ClientAvailability,
@@ -758,27 +755,37 @@ function ClientHomePage() {
   return (
     <div className="min-h-screen bg-[#fdfafd] text-slate-950">
       <div className="mx-auto w-full max-w-[1440px] px-3 pb-12 pt-3 sm:px-5 lg:px-8">
-        <header
-          id="accueil"
-          className="z-30 border-b border-[#f7d6e5] bg-white/95 p-3 backdrop-blur lg:sticky lg:top-0"
-        >
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex min-w-[220px] flex-1 items-center gap-3">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#f31976] text-sm font-black text-white">
-                BT
-              </div>
+        <header id="accueil" className="z-30 border-b border-[#f7d6e5] bg-white/95 p-3 backdrop-blur lg:sticky lg:top-0">
+          <div className="grid gap-3 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+            <a href="/" className="flex min-w-0 items-center gap-3">
+              <img
+                src="/logo bichette.jpg"
+                alt="Bichette Thomas"
+                className="h-12 w-12 shrink-0 rounded-2xl object-cover object-center"
+              />
               <div className="min-w-0">
-                <p className="font-display text-2xl leading-6 text-slate-950">
+                <p className="font-display text-xl leading-5 text-slate-950 sm:text-2xl">
                   Bichette <span className="text-[#f31976]">Thomas</span>
                 </p>
-                <p className="mt-1 flex items-center gap-1 text-xs font-bold text-slate-500">
+                <p className="mt-1 flex items-center gap-1 text-[11px] font-bold text-slate-500">
                   <MapPin className="h-3.5 w-3.5 text-[#f31976]" />
                   Dakar, Senegal
                 </p>
               </div>
-            </div>
+            </a>
 
-            <nav className="order-3 flex w-full gap-2 overflow-x-auto pt-1 lg:order-none lg:w-auto lg:flex-none lg:pt-0">
+            <label className="relative flex h-11 min-w-0 items-center lg:mx-auto lg:w-full lg:max-w-xl">
+              <Search className="pointer-events-none absolute left-4 h-4 w-4 text-slate-400" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Rechercher une coiffure..."
+                className="h-full w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-base font-bold outline-none transition focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm"
+              />
+            </label>
+
+            <div className="flex items-center justify-between gap-2 lg:justify-end">
+              <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto lg:flex-none lg:gap-2">
               {clientNavItems.map((item) => {
                 const Icon = item.icon
 
@@ -787,25 +794,14 @@ function ClientHomePage() {
                     key={item.id}
                     type="button"
                     onClick={() => scrollToSection(item.id)}
-                    className="inline-flex h-10 shrink-0 items-center gap-2 px-3 text-xs font-black uppercase tracking-[0.14em] text-slate-600 transition hover:bg-[#fff0f6] hover:text-[#f31976]"
+                    className="inline-flex h-10 shrink-0 items-center gap-2 px-2.5 text-[10px] font-black uppercase tracking-[0.13em] text-slate-600 transition hover:bg-[#fff0f6] hover:text-[#f31976] sm:px-3 sm:text-xs"
                   >
                     <Icon className="h-4 w-4" />
                     {item.label}
                   </button>
                 )
               })}
-            </nav>
-
-            <div className="flex w-full items-center gap-2 sm:w-auto lg:ml-auto">
-              <label className="relative flex h-11 min-w-0 flex-1 items-center sm:w-64 sm:flex-none">
-                <Search className="pointer-events-none absolute left-4 h-4 w-4 text-slate-400" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Rechercher"
-                  className="h-full w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-sm font-bold outline-none transition focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
-                />
-              </label>
+              </nav>
               <button
                 type="button"
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-800 shadow-sm"
@@ -851,18 +847,31 @@ function ClientHomePage() {
 
           <section className="relative mt-3 overflow-hidden bg-[#f31976] text-white">
             <div className="absolute inset-0">
-              <img src={heroImage} alt="" className="h-full w-full object-cover object-[68%_center] opacity-90 sm:object-center" />
+              <video
+                className="hidden h-full w-full object-cover object-center opacity-90 md:block"
+                src="/video acceuil.MP4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+              />
+              <img
+                src="/image mobile.jpg"
+                alt=""
+                className="h-full w-full object-cover object-[55%_center] opacity-90 md:hidden"
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-[#f31976]/40 to-transparent sm:bg-gradient-to-r sm:from-black/70 sm:via-[#f31976]/45 sm:to-transparent" />
             </div>
-            <div className="relative flex min-h-[68vh] items-end p-5 sm:min-h-[620px] sm:p-10 lg:p-14">
+            <div className="relative flex min-h-[520px] items-end p-5 sm:min-h-[620px] sm:p-10 lg:p-14">
               <div className="max-w-3xl pb-8">
-                <p className="inline-flex border border-white/40 px-3 py-1 text-[10px] font-black uppercase tracking-[0.34em] text-white/85 backdrop-blur">
+                <p className="inline-flex border border-white/40 px-3 py-1 text-[9px] font-black uppercase tracking-[0.28em] text-white/85 backdrop-blur sm:text-[10px]">
                   Salon de coiffure a Dakar
                 </p>
-                <h1 className="font-display mt-5 max-w-2xl text-5xl leading-none text-white sm:text-7xl lg:text-8xl">
+                <h1 className="font-display mt-5 max-w-2xl text-4xl leading-none text-white sm:text-6xl lg:text-7xl">
                   Bichette Thomas
                 </h1>
-                <p className="mt-5 max-w-xl text-base font-semibold leading-7 text-white/85 sm:text-lg">
+                <p className="mt-5 max-w-xl text-sm font-semibold leading-6 text-white/90 sm:text-base sm:leading-7">
                   Coiffures protectrices, poses soignees et reservations simples, avec une touche rose signature et un service pense pour votre rythme.
                 </p>
                 <button
@@ -1049,7 +1058,7 @@ function ClientHomePage() {
 
           <section id="apropos" className="grid gap-7 border-y border-[#f7d6e5] bg-white py-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div className="min-h-[360px] overflow-hidden bg-[#fff0f6]">
-              <img src={heroImage} alt="" className="h-full min-h-[360px] w-full object-cover" loading="lazy" />
+              <img src="/image mobile.jpg" alt="" className="h-full min-h-[360px] w-full object-cover object-[55%_center]" loading="lazy" />
             </div>
             <div className="px-1 lg:px-8">
               <p className="text-[10px] font-black uppercase tracking-[0.32em] text-[#f31976]">A propos de nous</p>
@@ -1219,7 +1228,7 @@ function ClientHomePage() {
                 <img
                   src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)}
                   alt={selectedCoiffure.nom}
-                  className="aspect-[4/3] w-full object-cover"
+                  className="aspect-[4/3] w-full bg-white object-contain"
                 />
                 {modalLoading ? (
                   <div className="absolute inset-0 grid place-items-center bg-white/70">
@@ -1241,7 +1250,7 @@ function ClientHomePage() {
                     }`}
                     aria-label="Afficher cette photo"
                   >
-                    <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover" />
+                    <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover object-[center_18%]" />
                   </button>
                 ))}
               </div>
@@ -1259,56 +1268,6 @@ function ClientHomePage() {
                   <p className="text-xs font-black uppercase text-slate-400">Duree</p>
                   <p className="mt-1 text-lg font-black text-slate-950">{formatDuration(selectedCoiffure.duree_min_minutes)}</p>
                 </div>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="bg-white p-4">
-                  <p className="text-xs font-black uppercase text-slate-400">Avis</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <RatingStars value={selectedCoiffure.avis_resume?.moyenne ?? 0} />
-                    <span className="text-sm font-black text-slate-950">
-                      {selectedCoiffure.avis_resume?.total ? selectedCoiffure.avis_resume.moyenne.toFixed(1) : '0.0'}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs font-bold text-slate-500">{selectedCoiffure.avis_resume?.total ?? 0} commentaire(s)</p>
-                </div>
-                <div className="bg-white p-4">
-                  <p className="text-xs font-black uppercase text-slate-400">Fiabilite</p>
-                  <p className="mt-1 text-lg font-black text-slate-950">
-                    {selectedCoiffure.avis.some((avis) => avis.verifie) ? 'Verifie' : 'En cours'}
-                  </p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">Commentaires clientes</p>
-                </div>
-              </div>
-
-              <div className="mt-5 bg-white p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-black text-slate-950">Commentaires clientes</p>
-                  <MessageCircle className="h-4 w-4 text-[#f31976]" />
-                </div>
-                {selectedCoiffure.avis.length > 0 ? (
-                  <div className="mt-3 space-y-3">
-                    {selectedCoiffure.avis.map((avis) => (
-                      <article key={avis.id} className="border border-slate-100 bg-white p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-black text-slate-950">{avis.nom_client}</p>
-                            <div className="mt-1 flex items-center gap-2">
-                              <RatingStars value={avis.note} size="xs" />
-                              {avis.verifie ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">Verifie</span> : null}
-                            </div>
-                          </div>
-                          <span className="shrink-0 text-xs font-bold text-slate-400">{avis.publie_at ? formatShortDate(avis.publie_at) : ''}</span>
-                        </div>
-                        <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{avis.commentaire}</p>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-3 bg-[#fff7fb] px-3 py-3 text-sm font-bold text-slate-500">
-                    Aucun commentaire publie pour cette coiffure pour le moment.
-                  </p>
-                )}
               </div>
 
             </section>
