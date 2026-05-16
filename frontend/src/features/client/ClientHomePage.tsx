@@ -755,8 +755,8 @@ function ClientHomePage() {
 
   return (
     <div className="min-h-screen bg-[#fdfafd] text-slate-950">
-      <div className="mx-auto w-full max-w-[1440px] px-3 pb-12 pt-3 sm:px-5 lg:px-8">
-        <header id="accueil" className="z-30 border-b border-[#f7d6e5] bg-white/95 px-2 py-2 backdrop-blur sm:px-3 lg:sticky lg:top-0">
+      <header id="accueil" className="sticky top-0 z-30 border-b border-[#f7d6e5] bg-white/95 backdrop-blur">
+        <div className="mx-auto w-full max-w-[1440px] px-3 py-2 sm:px-5 lg:px-8">
           <div className="flex items-center gap-2 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-3">
             <a href="/" className="flex shrink-0 items-center gap-3">
               <img
@@ -841,20 +841,22 @@ function ClientHomePage() {
               )}
             </div>
           </div>
-        </header>
+        </div>
+      </header>
 
-        <main className="mt-5">
-          {pageNotice ? (
-            <div
-              className={`mb-5 rounded-3xl px-5 py-4 text-sm font-bold ${
-                pageNotice.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
-              }`}
-            >
-              {pageNotice.message}
-            </div>
-          ) : null}
+      {pageNotice ? (
+        <div className="mx-auto w-full max-w-[1440px] px-3 pt-3 sm:px-5 lg:px-8">
+          <div
+            className={`mb-5 rounded-3xl px-5 py-4 text-sm font-bold ${
+              pageNotice.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+            }`}
+          >
+            {pageNotice.message}
+          </div>
+        </div>
+      ) : null}
 
-          <section className="relative mt-3 overflow-hidden bg-[#f31976] text-white">
+      <section className="relative overflow-hidden bg-[#f31976] text-white">
             <div className="absolute inset-0">
               <video
                 className="hidden h-full w-full object-cover object-center opacity-90 md:block"
@@ -893,8 +895,10 @@ function ClientHomePage() {
                 </button>
               </div>
             </div>
-          </section>
+      </section>
 
+      <div className="mx-auto w-full max-w-[1440px] px-3 pb-12 sm:px-5 lg:px-8">
+        <main>
           {catalogueError ? (
             <div className="mt-5 rounded-3xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
               {catalogueError}
