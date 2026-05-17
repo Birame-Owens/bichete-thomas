@@ -575,13 +575,6 @@ function ClientHomePage() {
     }))
   }
 
-  function openClientAuth(mode: ClientAuthMode = 'login') {
-    setClientAuthMode(mode)
-    setClientAuthForm(createClientAuthForm(clientSession))
-    setClientAuthNotice(null)
-    setShowClientAuth(true)
-  }
-
   async function handleClientAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setClientAuthSubmitting(true)
