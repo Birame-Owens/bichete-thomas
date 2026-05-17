@@ -1,10 +1,11 @@
 import { Bell, CalendarCheck, Check, CheckCircle, CreditCard, Home, Loader2, MapPin, MessageCircle, Phone, Scissors, Search, User, Users, X } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import PhoneInput from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
 import { useNavigate, useParams } from 'react-router-dom'
 import { confirmNaboopayReturn, createClientReservation, getClientAvailability, getClientCatalogue, getClientCoiffureDetails } from './client.api'
-import { coiffureImage, formatCurrency, formatDuration, isClosedDate, todayInput } from './client.helpers'
+import { usePhoneLookup } from './hooks/usePhoneLookup'
+import { coiffureImage, formatCurrency, formatDuration, formatShortDate, isClosedDate, todayInput } from './client.helpers'
 import { CoiffureCard } from './components/CoiffureCard'
 import type { ClientAvailability, ClientCatalogue, ClientCoiffure, ClientPaymentMethod, ClientPaymentWithRelations } from './client.types'
 
@@ -32,6 +33,21 @@ function ClientCategoryPage() {
   const [submitting, setSubmitting] = useState(false)
   const [paymentConfirmation, setPaymentConfirmation] = useState<ClientPaymentWithRelations | null>(null)
   const [paymentConfirming, setPaymentConfirming] = useState(false)
+
+  const phoneLookup = usePhoneLookup(clientForm.telephone)
+
+  const updateClientField = useCallback(<K extends keyof typeof clientForm>(key: K, value: typeof clientForm[K]) => {
+    setClientForm((current) => ({ ...current, [key]: value }))
+  }, [])
+
+  useEffect(() => {
+    if (phoneLookup.state !== 'found' || phoneLookup.data === null) return
+    setClientForm((current) => ({
+      ...current,
+      prenom: current.prenom.trim() === '' ? phoneLookup.data?.prenom ?? '' : current.prenom,
+      nom: current.nom.trim() === '' ? phoneLookup.data?.nom ?? '' : current.nom,
+    }))
+  }, [phoneLookup.state, phoneLookup.data])
 
   const settings = catalogue?.settings
 
@@ -287,6 +303,25 @@ function ClientCategoryPage() {
                       : 'Carte bancaire'}
                 </p>
               </div>
+              {Number(paymentConfirmation.reservation?.montant_restant ?? 0) > 0 && (
+                <div className="rounded-2xl bg-[#fff8fb] p-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Reste à payer</p>
+                  <p className="mt-1 text-sm font-black text-[#f31976]">
+                    {formatCurrency(Number(paymentConfirmation.reservation?.montant_restant), paymentConfirmation.devise)}
+                  </p>
+                </div>
+              )}
+              {paymentConfirmation.reservation?.date_reservation && (
+                <div className="rounded-2xl bg-[#fff8fb] p-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Réservation</p>
+                  <p className="mt-1 text-sm font-black text-slate-950">
+                    {formatShortDate(paymentConfirmation.reservation.date_reservation)}
+                    {paymentConfirmation.reservation.heure_debut
+                      ? ` à ${paymentConfirmation.reservation.heure_debut.slice(0, 5)}`
+                      : ''}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="mt-3 flex items-start gap-3 rounded-2xl border border-[#f7d6e5] bg-[#fff8fb] p-3.5">
@@ -588,12 +623,23 @@ function ClientCategoryPage() {
 
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <label className="col-span-2 block">
-                    <span className="text-[11px] font-black uppercase text-slate-500">Telephone WhatsApp</span>
+                    <span className="flex items-center gap-2 text-[11px] font-black uppercase text-slate-500">
+                      Telephone WhatsApp
+                      {phoneLookup.state === 'loading' ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-[#f31976]" aria-hidden />
+                      ) : null}
+                      {phoneLookup.state === 'found' && phoneLookup.data?.prenom ? (
+                        <span className="flex items-center gap-1 rounded-full bg-[#fff0f6] px-2 py-0.5 text-[10px] font-black normal-case text-[#f31976]">
+                          <Check className="h-3 w-3" aria-hidden />
+                          Bonjour {phoneLookup.data.prenom} !
+                        </span>
+                      ) : null}
+                    </span>
                     <PhoneInput
                       international
                       defaultCountry="SN"
                       value={clientForm.telephone || undefined}
-                      onChange={(value) => setClientForm((current) => ({ ...current, telephone: value ?? '' }))}
+                      onChange={(value) => updateClientField('telephone', value ?? '')}
                       placeholder="77 123 45 67"
                       required
                       numberInputProps={{
