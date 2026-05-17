@@ -50,13 +50,17 @@ import type {
 
 const statusOptions: Array<{ value: ReservationStatus; label: string }> = [
   { value: 'en_attente', label: 'En attente' },
-  { value: 'confirmee', label: 'Confirmee' },
   { value: 'acompte_paye', label: 'Acompte paye' },
-  { value: 'en_cours', label: 'En cours' },
   { value: 'terminee', label: 'Terminee' },
   { value: 'annulee', label: 'Annulee' },
   { value: 'absence', label: 'Absence' },
 ]
+
+// Libelles pour les anciens statuts encore en base (affichage uniquement)
+const legacyStatusLabels: Partial<Record<ReservationStatus, string>> = {
+  confirmee: 'Confirmee',
+  en_cours: 'En cours',
+}
 
 const emptyDetail: ReservationDetailForm = {
   coiffure_id: '',
@@ -112,7 +116,7 @@ function minutesLabel(minutes: number) {
 }
 
 function statusLabel(status: ReservationStatus) {
-  return statusOptions.find((item) => item.value === status)?.label ?? status
+  return statusOptions.find((item) => item.value === status)?.label ?? legacyStatusLabels[status] ?? status
 }
 
 function statusClass(status: ReservationStatus) {
@@ -124,7 +128,7 @@ function statusClass(status: ReservationStatus) {
     return 'bg-red-50 text-red-700'
   }
 
-  if (status === 'acompte_paye' || status === 'en_cours') {
+  if (status === 'acompte_paye' || status === 'en_cours' || status === 'confirmee') {
     return 'bg-[#fff2f7] text-[#c41468]'
   }
 
@@ -227,7 +231,7 @@ function ReservationsPage() {
     [reservations, today],
   )
   const confirmedCount = useMemo(
-    () => reservations.filter((reservation) => ['confirmee', 'acompte_paye', 'en_cours'].includes(reservation.statut)).length,
+    () => reservations.filter((reservation) => reservation.statut === 'acompte_paye').length,
     [reservations],
   )
   const waitingCount = useMemo(
@@ -629,7 +633,7 @@ function ReservationsPage() {
         <div className="rounded-xl border border-[#f1e7ee] bg-white px-4 py-3 shadow-[0_14px_30px_-28px_rgba(20,20,43,0.5)]">
           <p className="text-xs font-black uppercase tracking-[0.08em] text-gray-400">Confirmees</p>
           <p className="mt-1 text-2xl font-black text-[#111018]">{confirmedCount}</p>
-          <p className="mt-1 text-xs font-bold text-gray-500">Inclut acompte et en cours</p>
+          <p className="mt-1 text-xs font-bold text-gray-500">Acompte paye</p>
         </div>
         <div className="rounded-xl border border-[#f1e7ee] bg-white px-4 py-3 shadow-[0_14px_30px_-28px_rgba(20,20,43,0.5)]">
           <p className="text-xs font-black uppercase tracking-[0.08em] text-gray-400">En attente</p>
@@ -713,9 +717,11 @@ function ReservationsPage() {
                 <button type="button" onClick={() => openModal(reservation)} className="flex h-9 w-9 items-center justify-center rounded-lg text-indigo-600 transition hover:bg-indigo-50" title="Modifier">
                   <Edit className="h-4 w-4" />
                 </button>
-                <button type="button" onClick={() => void remove(reservation)} className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50" title="Supprimer">
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {!['acompte_paye', 'terminee'].includes(reservation.statut) && (
+                  <button type="button" onClick={() => void remove(reservation)} className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50" title="Supprimer">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </article>
           ))
@@ -789,9 +795,11 @@ function ReservationsPage() {
                         <button type="button" onClick={() => openModal(reservation)} className="flex h-9 w-9 items-center justify-center rounded-lg text-indigo-600 transition hover:bg-indigo-50" title="Modifier">
                           <Edit className="h-4 w-4" />
                         </button>
-                        <button type="button" onClick={() => void remove(reservation)} className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50" title="Supprimer">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {!['acompte_paye', 'terminee'].includes(reservation.statut) && (
+                          <button type="button" onClick={() => void remove(reservation)} className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50" title="Supprimer">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

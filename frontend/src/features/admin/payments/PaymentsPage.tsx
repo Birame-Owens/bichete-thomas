@@ -672,9 +672,11 @@ function PaymentsPage() {
                     <Ban className="h-4 w-4" />
                   </button>
                 )}
-                <button type="button" onClick={() => void remove(payment)} className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50" title="Supprimer">
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {payment.statut !== 'valide' && (
+                  <button type="button" onClick={() => void remove(payment)} className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50" title="Supprimer">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </article>
           ))
@@ -751,9 +753,11 @@ function PaymentsPage() {
                             <Ban className="h-4 w-4" />
                           </button>
                         )}
-                        <button type="button" onClick={() => void remove(payment)} className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50" title="Supprimer">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {payment.statut !== 'valide' && (
+                          <button type="button" onClick={() => void remove(payment)} className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50" title="Supprimer">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
