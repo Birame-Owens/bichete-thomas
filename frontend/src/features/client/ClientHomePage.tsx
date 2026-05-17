@@ -978,7 +978,7 @@ function ClientHomePage() {
       <section className="relative overflow-hidden bg-[#f31976] text-white">
             <div className="absolute inset-0">
               <video
-                className="hidden h-full w-full object-cover object-center opacity-90 md:block"
+                className="hidden h-full w-full object-cover object-center md:block"
                 src="/video acceuil.MP4"
                 autoPlay
                 muted
@@ -991,7 +991,7 @@ function ClientHomePage() {
                 alt=""
                 className="h-full w-full object-cover object-[55%_center] opacity-90 md:hidden"
               />
-              <div className="absolute inset-0 hidden bg-gradient-to-r from-black/70 via-[#f31976]/45 to-transparent md:block" />
+              <div className="absolute inset-0 hidden bg-gradient-to-r from-black/60 via-[#f31976]/15 to-transparent md:block" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent md:hidden" />
             </div>
             <div className="relative flex min-h-[430px] items-end p-5 sm:min-h-[560px] sm:p-10 lg:min-h-[620px] lg:p-14">
