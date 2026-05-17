@@ -141,11 +141,12 @@ function RevenueExpenseChart({
   revenue: ReportSeriesPoint[]
   expenses: ReportSeriesPoint[]
 }) {
-  const points = revenue.map((point, index) => ({
+  const expenseByKey = Object.fromEntries(expenses.map((e) => [e.key, e.value]))
+  const points = revenue.map((point) => ({
     key: point.key,
     label: point.label,
     revenue: point.value,
-    expense: expenses[index]?.value ?? 0,
+    expense: expenseByKey[point.key] ?? 0,
   }))
   const max = Math.max(...points.flatMap((point) => [point.revenue, point.expense]), 1)
 

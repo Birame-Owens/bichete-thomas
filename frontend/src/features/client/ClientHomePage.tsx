@@ -1665,15 +1665,6 @@ function ClientHomePage() {
                   })}
                 </div>
 
-                {bookingForm.paymentMethod !== 'carte_bancaire' ? (
-                  <div className="mt-4 rounded-3xl bg-[#fff0f6] p-4 text-sm font-bold text-[#b01258]">
-                    Vous serez redirigee vers NabooPay pour payer par {selectedPaymentMethod?.label}. Le paiement sera valide automatiquement par webhook.
-                  </div>
-                ) : (
-                  <div className="mt-4 rounded-3xl bg-[#fff0f6] p-4 text-sm font-bold text-[#b01258]">
-                    Vous serez redirigee vers NabooPay pour payer par carte bancaire. Le paiement sera valide automatiquement au retour ou par webhook.
-                  </div>
-                )}
               </div>
 
               <div className="mt-6 rounded-3xl bg-slate-950 p-5 text-white">
@@ -1731,7 +1722,7 @@ function ClientHomePage() {
                 className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 py-4 text-base font-black text-white shadow-lg transition disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CalendarCheck className="h-5 w-5" />}
-                Continuer vers NabooPay
+                Confirmer et payer l'acompte
               </button>
             </form>
           </div>
