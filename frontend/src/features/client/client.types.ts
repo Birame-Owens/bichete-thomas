@@ -209,9 +209,21 @@ export type ClientReservationResponse = {
   requires_redirect: boolean
 }
 
+export type ClientPaymentClientInfo = {
+  prenom: string
+  nom: string
+  telephone: string
+  email?: string | null
+}
+
+export type ClientPaymentWithRelations = ClientPayment & {
+  client?: ClientPaymentClientInfo | null
+  reservation?: (ClientReservation & { client?: ClientPaymentClientInfo | null }) | null
+}
+
 export type ClientStripeConfirmation = {
   message?: string
-  data: ClientPayment
+  data: ClientPaymentWithRelations
 }
 
 // Phase 5 etape 1 : lookup public d un client par telephone E.164.
