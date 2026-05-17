@@ -6,6 +6,8 @@ import {
   Edit,
   Eye,
   FileText,
+  LayoutList,
+  List,
   Plus,
   Printer,
   ReceiptText,
@@ -26,6 +28,7 @@ import {
   markReceiptSent,
   updatePayment,
 } from './payments.api'
+import { getReservations } from '../reservations/reservations.api'
 import {
   EmptyState,
   ErrorState,
@@ -49,6 +52,7 @@ import type {
   PaymentType,
   Reservation,
 } from './payments.types'
+import type { Reservation as FullReservation } from '../reservations/reservations.types'
 
 const typeOptions: Array<{ value: PaymentType; label: string }> = [
   { value: 'acompte', label: 'Acompte' },
@@ -73,6 +77,46 @@ const statusOptions: Array<{ value: PaymentStatus; label: string }> = [
   { value: 'annule', label: 'Annule' },
   { value: 'rembourse', label: 'Rembourse' },
 ]
+
+const resStatusOptions = [
+  { value: 'en_attente', label: 'En attente' },
+  { value: 'acompte_paye', label: 'Acompte paye' },
+  { value: 'terminee', label: 'Terminee' },
+  { value: 'annulee', label: 'Annulee' },
+  { value: 'absence', label: 'Absence' },
+]
+
+function resStatusLabel(status: string) {
+  return resStatusOptions.find((s) => s.value === status)?.label ?? status
+}
+
+function resStatusClass(status: string) {
+  if (status === 'terminee') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'annulee' || status === 'absence') return 'bg-red-50 text-red-700'
+  if (status === 'acompte_paye') return 'bg-[#fff2f7] text-[#c41468]'
+  return 'bg-gray-100 text-gray-600'
+}
+
+function resteClass(reste: number) {
+  return reste === 0
+    ? 'bg-emerald-50 text-emerald-700'
+    : 'bg-red-50 text-red-700'
+}
+
+function resteLabel(reste: number, devise: string) {
+  return reste === 0 ? 'Soldee' : `${reste.toLocaleString('fr-FR')} ${devise}`
+}
+
+function resClientName(res: FullReservation) {
+  if (!res.client) return 'Cliente supprimee'
+  return `${res.client.prenom} ${res.client.nom}`.trim()
+}
+
+function resServiceLabel(res: FullReservation) {
+  const first = res.details?.[0]
+  if (!first) return 'Prestation'
+  return [first.coiffure_nom, first.variante_nom].filter(Boolean).join(' · ')
+}
 
 function nowInputValue() {
   const now = new Date()
@@ -278,6 +322,9 @@ function validateForm(form: PaymentForm, reservation: Reservation | null) {
 }
 
 function PaymentsPage() {
+  const [viewMode, setViewMode] = useState<'transactions' | 'reservations'>('transactions')
+
+  // --- Vue Transactions ---
   const [items, setItems] = useState<LaravelPaginated<Paiement> | null>(null)
   const [summary, setSummary] = useState<PaymentSummary>(emptySummary)
   const [lookups, setLookups] = useState<PaymentLookups>({ reservations: [], clients: [] })
@@ -300,6 +347,17 @@ function PaymentsPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const filtersReady = useRef(false)
+
+  // --- Vue Par reservation ---
+  const [resItems, setResItems] = useState<LaravelPaginated<FullReservation> | null>(null)
+  const [resPage, setResPage] = useState(1)
+  const [resSearch, setResSearch] = useState('')
+  const [resStatusFilter, setResStatusFilter] = useState('all')
+  const [resDateFrom, setResDateFrom] = useState('')
+  const [resDateTo, setResDateTo] = useState('')
+  const [resLoading, setResLoading] = useState(false)
+  const resFiltersReady = useRef(false)
+  const resLoaded = useRef(false)
 
   const payments = useMemo(() => items?.data ?? [], [items])
   const selectedReservation = useMemo(
@@ -388,6 +446,51 @@ function PaymentsPage() {
 
     return () => window.clearTimeout(timeoutId)
   }, [dateFrom, dateTo, loadPage, methodFilter, search, statusFilter, typeFilter])
+
+  const loadResPage = useCallback(
+    async (nextPage: number, nextSearch: string, nextStatus: string, nextFrom: string, nextTo: string) => {
+      setResLoading(true)
+      setError(null)
+      try {
+        const response = await getReservations({
+          page: nextPage,
+          per_page: 12,
+          search: nextSearch || undefined,
+          statut: nextStatus === 'all' ? undefined : nextStatus,
+          date_from: nextFrom || undefined,
+          date_to: nextTo || undefined,
+        })
+        setResItems(response)
+        setResPage(nextPage)
+      } catch {
+        setError('Impossible de charger les reservations.')
+      } finally {
+        setResLoading(false)
+      }
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (!resFiltersReady.current) {
+      resFiltersReady.current = true
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void loadResPage(1, resSearch, resStatusFilter, resDateFrom, resDateTo)
+    }, 300)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [loadResPage, resDateFrom, resDateTo, resSearch, resStatusFilter])
+
+  const switchToReservations = () => {
+    setViewMode('reservations')
+    if (!resLoaded.current) {
+      resLoaded.current = true
+      void loadResPage(1, resSearch, resStatusFilter, resDateFrom, resDateTo)
+    }
+  }
 
   const resetForm = () => {
     setForm(emptyForm())
@@ -539,13 +642,34 @@ function PaymentsPage() {
             Encaissements, acomptes, soldes, mouvements de caisse et recus clients.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {/* Toggle vue */}
+          <div className="flex rounded-xl border border-gray-200 bg-gray-50 p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('transactions')}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-black transition ${viewMode === 'transactions' ? 'bg-white text-[#c41468] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              <List className="h-4 w-4" />
+              Transactions
+            </button>
+            <button
+              type="button"
+              onClick={switchToReservations}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-black transition ${viewMode === 'reservations' ? 'bg-white text-[#c41468] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              <LayoutList className="h-4 w-4" />
+              Par reservation
+            </button>
+          </div>
           <button
             type="button"
-            onClick={() => void loadPage(page, search, statusFilter, typeFilter, methodFilter, dateFrom, dateTo)}
+            onClick={() => viewMode === 'transactions'
+              ? void loadPage(page, search, statusFilter, typeFilter, methodFilter, dateFrom, dateTo)
+              : void loadResPage(resPage, resSearch, resStatusFilter, resDateFrom, resDateTo)}
             className={`${secondaryButtonClass} inline-flex items-center justify-center gap-2`}
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${(loading || resLoading) ? 'animate-spin' : ''}`} />
             Actualiser
           </button>
           <button
@@ -594,42 +718,69 @@ function PaymentsPage() {
         </div>
       </section>
 
-      <section className="mb-5 rounded-xl border border-gray-100 bg-white p-4 shadow-[0_18px_36px_-32px_rgba(20,20,43,0.5)]">
-        <div className="grid gap-3 xl:grid-cols-[minmax(220px,1fr)_repeat(5,auto)] xl:items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-4 text-sm font-semibold outline-none focus:border-[#e91e63] focus:ring-4 focus:ring-[#e91e63]/10"
-              placeholder="Recu, client, reference, coiffure..."
-            />
+      {/* Filtres — adaptes selon la vue active */}
+      {viewMode === 'transactions' ? (
+        <section className="mb-5 rounded-xl border border-gray-100 bg-white p-4 shadow-[0_18px_36px_-32px_rgba(20,20,43,0.5)]">
+          <div className="grid gap-3 xl:grid-cols-[minmax(220px,1fr)_repeat(5,auto)] xl:items-center">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-4 text-sm font-semibold outline-none focus:border-[#e91e63] focus:ring-4 focus:ring-[#e91e63]/10"
+                placeholder="Recu, client, reference, coiffure..."
+              />
+            </div>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={inputClass}>
+              <option value="all">Tous statuts</option>
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className={inputClass}>
+              <option value="all">Tous types</option>
+              {typeOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <select value={methodFilter} onChange={(event) => setMethodFilter(event.target.value)} className={inputClass}>
+              <option value="all">Tous modes</option>
+              {methodOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className={inputClass} />
+            <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className={inputClass} />
           </div>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={inputClass}>
-            <option value="all">Tous statuts</option>
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className={inputClass}>
-            <option value="all">Tous types</option>
-            {typeOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-          <select value={methodFilter} onChange={(event) => setMethodFilter(event.target.value)} className={inputClass}>
-            <option value="all">Tous modes</option>
-            {methodOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-          <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className={inputClass} />
-          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className={inputClass} />
-        </div>
-      </section>
+        </section>
+      ) : (
+        <section className="mb-5 rounded-xl border border-gray-100 bg-white p-4 shadow-[0_18px_36px_-32px_rgba(20,20,43,0.5)]">
+          <div className="grid gap-3 xl:grid-cols-[minmax(220px,1fr)_repeat(3,auto)] xl:items-center">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={resSearch}
+                onChange={(event) => setResSearch(event.target.value)}
+                className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-4 text-sm font-semibold outline-none focus:border-[#e91e63] focus:ring-4 focus:ring-[#e91e63]/10"
+                placeholder="Client, telephone..."
+              />
+            </div>
+            <select value={resStatusFilter} onChange={(event) => setResStatusFilter(event.target.value)} className={inputClass}>
+              <option value="all">Tous statuts</option>
+              {resStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <input type="date" value={resDateFrom} onChange={(event) => setResDateFrom(event.target.value)} className={inputClass} />
+            <input type="date" value={resDateTo} onChange={(event) => setResDateTo(event.target.value)} className={inputClass} />
+          </div>
+        </section>
+      )}
 
       {error && <div className="mb-5"><ErrorState label={error} /></div>}
       {success && <div className="mb-5"><SuccessState label={success} /></div>}
+
+      {viewMode === 'transactions' ? (<>
 
       <section className="grid gap-3 lg:hidden">
         {loading ? (
@@ -777,6 +928,145 @@ function PaymentsPage() {
           onNext={() => void loadPage(page + 1, search, statusFilter, typeFilter, methodFilter, dateFrom, dateTo)}
         />
       )}
+
+      </>) : (<>
+
+      {/* ===== VUE PAR RESERVATION ===== */}
+      <section className="grid gap-3 lg:hidden">
+        {resLoading ? (
+          Array.from({ length: 4 }).map((_, index) => (
+            <article key={index} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+              <div className="h-5 w-2/3 animate-pulse rounded bg-gray-100" />
+              <div className="mt-3 h-4 w-full animate-pulse rounded bg-gray-100" />
+              <div className="mt-3 h-4 w-1/2 animate-pulse rounded bg-gray-100" />
+            </article>
+          ))
+        ) : (resItems?.data ?? []).length === 0 ? (
+          <EmptyState label="Aucune reservation trouvee." />
+        ) : (
+          (resItems?.data ?? []).map((res) => {
+            const total = Number(res.montant_total ?? 0)
+            const restant = Number(res.montant_restant ?? 0)
+            const encaisse = Math.max(total - restant, 0)
+
+            return (
+              <article key={res.id} className="rounded-xl border border-gray-100 bg-white p-4 shadow-[0_14px_30px_-28px_rgba(20,20,43,0.55)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-black text-gray-950">{resClientName(res)}</p>
+                    <p className="mt-0.5 text-xs font-semibold text-gray-400">{res.client?.telephone ?? '-'}</p>
+                    <p className="mt-1 truncate text-sm font-semibold text-[#c41468]">{resServiceLabel(res)}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${resStatusClass(res.statut)}`}>
+                    {resStatusLabel(res.statut)}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs font-semibold text-gray-400">
+                  {formatDate(res.date_reservation)} · {res.heure_debut.slice(0, 5)}
+                </p>
+                <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-gray-50 p-3 text-center text-xs font-bold">
+                  <div>
+                    <p className="text-gray-400">Total</p>
+                    <p className="mt-0.5 font-black text-gray-950">{money(total, res.devise)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Encaisse</p>
+                    <p className="mt-0.5 font-black text-[#c41468]">{money(encaisse, res.devise)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Reste</p>
+                    <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-black ${resteClass(restant)}`}>
+                      {resteLabel(restant, res.devise)}
+                    </span>
+                  </div>
+                </div>
+              </article>
+            )
+          })
+        )}
+      </section>
+
+      <section className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-[0_18px_36px_-32px_rgba(20,20,43,0.5)] lg:block">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[860px] text-left text-sm">
+            <thead className="bg-[#fbf8fa] text-xs uppercase tracking-[0.08em] text-gray-500">
+              <tr>
+                <th className="px-5 py-3">Client</th>
+                <th className="px-5 py-3">Date</th>
+                <th className="px-5 py-3">Prestation</th>
+                <th className="px-5 py-3">Total</th>
+                <th className="px-5 py-3">Encaisse</th>
+                <th className="px-5 py-3">Reste a payer</th>
+                <th className="px-5 py-3">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resLoading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index} className="border-t border-gray-100">
+                    <td colSpan={7} className="px-5 py-4">
+                      <div className="h-5 w-full animate-pulse rounded bg-gray-100" />
+                    </td>
+                  </tr>
+                ))
+              ) : (resItems?.data ?? []).length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-8">
+                    <EmptyState label="Aucune reservation trouvee." />
+                  </td>
+                </tr>
+              ) : (
+                (resItems?.data ?? []).map((res) => {
+                  const total = Number(res.montant_total ?? 0)
+                  const restant = Number(res.montant_restant ?? 0)
+                  const encaisse = Math.max(total - restant, 0)
+
+                  return (
+                    <tr key={res.id} className="border-t border-gray-100 transition hover:bg-[#fff8fb]">
+                      <td className="px-5 py-4">
+                        <div className="font-black text-gray-950">{resClientName(res)}</div>
+                        <div className="mt-1 text-xs font-bold text-gray-400">{res.client?.telephone ?? '-'}</div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="font-bold text-gray-900">{formatDate(res.date_reservation)}</div>
+                        <div className="mt-1 text-xs font-bold text-gray-400">{res.heure_debut.slice(0, 5)}</div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="font-bold text-gray-900">{resServiceLabel(res)}</div>
+                        <div className="mt-1 text-xs font-bold text-gray-400">Reservation #{res.id}</div>
+                      </td>
+                      <td className="px-5 py-4 font-black text-gray-950">{money(total, res.devise)}</td>
+                      <td className="px-5 py-4 font-black text-[#c41468]">{money(encaisse, res.devise)}</td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-black ${resteClass(restant)}`}>
+                          {resteLabel(restant, res.devise)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-black ${resStatusClass(res.statut)}`}>
+                          {resStatusLabel(res.statut)}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {resItems && (
+        <Pagination
+          page={resPage}
+          lastPage={resItems.last_page}
+          total={resItems.total}
+          onPrevious={() => void loadResPage(resPage - 1, resSearch, resStatusFilter, resDateFrom, resDateTo)}
+          onNext={() => void loadResPage(resPage + 1, resSearch, resStatusFilter, resDateFrom, resDateTo)}
+        />
+      )}
+
+      </>)}
 
       {modalOpen && (
         <Modal title={editingPayment ? 'Modifier paiement' : 'Nouveau paiement'} onClose={resetForm} wide>
