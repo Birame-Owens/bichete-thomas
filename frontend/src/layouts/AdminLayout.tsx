@@ -36,6 +36,7 @@ type Section = {
   label: string
   path: string
   icon: LucideIcon
+  comingSoon?: boolean
   children?: Array<{
     label: string
     path: string
@@ -66,15 +67,15 @@ const sections: Section[] = [
     ],
   },
   { label: 'Paiements & Recus', path: '/admin/paiements', icon: Receipt },
-  { label: 'Caisse', path: '/admin/caisse', icon: Wallet },
+  { label: 'Caisse', path: '/admin/caisse', icon: Wallet, comingSoon: true },
   { label: 'Depenses', path: '/admin/depenses', icon: CircleDollarSign },
-  { label: 'Commissions', path: '/admin/commissions', icon: Percent },
+  { label: 'Commissions', path: '/admin/commissions', icon: Percent, comingSoon: true },
   { label: 'Promotions & Fidelite', path: '/admin/promotions', icon: Gift },
   { label: 'Avis clientes', path: '/admin/avis', icon: Star },
-  { label: 'Messages WhatsApp', path: '/admin/messages', icon: MessageCircle },
-  { label: 'Photos prestations', path: '/admin/photos', icon: Camera },
+  { label: 'Messages WhatsApp', path: '/admin/messages', icon: MessageCircle, comingSoon: true },
+  { label: 'Photos prestations', path: '/admin/photos', icon: Camera, comingSoon: true },
   { label: 'Rapports & Statistiques', path: '/admin/rapports', icon: BarChart3 },
-  { label: 'Logs systeme', path: '/admin/logs', icon: ShoppingBag },
+  { label: 'Logs systeme', path: '/admin/logs', icon: ShoppingBag, comingSoon: true },
   { label: 'Parametres', path: '/admin/parametres', icon: Settings },
 ]
 
@@ -101,6 +102,12 @@ function AdminLayout({ children }: AdminLayoutProps) {
     '/admin/catalogue': true,
     '/admin/personnel': true,
   })
+  const [comingSoonToast, setComingSoonToast] = useState(false)
+
+  const showComingSoon = () => {
+    setComingSoonToast(true)
+    window.setTimeout(() => setComingSoonToast(false), 3000)
+  }
 
   const closeMobileMenu = () => setMobileMenuOpen(false)
 
@@ -128,7 +135,19 @@ function AdminLayout({ children }: AdminLayoutProps) {
 
           return (
             <div key={section.path}>
-              {section.children ? (
+              {section.comingSoon ? (
+                <button
+                  type="button"
+                  onClick={showComingSoon}
+                  className="flex w-full cursor-not-allowed items-center gap-3 rounded-xl px-4 py-2 text-left text-[13px] font-semibold text-white/40 transition"
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{section.label}</span>
+                  <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white/40">
+                    Bientôt
+                  </span>
+                </button>
+              ) : section.children ? (
                 <button
                   type="button"
                   onClick={() =>
@@ -207,6 +226,11 @@ function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="min-h-screen bg-[#faf9fa] text-[#17141b]">
+      {comingSoonToast && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl bg-[#17141b] px-5 py-3 text-sm font-bold text-white shadow-2xl">
+          Fonctionnalité pas encore disponible
+        </div>
+      )}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur lg:hidden">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ff2f85]/10 text-sm font-black text-[#e91e63]">
