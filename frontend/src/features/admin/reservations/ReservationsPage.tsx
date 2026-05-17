@@ -50,13 +50,29 @@ import type {
 
 const statusOptions: Array<{ value: ReservationStatus; label: string }> = [
   { value: 'en_attente', label: 'En attente' },
-  { value: 'confirmee', label: 'Confirmee' },
   { value: 'acompte_paye', label: 'Acompte paye' },
-  { value: 'en_cours', label: 'En cours' },
   { value: 'terminee', label: 'Terminee' },
   { value: 'annulee', label: 'Annulee' },
   { value: 'absence', label: 'Absence' },
 ]
+
+// Libelles pour les anciens statuts encore en base (affichage uniquement)
+const legacyStatusLabels: Partial<Record<ReservationStatus, string>> = {
+  confirmee: 'Confirmee',
+  en_cours: 'En cours',
+}
+
+// Miroir exact de VALID_TRANSITIONS cote backend — toute modification doit
+// etre repercutee dans ReservationController::VALID_TRANSITIONS.
+const allowedTransitions: Record<ReservationStatus, ReservationStatus[]> = {
+  en_attente:   ['annulee', 'absence'],
+  confirmee:    ['annulee', 'absence'],
+  acompte_paye: ['terminee', 'annulee', 'absence'],
+  en_cours:     ['terminee', 'annulee', 'absence'],
+  terminee:     [],
+  annulee:      [],
+  absence:      [],
+}
 
 const emptyDetail: ReservationDetailForm = {
   coiffure_id: '',
@@ -112,7 +128,7 @@ function minutesLabel(minutes: number) {
 }
 
 function statusLabel(status: ReservationStatus) {
-  return statusOptions.find((item) => item.value === status)?.label ?? status
+  return statusOptions.find((item) => item.value === status)?.label ?? legacyStatusLabels[status] ?? status
 }
 
 function statusClass(status: ReservationStatus) {
@@ -124,7 +140,7 @@ function statusClass(status: ReservationStatus) {
     return 'bg-red-50 text-red-700'
   }
 
-  if (status === 'acompte_paye' || status === 'en_cours') {
+  if (status === 'acompte_paye' || status === 'en_cours' || status === 'confirmee') {
     return 'bg-[#fff2f7] text-[#c41468]'
   }
 
@@ -227,7 +243,7 @@ function ReservationsPage() {
     [reservations, today],
   )
   const confirmedCount = useMemo(
-    () => reservations.filter((reservation) => ['confirmee', 'acompte_paye', 'en_cours'].includes(reservation.statut)).length,
+    () => reservations.filter((reservation) => reservation.statut === 'acompte_paye').length,
     [reservations],
   )
   const waitingCount = useMemo(
@@ -629,7 +645,7 @@ function ReservationsPage() {
         <div className="rounded-xl border border-[#f1e7ee] bg-white px-4 py-3 shadow-[0_14px_30px_-28px_rgba(20,20,43,0.5)]">
           <p className="text-xs font-black uppercase tracking-[0.08em] text-gray-400">Confirmees</p>
           <p className="mt-1 text-2xl font-black text-[#111018]">{confirmedCount}</p>
-          <p className="mt-1 text-xs font-bold text-gray-500">Inclut acompte et en cours</p>
+          <p className="mt-1 text-xs font-bold text-gray-500">Acompte paye</p>
         </div>
         <div className="rounded-xl border border-[#f1e7ee] bg-white px-4 py-3 shadow-[0_14px_30px_-28px_rgba(20,20,43,0.5)]">
           <p className="text-xs font-black uppercase tracking-[0.08em] text-gray-400">En attente</p>
@@ -713,9 +729,11 @@ function ReservationsPage() {
                 <button type="button" onClick={() => openModal(reservation)} className="flex h-9 w-9 items-center justify-center rounded-lg text-indigo-600 transition hover:bg-indigo-50" title="Modifier">
                   <Edit className="h-4 w-4" />
                 </button>
-                <button type="button" onClick={() => void remove(reservation)} className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50" title="Supprimer">
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {!['acompte_paye', 'terminee'].includes(reservation.statut) && (
+                  <button type="button" onClick={() => void remove(reservation)} className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50" title="Supprimer">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </article>
           ))
@@ -771,15 +789,22 @@ function ReservationsPage() {
                       <div className="text-xs font-bold text-gray-400">Acompte {money(reservation.montant_acompte, reservation.devise)}</div>
                     </td>
                     <td className="px-5 py-4">
-                      <select
-                        className={`rounded-lg border-0 px-3 py-1 text-xs font-black outline-none ${statusClass(reservation.statut)}`}
-                        value={reservation.statut}
-                        onChange={(event) => void changeStatus(reservation, event.target.value as ReservationStatus)}
-                      >
-                        {statusOptions.map((status) => (
-                          <option key={status.value} value={status.value}>{status.label}</option>
-                        ))}
-                      </select>
+                      {allowedTransitions[reservation.statut].length === 0 ? (
+                        <span className={`inline-block rounded-full px-3 py-1 text-xs font-black ${statusClass(reservation.statut)}`}>
+                          {statusLabel(reservation.statut)}
+                        </span>
+                      ) : (
+                        <select
+                          className={`rounded-lg border-0 px-3 py-1 text-xs font-black outline-none ${statusClass(reservation.statut)}`}
+                          value={reservation.statut}
+                          onChange={(event) => void changeStatus(reservation, event.target.value as ReservationStatus)}
+                        >
+                          <option value={reservation.statut}>{statusLabel(reservation.statut)}</option>
+                          {allowedTransitions[reservation.statut].map((status) => (
+                            <option key={status} value={status}>{statusLabel(status)}</option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-1">
@@ -789,9 +814,11 @@ function ReservationsPage() {
                         <button type="button" onClick={() => openModal(reservation)} className="flex h-9 w-9 items-center justify-center rounded-lg text-indigo-600 transition hover:bg-indigo-50" title="Modifier">
                           <Edit className="h-4 w-4" />
                         </button>
-                        <button type="button" onClick={() => void remove(reservation)} className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50" title="Supprimer">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {!['acompte_paye', 'terminee'].includes(reservation.statut) && (
+                          <button type="button" onClick={() => void remove(reservation)} className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50" title="Supprimer">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1063,19 +1090,31 @@ function ReservationsPage() {
               </section>
 
               <section className="rounded-xl border border-gray-100 p-4">
-                <h3 className="text-base font-black text-gray-950">Actions statut</h3>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {statusOptions.map((status) => (
-                    <button
-                      key={status.value}
-                      type="button"
-                      onClick={() => void changeStatus(detail, status.value)}
-                      className={`rounded-lg px-3 py-2 text-sm font-black transition ${detail.statut === status.value ? statusClass(status.value) : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
-                    >
-                      {status.label}
-                    </button>
-                  ))}
+                <h3 className="text-base font-black text-gray-950">Statut</h3>
+                <div className="mt-3">
+                  <span className={`inline-block rounded-full px-3 py-1.5 text-xs font-black ${statusClass(detail.statut)}`}>
+                    {statusLabel(detail.statut)}
+                  </span>
                 </div>
+                {allowedTransitions[detail.statut].length > 0 ? (
+                  <div className="mt-4">
+                    <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-gray-400">Passer a</p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {allowedTransitions[detail.statut].map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => void changeStatus(detail, status)}
+                          className="rounded-lg bg-gray-50 px-3 py-2 text-sm font-black text-gray-600 transition hover:bg-gray-100"
+                        >
+                          {statusLabel(status)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs font-semibold text-gray-400">Etat final — aucune transition possible.</p>
+                )}
               </section>
 
               <section className="rounded-xl border border-gray-100 p-4 xl:col-span-2">

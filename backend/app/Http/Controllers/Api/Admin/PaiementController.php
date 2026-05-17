@@ -133,6 +133,13 @@ class PaiementController extends Controller
 
     public function destroy(Paiement $paiement): JsonResponse
     {
+        // Un paiement valide est une trace comptable : utiliser l annulation plutot.
+        if ($paiement->statut === 'valide') {
+            throw ValidationException::withMessages([
+                'statut' => 'Impossible de supprimer un paiement valide. Utilisez l annulation a la place.',
+            ]);
+        }
+
         $reservationId = $paiement->reservation_id;
 
         DB::transaction(function () use ($paiement, $reservationId): void {
@@ -482,8 +489,10 @@ class PaiementController extends Controller
             $updates['statut'] = 'acompte_paye';
         }
 
+        // Regresse vers en_attente (pas confirmee qui est retire du workflow)
+        // quand tous les paiements sont annules ou supprimes.
         if ($paid <= 0 && $reservation->statut === 'acompte_paye') {
-            $updates['statut'] = 'confirmee';
+            $updates['statut'] = 'en_attente';
         }
 
         $reservation->forceFill($updates)->save();
