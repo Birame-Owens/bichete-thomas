@@ -921,7 +921,7 @@ function ClientHomePage() {
               </nav>
               <button
                 type="button"
-                onClick={() => (clientSession ? handleLogout() : openClientAuth('login'))}
+                onClick={() => clientSession ? handleLogout() : setPageNotice({ type: 'error', message: 'Connexion client pas encore disponible. Utilisez le lien WhatsApp reçu après votre réservation.' })}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] shadow-sm sm:hidden"
                 aria-label="Profil client"
               >
@@ -948,7 +948,7 @@ function ClientHomePage() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => openClientAuth('login')}
+                  onClick={() => setPageNotice({ type: 'error', message: 'Connexion client pas encore disponible. Utilisez le lien WhatsApp reçu après votre réservation.' })}
                   className="hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] sm:grid"
                   aria-label="Profil client"
                 >
