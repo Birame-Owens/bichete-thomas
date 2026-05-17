@@ -1,4 +1,4 @@
-import { Bell, CalendarCheck, CreditCard, Home, Loader2, MapPin, MessageCircle, Phone, Scissors, Search, User, Users, X } from 'lucide-react'
+import { Bell, CalendarCheck, Check, CheckCircle, CreditCard, Home, Loader2, MapPin, MessageCircle, Phone, Scissors, Search, User, Users, X } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import PhoneInput from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { confirmNaboopayReturn, createClientReservation, getClientAvailability, getClientCatalogue, getClientCoiffureDetails } from './client.api'
 import { coiffureImage, formatCurrency, formatDuration, isClosedDate, todayInput } from './client.helpers'
 import { CoiffureCard } from './components/CoiffureCard'
-import type { ClientAvailability, ClientCatalogue, ClientCoiffure, ClientPaymentMethod } from './client.types'
+import type { ClientAvailability, ClientCatalogue, ClientCoiffure, ClientPaymentMethod, ClientPaymentWithRelations } from './client.types'
 
 const emptyFavorites: number[] = []
 
@@ -30,6 +30,8 @@ function ClientCategoryPage() {
   const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('wave')
   const [submitMessage, setSubmitMessage] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [paymentConfirmation, setPaymentConfirmation] = useState<ClientPaymentWithRelations | null>(null)
+  const [paymentConfirming, setPaymentConfirming] = useState(false)
 
   const settings = catalogue?.settings
 
@@ -82,10 +84,17 @@ function ClientCategoryPage() {
       return
     }
 
+    setPaymentConfirming(true)
     confirmNaboopayReturn(paymentId, signature)
-      .then((response) => setSubmitMessage(response.message ?? 'Paiement NabooPay validé. Votre réservation est sécurisée.'))
-      .catch(() => setSubmitMessage('Retour NabooPay recu. La confirmation sera appliquee par webhook.'))
-      .finally(() => window.history.replaceState({}, '', window.location.pathname))
+      .then((response) => {
+        setPaymentConfirmation(response.data)
+        window.history.replaceState({}, '', window.location.pathname)
+      })
+      .catch(() => {
+        setSubmitMessage('Retour NabooPay recu. La confirmation sera appliquee par webhook.')
+        window.history.replaceState({}, '', window.location.pathname)
+      })
+      .finally(() => setPaymentConfirming(false))
   }, [])
 
   const categories = catalogue?.categories ?? []
@@ -223,6 +232,100 @@ function ClientCategoryPage() {
 
   return (
     <div className="min-h-screen bg-[#fdfafd] text-slate-950">
+
+      {paymentConfirming && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 rounded-3xl bg-white px-12 py-10 shadow-2xl">
+            <Loader2 className="h-10 w-10 animate-spin text-[#f31976]" />
+            <p className="text-sm font-black text-slate-700">Vérification du paiement...</p>
+          </div>
+        </div>
+      )}
+
+      {paymentConfirmation !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl">
+
+            <div className="flex justify-center">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#fff0f7]">
+                <CheckCircle className="h-10 w-10 text-[#f31976]" />
+              </div>
+            </div>
+
+            <p className="mt-5 text-center text-[11px] font-black uppercase tracking-[0.15em] text-[#f31976]">
+              Paiement confirmé
+            </p>
+            <h2 className="mt-1 text-center font-display text-2xl font-black text-slate-950">
+              Merci{' '}
+              {paymentConfirmation.client?.prenom
+                ?? paymentConfirmation.reservation?.client?.prenom
+                ?? clientForm.prenom}{' '}
+              {paymentConfirmation.client?.nom
+                ?? paymentConfirmation.reservation?.client?.nom
+                ?? clientForm.nom}
+            </h2>
+
+            <div className="mt-5 rounded-2xl bg-[#fff8fb] p-4 text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Numéro de reçu</p>
+              <p className="mt-1 font-mono text-base font-black text-slate-950">{paymentConfirmation.numero_recu}</p>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-[#fff8fb] p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Montant payé</p>
+                <p className="mt-1 text-sm font-black text-slate-950">
+                  {formatCurrency(Number(paymentConfirmation.montant), paymentConfirmation.devise)}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-[#fff8fb] p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Mode</p>
+                <p className="mt-1 text-sm font-black text-slate-950">
+                  {paymentConfirmation.mode_paiement === 'wave'
+                    ? 'Wave'
+                    : paymentConfirmation.mode_paiement === 'orange_money'
+                      ? 'Orange Money'
+                      : 'Carte bancaire'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-start gap-3 rounded-2xl border border-[#f7d6e5] bg-[#fff8fb] p-3.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f31976]/10">
+                <Phone className="h-4 w-4 text-[#f31976]" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-slate-950">Confirmation WhatsApp envoyée</p>
+                <p className="mt-0.5 text-xs font-semibold leading-5 text-slate-500">
+                  Un message de confirmation a été envoyé sur votre WhatsApp.
+                </p>
+              </div>
+            </div>
+
+            {(paymentConfirmation.client?.email ?? paymentConfirmation.reservation?.client?.email) && (
+              <div className="mt-3 flex items-start gap-3 rounded-2xl border border-[#f7d6e5] bg-[#fff8fb] p-3.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f31976]/10">
+                  <Check className="h-4 w-4 text-[#f31976]" />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-slate-950">Email de confirmation envoyé</p>
+                  <p className="mt-0.5 text-xs font-semibold leading-5 text-slate-500">
+                    {paymentConfirmation.client?.email ?? paymentConfirmation.reservation?.client?.email}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setPaymentConfirmation(null)}
+              className="mt-6 w-full rounded-2xl bg-[#f31976] py-3.5 text-sm font-black text-white transition hover:bg-[#d6165e]"
+            >
+              Retour à l'accueil
+            </button>
+          </div>
+        </div>
+      )}
+
       <header className="fixed top-0 left-0 right-0 z-30 border-b border-[#f7d6e5] bg-white/95 backdrop-blur">
         <div className="mx-auto w-full max-w-[1440px] px-3 py-2 sm:px-5 lg:px-8">
           <div className="flex items-center gap-2 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-3">
