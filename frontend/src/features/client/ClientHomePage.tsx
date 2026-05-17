@@ -48,6 +48,7 @@ import {
   discountAmount,
   formatCurrency,
   formatDuration,
+  formatShortDate,
   isClosedDate,
   promoText,
   todayInput,
@@ -812,6 +813,25 @@ function ClientHomePage() {
                       : 'Carte bancaire'}
                 </p>
               </div>
+              {Number(paymentConfirmation.reservation?.montant_restant ?? 0) > 0 && (
+                <div className="rounded-2xl bg-[#fff8fb] p-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Reste à payer</p>
+                  <p className="mt-1 text-sm font-black text-[#f31976]">
+                    {formatCurrency(Number(paymentConfirmation.reservation?.montant_restant), paymentConfirmation.devise)}
+                  </p>
+                </div>
+              )}
+              {paymentConfirmation.reservation?.date_reservation && (
+                <div className="rounded-2xl bg-[#fff8fb] p-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Réservation</p>
+                  <p className="mt-1 text-sm font-black text-slate-950">
+                    {formatShortDate(paymentConfirmation.reservation.date_reservation)}
+                    {paymentConfirmation.reservation.heure_debut
+                      ? ` à ${paymentConfirmation.reservation.heure_debut.slice(0, 5)}`
+                      : ''}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="mt-3 flex items-start gap-3 rounded-2xl border border-[#f7d6e5] bg-[#fff8fb] p-3.5">
