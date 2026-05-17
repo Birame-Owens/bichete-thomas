@@ -9,12 +9,10 @@ import {
   Gift,
   Home,
   Image as ImageIcon,
-  Camera,
   Loader2,
   LogOut,
   MapPin,
   MessageCircle,
-  Music2,
   Phone,
   Scissors,
   Search,
@@ -1171,7 +1169,7 @@ function ClientHomePage() {
                     className="flex items-center justify-between rounded-2xl bg-white px-3 py-2 text-xs font-black text-slate-700"
                   >
                     <span className="inline-flex items-center gap-2">
-                      <Camera className="h-4 w-4 text-[#f31976]" />
+                      <img src="/instagram.svg" alt="Instagram" className="h-4 w-4" />
                       Instagram
                     </span>
                     <span className="text-[#f31976]">@bichette_thomas</span>
@@ -1183,7 +1181,7 @@ function ClientHomePage() {
                     className="flex items-center justify-between rounded-2xl bg-white px-3 py-2 text-xs font-black text-slate-700"
                   >
                     <span className="inline-flex items-center gap-2">
-                      <Music2 className="h-4 w-4 text-[#f31976]" />
+                      <img src="/tiktok.svg" alt="TikTok" className="h-4 w-4" />
                       TikTok
                     </span>
                     <span className="text-[#f31976]">@bichette_thomas</span>
