@@ -23,6 +23,8 @@ import {
   updateReservation,
   updateReservationStatus,
 } from './reservations.api'
+import { createPayment } from '../payments/payments.api'
+import type { PaymentMethod } from '../payments/payments.types'
 import {
   EmptyState,
   ErrorState,
@@ -213,6 +215,9 @@ function ReservationsPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [soldeModal, setSoldeModal] = useState<Reservation | null>(null)
+  const [soldeMode, setSoldeMode] = useState<PaymentMethod>('especes')
+  const [soldeSaving, setSoldeSaving] = useState(false)
   const filtersReady = useRef(false)
 
   const reservations = useMemo(() => items?.data ?? [], [items])
@@ -428,6 +433,12 @@ function ReservationsPage() {
   }
 
   const changeStatus = async (reservation: Reservation, status: ReservationStatus) => {
+    if (status === 'terminee' && Number(reservation.montant_restant) > 0) {
+      setSoldeMode('especes')
+      setSoldeModal(reservation)
+      return
+    }
+
     try {
       await updateReservationStatus(reservation.id, status, reservation.notes)
       await loadPage(page, search, statusFilter, coiffeuseFilter, dateFrom, dateTo)
@@ -436,6 +447,43 @@ function ReservationsPage() {
       }
     } catch {
       setError('Changement de statut impossible.')
+    }
+  }
+
+  const confirmSolde = async (withPayment: boolean) => {
+    if (!soldeModal) return
+    setSoldeSaving(true)
+    try {
+      if (withPayment) {
+        await createPayment({
+          reservation_id: String(soldeModal.id),
+          client_id: soldeModal.client_id ? String(soldeModal.client_id) : '',
+          nouveau_client: false,
+          client_nom: '',
+          client_prenom: '',
+          client_telephone: '',
+          client_email: '',
+          type: 'solde',
+          mode_paiement: soldeMode,
+          montant: String(soldeModal.montant_restant),
+          statut: 'valide',
+          date_paiement: new Date().toISOString().slice(0, 10),
+          reference: '',
+          notes: `Solde encaisse en ${soldeMode} a la fin de la prestation.`,
+          recu_envoye: false,
+        })
+      }
+      await updateReservationStatus(soldeModal.id, 'terminee', soldeModal.notes)
+      await loadPage(page, search, statusFilter, coiffeuseFilter, dateFrom, dateTo)
+      if (detail?.id === soldeModal.id) {
+        setDetail(await getReservation(soldeModal.id))
+      }
+      setSuccess(withPayment ? 'Solde enregistre et reservation terminee.' : 'Reservation marquee comme terminee.')
+      setSoldeModal(null)
+    } catch {
+      setError('Impossible d\'enregistrer le paiement ou de terminer la reservation.')
+    } finally {
+      setSoldeSaving(false)
     }
   }
 
@@ -476,6 +524,71 @@ function ReservationsPage() {
 
   return (
     <AdminLayout>
+
+      {/* Modale encaissement du solde avant marquage "Terminée" */}
+      {soldeModal !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 className="text-lg font-black text-gray-950">Encaissement du solde</h2>
+            <p className="mt-1 text-sm font-semibold text-gray-500">
+              {soldeModal.client ? `${soldeModal.client.prenom} ${soldeModal.client.nom} — ` : ''}
+              Reste à encaisser avant de terminer.
+            </p>
+
+            <div className="mt-4 rounded-xl bg-[#fff8fb] px-4 py-3 text-center">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#c41468]">Montant restant</p>
+              <p className="mt-1 text-2xl font-black text-gray-950">
+                {money(soldeModal.montant_restant, soldeModal.devise)}
+              </p>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-[11px] font-black uppercase tracking-wide text-gray-500">
+                Mode de paiement
+              </label>
+              <select
+                value={soldeMode}
+                onChange={(e) => setSoldeMode(e.target.value as PaymentMethod)}
+                className="mt-1.5 h-11 w-full rounded-xl border border-gray-200 px-3 text-sm font-bold outline-none focus:border-[#e91e63] focus:ring-4 focus:ring-[#e91e63]/10"
+              >
+                <option value="especes">Espèces</option>
+                <option value="wave">Wave</option>
+                <option value="orange_money">Orange Money</option>
+                <option value="carte_bancaire">Carte bancaire</option>
+                <option value="autre">Autre</option>
+              </select>
+            </div>
+
+            <div className="mt-5 grid gap-2">
+              <button
+                type="button"
+                disabled={soldeSaving}
+                onClick={() => void confirmSolde(true)}
+                className="w-full rounded-xl bg-[#e91e63] py-3 text-sm font-black text-white transition hover:bg-[#c41468] disabled:opacity-60"
+              >
+                {soldeSaving ? 'Enregistrement...' : 'Enregistrer le paiement + Terminer'}
+              </button>
+              <button
+                type="button"
+                disabled={soldeSaving}
+                onClick={() => void confirmSolde(false)}
+                className="w-full rounded-xl bg-gray-100 py-3 text-sm font-black text-gray-700 transition hover:bg-gray-200 disabled:opacity-60"
+              >
+                Terminer sans enregistrer
+              </button>
+              <button
+                type="button"
+                disabled={soldeSaving}
+                onClick={() => setSoldeModal(null)}
+                className="w-full rounded-xl py-2 text-sm font-semibold text-gray-400 transition hover:text-gray-600"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e91e63]">
