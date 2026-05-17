@@ -575,13 +575,6 @@ function ClientHomePage() {
     }))
   }
 
-  function openClientAuth(mode: ClientAuthMode = 'login') {
-    setClientAuthMode(mode)
-    setClientAuthForm(createClientAuthForm(clientSession))
-    setClientAuthNotice(null)
-    setShowClientAuth(true)
-  }
-
   async function handleClientAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setClientAuthSubmitting(true)
@@ -921,7 +914,7 @@ function ClientHomePage() {
               </nav>
               <button
                 type="button"
-                onClick={() => (clientSession ? handleLogout() : openClientAuth('login'))}
+                onClick={() => clientSession ? handleLogout() : setPageNotice({ type: 'error', message: 'Espace client pas encore disponible.' })}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] shadow-sm sm:hidden"
                 aria-label="Profil client"
               >
@@ -948,7 +941,7 @@ function ClientHomePage() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => openClientAuth('login')}
+                  onClick={() => setPageNotice({ type: 'error', message: 'Espace client pas encore disponible.' })}
                   className="hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] sm:grid"
                   aria-label="Profil client"
                 >
