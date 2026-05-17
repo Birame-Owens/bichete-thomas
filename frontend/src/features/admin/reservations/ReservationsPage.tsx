@@ -62,6 +62,18 @@ const legacyStatusLabels: Partial<Record<ReservationStatus, string>> = {
   en_cours: 'En cours',
 }
 
+// Miroir exact de VALID_TRANSITIONS cote backend — toute modification doit
+// etre repercutee dans ReservationController::VALID_TRANSITIONS.
+const allowedTransitions: Record<ReservationStatus, ReservationStatus[]> = {
+  en_attente:   ['annulee', 'absence'],
+  confirmee:    ['annulee', 'absence'],
+  acompte_paye: ['terminee', 'annulee', 'absence'],
+  en_cours:     ['terminee', 'annulee', 'absence'],
+  terminee:     [],
+  annulee:      [],
+  absence:      [],
+}
+
 const emptyDetail: ReservationDetailForm = {
   coiffure_id: '',
   variante_coiffure_id: '',
@@ -777,15 +789,22 @@ function ReservationsPage() {
                       <div className="text-xs font-bold text-gray-400">Acompte {money(reservation.montant_acompte, reservation.devise)}</div>
                     </td>
                     <td className="px-5 py-4">
-                      <select
-                        className={`rounded-lg border-0 px-3 py-1 text-xs font-black outline-none ${statusClass(reservation.statut)}`}
-                        value={reservation.statut}
-                        onChange={(event) => void changeStatus(reservation, event.target.value as ReservationStatus)}
-                      >
-                        {statusOptions.map((status) => (
-                          <option key={status.value} value={status.value}>{status.label}</option>
-                        ))}
-                      </select>
+                      {allowedTransitions[reservation.statut].length === 0 ? (
+                        <span className={`inline-block rounded-full px-3 py-1 text-xs font-black ${statusClass(reservation.statut)}`}>
+                          {statusLabel(reservation.statut)}
+                        </span>
+                      ) : (
+                        <select
+                          className={`rounded-lg border-0 px-3 py-1 text-xs font-black outline-none ${statusClass(reservation.statut)}`}
+                          value={reservation.statut}
+                          onChange={(event) => void changeStatus(reservation, event.target.value as ReservationStatus)}
+                        >
+                          <option value={reservation.statut}>{statusLabel(reservation.statut)}</option>
+                          {allowedTransitions[reservation.statut].map((status) => (
+                            <option key={status} value={status}>{statusLabel(status)}</option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-1">
@@ -1071,19 +1090,31 @@ function ReservationsPage() {
               </section>
 
               <section className="rounded-xl border border-gray-100 p-4">
-                <h3 className="text-base font-black text-gray-950">Actions statut</h3>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {statusOptions.map((status) => (
-                    <button
-                      key={status.value}
-                      type="button"
-                      onClick={() => void changeStatus(detail, status.value)}
-                      className={`rounded-lg px-3 py-2 text-sm font-black transition ${detail.statut === status.value ? statusClass(status.value) : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
-                    >
-                      {status.label}
-                    </button>
-                  ))}
+                <h3 className="text-base font-black text-gray-950">Statut</h3>
+                <div className="mt-3">
+                  <span className={`inline-block rounded-full px-3 py-1.5 text-xs font-black ${statusClass(detail.statut)}`}>
+                    {statusLabel(detail.statut)}
+                  </span>
                 </div>
+                {allowedTransitions[detail.statut].length > 0 ? (
+                  <div className="mt-4">
+                    <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-gray-400">Passer a</p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {allowedTransitions[detail.statut].map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => void changeStatus(detail, status)}
+                          className="rounded-lg bg-gray-50 px-3 py-2 text-sm font-black text-gray-600 transition hover:bg-gray-100"
+                        >
+                          {statusLabel(status)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs font-semibold text-gray-400">Etat final — aucune transition possible.</p>
+                )}
               </section>
 
               <section className="rounded-xl border border-gray-100 p-4 xl:col-span-2">

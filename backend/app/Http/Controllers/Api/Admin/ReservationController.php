@@ -30,6 +30,19 @@ class ReservationController extends Controller
         'absence',
     ];
 
+    // Transitions autorisees par statut courant. acompte_paye est atteint
+    // automatiquement via syncReservationPaymentState() lors d un paiement,
+    // jamais par changement manuel : cela garantit la coherence compta.
+    private const VALID_TRANSITIONS = [
+        'en_attente'   => ['annulee', 'absence'],
+        'confirmee'    => ['annulee', 'absence'],
+        'acompte_paye' => ['terminee', 'annulee', 'absence'],
+        'en_cours'     => ['terminee', 'annulee', 'absence'],
+        'terminee'     => [],
+        'annulee'      => [],
+        'absence'      => [],
+    ];
+
     private const BLOCKING_STATUSES = [
         'en_attente',
         'confirmee',
@@ -123,6 +136,14 @@ class ReservationController extends Controller
             'notes' => ['sometimes', 'nullable', 'string', 'max:5000'],
         ]);
 
+        $allowed = self::VALID_TRANSITIONS[$reservation->statut] ?? [];
+
+        if (! in_array($data['statut'], $allowed, true)) {
+            throw ValidationException::withMessages([
+                'statut' => "Transition non autorisee : {$reservation->statut} → {$data['statut']}.",
+            ]);
+        }
+
         $oldStatus = $reservation->statut;
         $oldClientId = $reservation->client_id;
 
@@ -145,6 +166,14 @@ class ReservationController extends Controller
 
     public function destroy(Reservation $reservation): JsonResponse
     {
+        // Interdit de supprimer une reservation engagee financierement :
+        // risque d orpheliser les paiements et de corrompre le CA.
+        if (in_array($reservation->statut, ['acompte_paye', 'terminee'], true)) {
+            throw ValidationException::withMessages([
+                'statut' => 'Impossible de supprimer une reservation avec acompte paye ou terminee.',
+            ]);
+        }
+
         DB::transaction(function () use ($reservation): void {
             $this->syncPromoUsage($reservation->code_promo_id, null);
             $this->syncClientCompletion($reservation->client_id, $reservation->statut, null, null, false);
