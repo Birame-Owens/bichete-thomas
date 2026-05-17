@@ -227,7 +227,7 @@ function ClientCategoryPage() {
         <div className="mx-auto w-full max-w-[1440px] px-3 py-2 sm:px-5 lg:px-8">
           <div className="flex items-center gap-2 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-3">
             <button type="button" onClick={() => navigate('/')} className="flex shrink-0 items-center gap-3 text-left">
-              <img src="/logo bichette.jpg" alt="Bichette Thomas" className="h-11 w-11 shrink-0 rounded-2xl object-cover object-center sm:h-12 sm:w-12" />
+              <img src="/logo-bichette.jpg" alt="Bichette Thomas" className="h-11 w-11 shrink-0 rounded-2xl object-cover object-center sm:h-12 sm:w-12" />
               <div className="hidden min-w-0 sm:block">
                 <p className="font-display text-xl leading-5 text-slate-950 sm:text-2xl">Bichette <span className="text-[#f31976]">Thomas</span></p>
                 <p className="mt-1 flex items-center gap-1 text-[11px] font-bold text-slate-500">

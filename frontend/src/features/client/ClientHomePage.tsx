@@ -758,7 +758,7 @@ function ClientHomePage() {
           <div className="flex items-center gap-2 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-3">
             <a href="/" className="flex shrink-0 items-center gap-3">
               <img
-                src="/logo bichette.jpg"
+                src="/logo-bichette.jpg"
                 alt="Bichette Thomas"
                 className="h-11 w-11 shrink-0 rounded-2xl object-cover object-center sm:h-12 sm:w-12"
               />
