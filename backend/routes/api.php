@@ -35,10 +35,12 @@ use App\Http\Controllers\Api\Client\ReservationAvailabilityController as ClientR
 use App\Http\Controllers\Api\Client\ReservationController as ClientReservationController;
 use App\Http\Controllers\Api\DocumentationController;
 use App\Http\Controllers\Api\SeoController;
+use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/documentation', [DocumentationController::class, 'ui']);
 Route::get('/openapi.json', [DocumentationController::class, 'openApi']);
+Route::get('/sitemap.xml', [SitemapController::class, 'index']);
 Route::get('/seo/{slug?}', [SeoController::class, 'show'])->where('slug', '.*');
 Route::post('/analytics/events', [AnalyticsController::class, 'store'])->middleware('throttle:30,1');
 Route::get('/reservations/disponibilites', ClientReservationAvailabilityController::class);

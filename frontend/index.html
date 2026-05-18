@@ -34,18 +34,48 @@
     <meta property="og:title" content="Bichete Thomas — Salon de coiffure à Dakar" />
     <meta property="og:description" content="Réservez votre coiffure en ligne : tresses, locks, coiffures de cérémonie. Paiement Wave, Orange Money ou carte." />
     <meta property="og:locale" content="fr_FR" />
-    <!-- A remplacer par l URL canonique en prod (ex: https://bichete-thomas.sn). -->
-    <meta property="og:url" content="/" />
-    <!-- A remplacer par une image 1200x630 dediee aux partages sociaux. -->
-    <meta property="og:image" content="/logo-bichette.jpg" />
+    <meta property="og:url" content="https://bichettethomas.site/" />
+    <meta property="og:image" content="https://bichettethomas.site/logo-bichette.jpg" />
 
     <!-- Twitter Card : affichage carte au lieu de simple lien sur X/Twitter. -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Bichete Thomas — Salon de coiffure à Dakar" />
     <meta name="twitter:description" content="Réservez votre coiffure en ligne : tresses, locks, coiffures de cérémonie." />
-    <meta name="twitter:image" content="/logo-bichette.jpg" />
+    <meta name="twitter:image" content="https://bichettethomas.site/logo-bichette.jpg" />
 
+    <link rel="canonical" href="https://bichettethomas.site/" />
     <link rel="icon" type="image/jpeg" href="/logo-bichette.jpg" />
+
+    <!-- Schema.org LocalBusiness : permet à Google d afficher des infos riches
+         (adresse, horaires, téléphone) directement dans les résultats de recherche. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "HairSalon",
+      "name": "Bichete Thomas",
+      "url": "https://bichettethomas.site",
+      "logo": "https://bichettethomas.site/logo-bichette.jpg",
+      "image": "https://bichettethomas.site/logo-bichette.jpg",
+      "description": "Salon de coiffure à Dakar spécialisé en tresses, locks, coiffures de cérémonie et soins capillaires. Réservation en ligne avec paiement Wave, Orange Money ou carte.",
+      "priceRange": "XOF",
+      "currenciesAccepted": "XOF",
+      "paymentAccepted": "Wave, Orange Money, carte bancaire",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Dakar",
+        "addressCountry": "SN"
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          "opens": "09:00",
+          "closes": "19:00"
+        }
+      ],
+      "hasMap": "https://maps.google.com/?q=Dakar+Senegal"
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

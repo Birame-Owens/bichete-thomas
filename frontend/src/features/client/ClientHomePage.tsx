@@ -55,6 +55,7 @@ import {
 } from './client.helpers'
 import { CoiffureCard } from './components/CoiffureCard'
 import PromoPopup from './PromoPopup'
+import { useSeoPage } from '../../hooks/useSeoPage'
 import { usePhoneLookup } from './hooks/usePhoneLookup'
 import type {
   ClientAvailability,
@@ -196,6 +197,7 @@ function scrollToSection(sectionId: string) {
 }
 
 function ClientHomePage() {
+  useSeoPage('accueil')
   const [catalogue, setCatalogue] = useState<ClientCatalogue | null>(null)
   const [loading, setLoading] = useState(true)
   const [catalogueError, setCatalogueError] = useState<string | null>(null)
