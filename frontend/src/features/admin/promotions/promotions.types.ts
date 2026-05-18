@@ -40,6 +40,7 @@ export type CodePromo = {
   limite_utilisation: number | null
   nombre_utilisations: number
   actif: boolean
+  afficher_popup: boolean
   created_at?: string
   updated_at?: string
 }
@@ -64,6 +65,7 @@ export type CodePromoForm = {
   date_fin: string
   limite_utilisation: string
   actif: boolean
+  afficher_popup: boolean
 }
 
 export type RegleFideliteForm = {
