@@ -484,7 +484,7 @@ function ClientCategoryPage() {
                 >
                   <span className={`h-20 w-20 overflow-hidden rounded-full border-2 bg-[#fff0f6] transition sm:h-24 sm:w-24 ${category.id === parsedCategoryId ? 'border-[#f31976]' : 'border-transparent group-hover:border-[#f31976]'}`}>
                     {category.image ? (
-                      <img src={category.image} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+                      <img src={category.image} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-110" loading="lazy" />
                     ) : (
                       <span className="grid h-full w-full place-items-center text-[#f31976]">
                         <Scissors className="h-7 w-7" />
@@ -554,7 +554,7 @@ function ClientCategoryPage() {
                 </div>
 
                 <div className="relative mt-5 overflow-hidden bg-white">
-                  <img src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)} alt={selectedCoiffure.nom} className="aspect-[4/3] w-full bg-white object-contain" />
+                  <img src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)} alt={selectedCoiffure.nom} className="aspect-[4/3] w-full bg-white object-contain" loading="lazy" />
                   {modalLoading ? (
                     <div className="absolute inset-0 grid place-items-center bg-white/70">
                       <Loader2 className="h-8 w-8 animate-spin text-[#f31976]" />
@@ -570,7 +570,7 @@ function ClientCategoryPage() {
                       onClick={() => setSelectedGalleryImage(image.url)}
                       className={`aspect-square overflow-hidden bg-white ring-offset-2 transition ${(selectedGalleryImage ?? coiffureImage(selectedCoiffure)) === image.url ? 'ring-2 ring-[#f31976]' : 'hover:ring-2 hover:ring-[#f31976]/30'}`}
                     >
-                      <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover object-[center_18%]" />
+                      <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover object-[center_18%]" loading="lazy" />
                     </button>
                   ))}
                 </div>

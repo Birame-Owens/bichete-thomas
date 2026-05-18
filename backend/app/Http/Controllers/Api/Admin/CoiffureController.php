@@ -8,8 +8,12 @@ use App\Models\ImageCoiffure;
 use App\Models\VarianteCoiffure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 
 class CoiffureController extends Controller
 {
@@ -66,7 +70,7 @@ class CoiffureController extends Controller
         unset($data['images']);
 
         if ($request->hasFile('image')) {
-            $data['image'] = Storage::url($request->file('image')->store('catalogue/coiffures', 'public'));
+            $data['image'] = $this->processAndStore($request->file('image'), 'catalogue/coiffures', 1200, 900);
         }
 
         $coiffure = Coiffure::query()->create($data);
@@ -115,7 +119,7 @@ class CoiffureController extends Controller
         unset($data['images']);
 
         if ($request->hasFile('image')) {
-            $data['image'] = Storage::url($request->file('image')->store('catalogue/coiffures', 'public'));
+            $data['image'] = $this->processAndStore($request->file('image'), 'catalogue/coiffures', 1200, 900);
         }
 
         $coiffure->update($data);
@@ -146,6 +150,31 @@ class CoiffureController extends Controller
     }
 
     /**
+     * Redimensionne, convertit en WebP et stocke l'image dans le disque public.
+     * Retourne l'URL publique Laravel (/storage/...).
+     *
+     * On utilise scaleDown (jamais agrandir) pour préserver la qualité des petites
+     * images uploadées. Qualité 85 = bon compromis poids / fidélité visuelle.
+     */
+    private function processAndStore(
+        UploadedFile $file,
+        string $directory,
+        int $maxWidth,
+        int $maxHeight,
+    ): string {
+        $manager  = new ImageManager(new Driver());
+        $image    = $manager->read($file->getRealPath());
+        $image->scaleDown(width: $maxWidth, height: $maxHeight);
+
+        $filename = Str::uuid() . '.webp';
+        $path     = $directory . '/' . $filename;
+
+        Storage::disk('public')->put($path, $image->toWebp(quality: 85));
+
+        return Storage::url($path);
+    }
+
+    /**
      * @param array<int, array<string, mixed>> $variantes
      */
     private function syncVariantes(Coiffure $coiffure, array $variantes): void
@@ -169,7 +198,7 @@ class CoiffureController extends Controller
 
     private function syncImages(Coiffure $coiffure, Request $request, bool $replace = false): void
     {
-        if (!$request->hasFile('images')) {
+        if (! $request->hasFile('images')) {
             return;
         }
 
@@ -178,7 +207,7 @@ class CoiffureController extends Controller
         }
 
         foreach ($request->file('images') as $index => $image) {
-            $url = Storage::url($image->store('catalogue/coiffures', 'public'));
+            $url = $this->processAndStore($image, 'catalogue/coiffures', 1200, 900);
 
             ImageCoiffure::query()->create([
                 'coiffure_id' => $coiffure->id,

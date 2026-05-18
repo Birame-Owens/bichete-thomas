@@ -6,8 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\CategorieCoiffure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 
 class CategorieCoiffureController extends Controller
 {
@@ -41,7 +45,7 @@ class CategorieCoiffureController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $data['image'] = Storage::url($request->file('image')->store('catalogue/categories', 'public'));
+            $data['image'] = $this->processAndStore($request->file('image'));
         }
 
         $categorie = CategorieCoiffure::query()->create($data);
@@ -69,7 +73,7 @@ class CategorieCoiffureController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $data['image'] = Storage::url($request->file('image')->store('catalogue/categories', 'public'));
+            $data['image'] = $this->processAndStore($request->file('image'));
         }
 
         $categorieCoiffure->update($data);
@@ -93,5 +97,23 @@ class CategorieCoiffureController extends Controller
         return response()->json([
             'message' => 'Categorie supprimee.',
         ]);
+    }
+
+    /**
+     * Redimensionne à 800×600 max et convertit en WebP avant stockage.
+     * Les images de catégorie sont affichées en vignette (card) → 800 px suffit.
+     */
+    private function processAndStore(UploadedFile $file): string
+    {
+        $manager  = new ImageManager(new Driver());
+        $image    = $manager->read($file->getRealPath());
+        $image->scaleDown(width: 800, height: 600);
+
+        $filename = Str::uuid() . '.webp';
+        $path     = 'catalogue/categories/' . $filename;
+
+        Storage::disk('public')->put($path, $image->toWebp(quality: 85));
+
+        return Storage::url($path);
     }
 }
