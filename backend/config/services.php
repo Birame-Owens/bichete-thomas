@@ -80,6 +80,7 @@ return [
     'receipt_notifications' => [
         'whatsapp' => env('SEND_RECEIPT_WHATSAPP', true),
         'email' => env('SEND_RECEIPT_EMAIL', true),
+        'admin_email' => env('MAIL_ADMIN_NOTIFICATION'),
     ],
 
 ];
