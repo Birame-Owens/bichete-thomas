@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\AdminReservationNotificationMail;
 use App\Mail\ReservationConfirmationMail;
 use App\Models\Paiement;
 use App\Support\SystemSettings;
@@ -34,6 +35,7 @@ class PaymentReceiptNotificationService
 
         if ((bool) config('services.receipt_notifications.email')) {
             $sent['email'] = $this->sendEmail($receipt);
+            $this->sendAdminNotification($receipt);
         }
 
         if ($sent['whatsapp'] || $sent['email']) {
@@ -138,6 +140,34 @@ class PaymentReceiptNotificationService
         }
 
         return $this->whatsapp->send($to, $message, $context);
+    }
+
+    /**
+     * Notifie l'admin/gérante par mail à chaque paiement confirmé.
+     * Silencieux si MAIL_ADMIN_NOTIFICATION n'est pas configuré ou si le mailer est en mode test.
+     *
+     * @param array<string, mixed> $receipt
+     */
+    private function sendAdminNotification(array $receipt): void
+    {
+        $adminEmail = config('services.receipt_notifications.admin_email');
+
+        if (! $adminEmail || ! filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        if (in_array(config('mail.default'), ['array', 'log'], true)) {
+            return;
+        }
+
+        try {
+            Mail::to($adminEmail)->send(new AdminReservationNotificationMail($receipt));
+        } catch (\Throwable $exception) {
+            Log::warning('Admin reservation notification email failed', [
+                'paiement' => $receipt['numero_recu'],
+                'message' => $exception->getMessage(),
+            ]);
+        }
     }
 
     /**
