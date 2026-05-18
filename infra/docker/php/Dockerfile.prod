@@ -2,32 +2,41 @@ FROM php:8.3-fpm
 
 WORKDIR /var/www/html
 
+# libwebp-dev requis pour activer le support WebP dans GD (conversion à l'upload)
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    unzip \
-    zip \
-    libpq-dev \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    libonig-dev \
-    libxml2-dev \
+        git \
+        curl \
+        unzip \
+        zip \
+        libpq-dev \
+        libpng-dev \
+        libjpeg-dev \
+        libfreetype6-dev \
+        libwebp-dev \
+        libonig-dev \
+        libxml2-dev \
+    && docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+        --with-webp \
     && docker-php-ext-install \
-    pdo \
-    pdo_pgsql \
-    mbstring \
-    exif \
-    pcntl \
-    bcmath \
-    gd \
-    xml \
-    opcache \
+        pdo \
+        pdo_pgsql \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        xml \
+        opcache \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Configuration OPcache et pool FPM
 COPY infra/docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache-recommended.ini
+COPY infra/docker/php/www.conf    /usr/local/etc/php-fpm.d/www.conf
 
 COPY backend/composer.json backend/composer.lock ./
 RUN composer install \
@@ -39,7 +48,17 @@ RUN composer install \
 
 COPY backend ./
 
-RUN mkdir -p storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+RUN mkdir -p \
+        storage/app/public \
+        storage/framework/cache \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+        bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
-CMD ["php-fpm"]
+# Entrypoint : génère les caches Laravel puis exec php-fpm
+COPY infra/docker/php/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+CMD ["/usr/local/bin/docker-entrypoint.sh"]
