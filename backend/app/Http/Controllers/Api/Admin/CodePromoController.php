@@ -101,7 +101,17 @@ class CodePromoController extends Controller
             'limite_utilisation' => ['nullable', 'integer', 'min:1'],
             'nombre_utilisations' => ['sometimes', 'integer', 'min:0'],
             'actif' => ['sometimes', 'boolean'],
+            'afficher_popup' => ['sometimes', 'boolean'],
         ]);
+
+        // Un seul popup peut être actif à la fois : on désactive les autres
+        // dès qu'un nouveau est activé pour éviter les doublons côté client.
+        if (! empty($data['afficher_popup'])) {
+            CodePromo::query()
+                ->when($codePromo, fn ($q) => $q->where('id', '!=', $codePromo->id))
+                ->where('afficher_popup', true)
+                ->update(['afficher_popup' => false]);
+        }
 
         $typeReduction = $data['type_reduction'] ?? $codePromo?->type_reduction;
         $valeur = array_key_exists('valeur', $data) ? (float) $data['valeur'] : (float) ($codePromo?->valeur ?? 0);

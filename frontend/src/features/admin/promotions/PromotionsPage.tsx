@@ -6,6 +6,7 @@ import {
   Eye,
   EyeOff,
   Gift,
+  Megaphone,
   Plus,
   RefreshCw,
   Search,
@@ -21,6 +22,7 @@ import {
   deleteRegleFidelite,
   getCodesPromo,
   getReglesFidelite,
+  setPromoPopup,
   updateCodePromo,
   updateRegleFidelite,
 } from './promotions.api'
@@ -56,6 +58,7 @@ const emptyCodeForm: CodePromoForm = {
   date_fin: '',
   limite_utilisation: '',
   actif: true,
+  afficher_popup: false,
 }
 
 const emptyRuleForm: RegleFideliteForm = {
@@ -129,6 +132,7 @@ function codeToForm(code: CodePromo): CodePromoForm {
     date_fin: toDateTimeInput(code.date_fin),
     limite_utilisation: code.limite_utilisation === null ? '' : String(code.limite_utilisation),
     actif: code.actif,
+    afficher_popup: code.afficher_popup,
   }
 }
 
@@ -486,6 +490,15 @@ function PromotionsPage() {
     }
   }
 
+  const togglePopup = async (code: CodePromo) => {
+    try {
+      await setPromoPopup(code.id, !code.afficher_popup)
+      await loadCodes(codePage, codeSearch, codeStatus)
+    } catch {
+      setError('Impossible de modifier le popup pour ce code.')
+    }
+  }
+
   const toggleRule = async (rule: RegleFidelite) => {
     try {
       await updateRegleFidelite(rule.id, { ...ruleToForm(rule), actif: !rule.actif })
@@ -703,6 +716,14 @@ function PromotionsPage() {
                     <div className="mt-4 flex justify-end gap-1">
                       <button
                         type="button"
+                        onClick={() => void togglePopup(code)}
+                        className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${code.afficher_popup ? 'bg-[#e91e63] text-white hover:bg-[#c41468]' : 'text-gray-400 hover:bg-gray-100'}`}
+                        title={code.afficher_popup ? 'Desactiver le popup' : 'Afficher en popup'}
+                      >
+                        <Megaphone className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => void toggleCode(code)}
                         className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100"
                         title={code.actif ? 'Desactiver' : 'Activer'}
@@ -790,6 +811,14 @@ function PromotionsPage() {
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => void togglePopup(code)}
+                                className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${code.afficher_popup ? 'bg-[#e91e63] text-white hover:bg-[#c41468]' : 'text-gray-400 hover:bg-gray-100'}`}
+                                title={code.afficher_popup ? 'Desactiver le popup' : 'Afficher en popup'}
+                              >
+                                <Megaphone className="h-4 w-4" />
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => void toggleCode(code)}
@@ -1076,6 +1105,16 @@ function PromotionsPage() {
                   onChange={(event) => setCodeForm((current) => ({ ...current, actif: event.target.checked }))}
                 />
                 Code actif
+              </label>
+              <label className="flex items-center gap-3 rounded-lg border border-[#fce4ec] bg-[#fff8fb] px-3 py-3 text-sm font-bold sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={codeForm.afficher_popup}
+                  onChange={(event) => setCodeForm((current) => ({ ...current, afficher_popup: event.target.checked }))}
+                />
+                <Megaphone className="h-4 w-4 text-[#e91e63]" />
+                Afficher en popup sur le site client
+                <span className="ml-auto text-xs font-semibold text-gray-400">(remplace le popup actif)</span>
               </label>
             </div>
             <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">

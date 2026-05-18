@@ -474,4 +474,33 @@ class CatalogueController extends Controller
             'prenom' => $client?->prenom,
         ]);
     }
+
+    /**
+     * GET /api/client/promo-active
+     *
+     * Retourne le code promo marqué afficher_popup=true s'il est valide,
+     * null sinon. Endpoint public, sans authentification.
+     * Utilisé par le frontend pour afficher le popup promotionnel au premier chargement.
+     */
+    public function promoActive(): JsonResponse
+    {
+        $promo = CodePromo::query()
+            ->where('actif', true)
+            ->where('afficher_popup', true)
+            ->where(function ($query): void {
+                $query->whereNull('date_debut')->orWhere('date_debut', '<=', now());
+            })
+            ->where(function ($query): void {
+                $query->whereNull('date_fin')->orWhere('date_fin', '>=', now());
+            })
+            ->where(function ($query): void {
+                // Exclure les codes dont la limite d'utilisation est atteinte
+                $query->whereNull('limite_utilisation')
+                    ->orWhereColumn('nombre_utilisations', '<', 'limite_utilisation');
+            })
+            ->select(['id', 'code', 'nom', 'type_reduction', 'valeur'])
+            ->first();
+
+        return response()->json(['data' => $promo]);
+    }
 }

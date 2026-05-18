@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
     'limite_utilisation',
     'nombre_utilisations',
     'actif',
+    'afficher_popup',
 ])]
 class CodePromo extends Model
 {
@@ -35,6 +36,7 @@ class CodePromo extends Model
             'limite_utilisation' => 'integer',
             'nombre_utilisations' => 'integer',
             'actif' => 'boolean',
+            'afficher_popup' => 'boolean',
         ];
     }
 }

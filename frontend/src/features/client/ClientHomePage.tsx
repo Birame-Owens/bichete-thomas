@@ -54,6 +54,7 @@ import {
   todayInput,
 } from './client.helpers'
 import { CoiffureCard } from './components/CoiffureCard'
+import PromoPopup from './PromoPopup'
 import { usePhoneLookup } from './hooks/usePhoneLookup'
 import type {
   ClientAvailability,
@@ -749,6 +750,8 @@ function ClientHomePage() {
 
   return (
     <div className="min-h-screen bg-[#fdfafd] text-slate-950">
+
+      <PromoPopup />
 
       {/* Spinner pendant la vérification du paiement côté backend */}
       {paymentConfirming && (

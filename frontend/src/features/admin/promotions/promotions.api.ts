@@ -48,6 +48,7 @@ function codePromoPayload(form: CodePromoForm) {
     date_fin: cleanDateTime(form.date_fin),
     limite_utilisation: cleanNumber(form.limite_utilisation),
     actif: form.actif,
+    afficher_popup: form.afficher_popup,
   }
 }
 
@@ -83,6 +84,12 @@ export async function updateCodePromo(id: number, form: CodePromoForm) {
 
 export async function deleteCodePromo(id: number) {
   await apiClient.delete(`/admin/codes-promo/${id}`)
+}
+
+export async function setPromoPopup(id: number, afficher_popup: boolean) {
+  const response = await apiClient.patch<ApiItem<CodePromo>>(`/admin/codes-promo/${id}`, { afficher_popup })
+
+  return response.data.data
 }
 
 export async function getReglesFidelite(params?: QueryParams) {
