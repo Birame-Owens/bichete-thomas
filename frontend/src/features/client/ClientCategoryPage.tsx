@@ -5,6 +5,7 @@ import 'react-phone-number-input/style.css'
 import { useNavigate, useParams } from 'react-router-dom'
 import { confirmNaboopayReturn, createClientReservation, getClientAvailability, getClientCatalogue, getClientCoiffureDetails } from './client.api'
 import { usePhoneLookup } from './hooks/usePhoneLookup'
+import { useSeoPage } from '../../hooks/useSeoPage'
 import { coiffureImage, formatCurrency, formatDuration, formatShortDate, isClosedDate, todayInput } from './client.helpers'
 import { CoiffureCard } from './components/CoiffureCard'
 import type { ClientAvailability, ClientCatalogue, ClientCoiffure, ClientPaymentMethod, ClientPaymentWithRelations } from './client.types'
@@ -13,6 +14,7 @@ const emptyFavorites: number[] = []
 
 function ClientCategoryPage() {
   const { categoryId } = useParams()
+  useSeoPage(categoryId ? `categorie-${categoryId}` : 'categories')
   const navigate = useNavigate()
   const parsedCategoryId = categoryId ? Number(categoryId) : null
   const [catalogue, setCatalogue] = useState<ClientCatalogue | null>(null)
