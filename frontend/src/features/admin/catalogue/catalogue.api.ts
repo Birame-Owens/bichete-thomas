@@ -193,6 +193,10 @@ export async function deleteCoiffure(id: number) {
   await apiClient.delete(`/admin/coiffures/${id}`)
 }
 
+export async function deleteImageCoiffure(id: number) {
+  await apiClient.delete(`/admin/images-coiffures/${id}`)
+}
+
 export async function getVariantesCoiffures(params?: QueryParams) {
   const response = await apiClient.get<ApiCollection<VarianteCoiffure>>('/admin/variantes-coiffures', {
     params,

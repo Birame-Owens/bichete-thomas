@@ -25,6 +25,7 @@ import {
 import {
   createCoiffure,
   deleteCoiffure,
+  deleteImageCoiffure,
   getCategoriesCoiffures,
   getCoiffures,
   getOptionsCoiffures,
@@ -34,6 +35,7 @@ import type {
   CategorieCoiffure,
   Coiffure,
   CoiffureForm,
+  ImageCoiffure,
   LaravelPaginated,
   OptionCoiffure,
 } from './catalogue.types'
@@ -73,6 +75,8 @@ function CoiffuresPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [existingImages, setExistingImages] = useState<ImageCoiffure[]>([])
+  const [deletingImageId, setDeletingImageId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const coiffures = useMemo(() => items?.data ?? [], [items])
@@ -127,6 +131,8 @@ function CoiffuresPage() {
     setForm(emptyForm)
     setEditing(null)
     setImagePreviews([])
+    setExistingImages([])
+    setDeletingImageId(null)
     setModalOpen(false)
   }
 
@@ -171,10 +177,14 @@ function CoiffuresPage() {
               }))
             : [{ nom: '', prix: '', duree_minutes: '', actif: true }],
       })
-      setImagePreviews([coiffure.image, ...(coiffure.images ?? []).map((image) => image.url)].filter(Boolean) as string[])
+      // En mode édition, les images existantes ont leur propre zone avec bouton ×.
+      // imagePreviews ne sert qu'aux nouveaux fichiers à uploader.
+      setExistingImages(coiffure.images ?? [])
+      setImagePreviews([])
     } else {
       setEditing(null)
       setForm(emptyForm)
+      setExistingImages([])
       setImagePreviews([])
     }
 
@@ -182,9 +192,22 @@ function CoiffuresPage() {
   }
 
   const handleImages = (files: FileList | null) => {
-    const selected = Array.from(files ?? []).slice(0, 4)
+    const maxNew = 4 - existingImages.length
+    const selected = Array.from(files ?? []).slice(0, maxNew)
     setForm((current) => ({ ...current, images: selected }))
     setImagePreviews(selected.map((file) => URL.createObjectURL(file)))
+  }
+
+  const handleDeleteExistingImage = async (id: number) => {
+    setDeletingImageId(id)
+    try {
+      await deleteImageCoiffure(id)
+      setExistingImages((current) => current.filter((img) => img.id !== id))
+    } catch {
+      setError('Impossible de supprimer cette photo.')
+    } finally {
+      setDeletingImageId(null)
+    }
   }
 
   const toggleOption = (id: number) => {
@@ -499,27 +522,84 @@ function CoiffuresPage() {
 
               <section className="rounded-xl bg-gray-50 p-4">
                 <h3 className="mb-4 text-lg font-black text-gray-900">Images</h3>
-                <div className="rounded-xl border-2 border-dashed border-gray-300 bg-white p-5 text-center transition hover:border-[#e91e63]">
-                  <Upload className="mx-auto mb-2 h-10 w-10 text-gray-400" />
-                  <label className="cursor-pointer text-sm font-black text-[#e91e63]">
-                    Charger 1 a 4 photos
-                    <input type="file" accept="image/*" multiple onChange={(event) => handleImages(event.target.files)} className="sr-only" />
-                  </label>
-                  <p className="mt-1 text-xs font-bold text-gray-400">PNG, JPG, WEBP. La premiere photo est principale.</p>
-                </div>
-                {imagePreviews.length > 0 && (
-                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {imagePreviews.slice(0, 4).map((preview, index) => (
-                      <div key={`${preview}-${index}`} className="relative">
-                        <img src={preview} alt={`Apercu ${index + 1}`} className="h-20 w-full rounded-lg object-cover object-[center_18%]" />
-                        {index === 0 && (
-                          <span className="absolute bottom-1 left-1 rounded bg-[#e91e63] px-2 py-0.5 text-[10px] font-black text-white">
-                            principale
-                          </span>
-                        )}
-                      </div>
-                    ))}
+
+                {/* Photos déjà enregistrées en base (mode édition uniquement) */}
+                {editing && existingImages.length > 0 && (
+                  <div className="mb-4">
+                    <p className="mb-2 text-xs font-bold text-gray-500">
+                      Photos actuelles — cliquez sur × pour supprimer
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {existingImages.map((image) => (
+                        <div key={image.id} className="relative">
+                          <img
+                            src={image.url}
+                            alt={image.alt ?? ''}
+                            className="h-20 w-full rounded-lg object-cover object-[center_18%]"
+                          />
+                          {image.principale && (
+                            <span className="absolute bottom-1 left-1 rounded bg-[#e91e63] px-2 py-0.5 text-[10px] font-black text-white">
+                              principale
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteExistingImage(image.id)}
+                            disabled={deletingImageId === image.id}
+                            className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white transition hover:bg-red-600 disabled:opacity-50"
+                            title="Supprimer cette photo"
+                          >
+                            {deletingImageId === image.id
+                              ? <RefreshCw className="h-3 w-3 animate-spin" />
+                              : <X className="h-3 w-3" />
+                            }
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+                )}
+
+                {/* Zone d'ajout de nouvelles photos */}
+                {existingImages.length < 4 && (
+                  <>
+                    <div className="rounded-xl border-2 border-dashed border-gray-300 bg-white p-5 text-center transition hover:border-[#e91e63]">
+                      <Upload className="mx-auto mb-2 h-10 w-10 text-gray-400" />
+                      <label className="cursor-pointer text-sm font-black text-[#e91e63]">
+                        {editing
+                          ? `Ajouter des photos (${4 - existingImages.length} max)`
+                          : 'Charger 1 à 4 photos'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={(event) => handleImages(event.target.files)}
+                          className="sr-only"
+                        />
+                      </label>
+                      <p className="mt-1 text-xs font-bold text-gray-400">
+                        PNG, JPG, WEBP. La première photo est principale.
+                      </p>
+                    </div>
+                    {imagePreviews.length > 0 && (
+                      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {imagePreviews.map((preview, index) => (
+                          <div key={`${preview}-${index}`} className="relative">
+                            <img
+                              src={preview}
+                              alt={`Apercu ${index + 1}`}
+                              className="h-20 w-full rounded-lg object-cover object-[center_18%]"
+                            />
+                            {index === 0 && existingImages.length === 0 && (
+                              <span className="absolute bottom-1 left-1 rounded bg-[#e91e63] px-2 py-0.5 text-[10px] font-black text-white">
+                                principale
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </section>
 

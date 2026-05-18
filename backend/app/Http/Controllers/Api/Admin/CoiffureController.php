@@ -132,7 +132,9 @@ class CoiffureController extends Controller
             $this->syncVariantes($coiffure, $variantes);
         }
 
-        $this->syncImages($coiffure, $request, replace: true);
+        // replace: false → les nouvelles images s'ajoutent aux existantes.
+        // La suppression individuelle se fait via DELETE /images-coiffures/{id}.
+        $this->syncImages($coiffure, $request, replace: false);
 
         return response()->json([
             'message' => 'Coiffure mise a jour.',
