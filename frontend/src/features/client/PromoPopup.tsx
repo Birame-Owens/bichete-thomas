@@ -27,7 +27,12 @@ function PromoPopup() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    if (sessionStorage.getItem(STORAGE_KEY)) return
+    // Bloqué si déjà vu dans cette session (dismiss ou clic CTA)
+    try {
+      if (sessionStorage.getItem(STORAGE_KEY)) return
+    } catch {
+      // sessionStorage indisponible (mode privé strict) → on continue quand même
+    }
 
     apiClient
       .get<{ data: PromoData | null }>('/client/promo-active')
@@ -37,7 +42,12 @@ function PromoPopup() {
           setVisible(true)
         }
       })
-      .catch(() => {})
+      .catch((err: unknown) => {
+        // Ne pas afficher d'erreur à l'utilisateur, mais logguer pour debug
+        if (import.meta.env.DEV) {
+          console.error('[PromoPopup] Erreur lors du chargement du popup promo :', err)
+        }
+      })
   }, [])
 
   const dismiss = () => {
