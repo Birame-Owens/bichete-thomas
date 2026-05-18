@@ -983,6 +983,7 @@ function ClientHomePage() {
                 src="/image mobile.jpg"
                 alt=""
                 className="h-full w-full object-cover object-[55%_center] opacity-90 md:hidden"
+                loading="lazy"
               />
               <div className="absolute inset-0 hidden bg-gradient-to-r from-black/60 via-[#f31976]/15 to-transparent md:block" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent md:hidden" />
@@ -1071,7 +1072,7 @@ function ClientHomePage() {
                     className="h-20 w-20 overflow-hidden rounded-full border-2 border-transparent bg-[#fff0f6] transition group-hover:border-[#f31976] sm:h-24 sm:w-24"
                   >
                     {category.image ? (
-                      <img src={category.image} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+                      <img src={category.image} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-110" loading="lazy" />
                     ) : (
                       <span className="grid h-full w-full place-items-center text-[#f31976]">
                         <Scissors className="h-7 w-7" />
@@ -1371,6 +1372,7 @@ function ClientHomePage() {
                   src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)}
                   alt={selectedCoiffure.nom}
                   className="aspect-[4/3] w-full bg-white object-contain"
+                  loading="lazy"
                 />
                 {modalLoading ? (
                   <div className="absolute inset-0 grid place-items-center bg-white/70">
@@ -1392,7 +1394,7 @@ function ClientHomePage() {
                     }`}
                     aria-label="Afficher cette photo"
                   >
-                    <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover object-[center_18%]" />
+                    <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover object-[center_18%]" loading="lazy" />
                   </button>
                 ))}
               </div>
