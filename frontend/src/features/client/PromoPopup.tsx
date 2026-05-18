@@ -27,7 +27,12 @@ function PromoPopup() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    if (sessionStorage.getItem(STORAGE_KEY)) return
+    // Bloqué si déjà vu dans cette session (dismiss ou clic CTA)
+    try {
+      if (sessionStorage.getItem(STORAGE_KEY)) return
+    } catch {
+      // sessionStorage indisponible (mode privé strict) → on continue quand même
+    }
 
     apiClient
       .get<{ data: PromoData | null }>('/client/promo-active')
@@ -37,7 +42,12 @@ function PromoPopup() {
           setVisible(true)
         }
       })
-      .catch(() => {})
+      .catch((err: unknown) => {
+        // Ne pas afficher d'erreur à l'utilisateur, mais logguer pour debug
+        if (import.meta.env.DEV) {
+          console.error('[PromoPopup] Erreur lors du chargement du popup promo :', err)
+        }
+      })
   }, [])
 
   const dismiss = () => {
@@ -67,13 +77,13 @@ function PromoPopup() {
           <X className="h-4 w-4" />
         </button>
 
-        {/* En-tête gradient avec identité du salon */}
-        <div className="flex h-44 flex-col items-center justify-center bg-gradient-to-br from-[#e91e63] to-[#880e4f]">
-          <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/20 text-4xl">
-            ✂️
-          </div>
-          <p className="text-sm font-black uppercase tracking-widest text-white/90">Salon Thomas</p>
-          <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-white/60">Dakar</p>
+        {/* Image en-tête du popup */}
+        <div className="h-56 overflow-hidden">
+          <img
+            src="/popup-promo.png"
+            alt="Offre spéciale Salon Thomas"
+            className="h-full w-full object-cover object-top"
+          />
         </div>
 
         {/* Corps du popup */}

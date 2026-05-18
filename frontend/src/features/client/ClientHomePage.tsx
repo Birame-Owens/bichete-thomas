@@ -985,7 +985,7 @@ function ClientHomePage() {
               <img
                 src="/image mobile.jpg"
                 alt=""
-                className="h-full w-full object-cover object-[55%_center] opacity-90 md:hidden"
+                className="h-full w-full object-contain object-bottom opacity-90 md:hidden"
                 loading="lazy"
               />
               <div className="absolute inset-0 hidden bg-gradient-to-r from-black/60 via-[#f31976]/15 to-transparent md:block" />
