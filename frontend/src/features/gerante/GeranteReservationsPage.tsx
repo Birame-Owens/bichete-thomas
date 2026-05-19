@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CalendarDays, Clock3, RefreshCw, Scissors, Search, UserRound } from 'lucide-react'
 import GeranteLayout from '../../layouts/GeranteLayout'
-import { getGeranteReservations, updateGeranteReservationStatus } from './reservations.api'
+import { getGeranteReservations, updateGeranteReservationStatus, type SoldeInfo } from './reservations.api'
 import type { LaravelPaginated, Reservation, ReservationStatus } from '../admin/reservations/reservations.types'
 
 // Miroir exact de TRANSITIONS dans Gerante/ReservationController.php.
@@ -51,6 +51,89 @@ function formatDate(value: string) {
 function clientName(r: Reservation) {
   if (!r.client) return 'Cliente inconnue'
   return `${r.client.prenom} ${r.client.nom}`.trim()
+}
+
+// ── Modal encaissement solde (passage en terminee avec montant restant) ───────
+
+type SoldeModalProps = {
+  reservation: Reservation
+  onConfirm: (solde: SoldeInfo) => void
+  onCancel: () => void
+  saving: boolean
+}
+
+const PAYMENT_MODES = [
+  { value: 'especes',       label: 'Espèces' },
+  { value: 'wave',          label: 'Wave' },
+  { value: 'orange_money',  label: 'Orange Money' },
+  { value: 'carte_bancaire',label: 'Carte bancaire' },
+  { value: 'autre',         label: 'Autre' },
+]
+
+function SoldeModal({ reservation, onConfirm, onCancel, saving }: SoldeModalProps) {
+  const [mode, setMode] = useState('especes')
+  const montant = Number(reservation.montant_restant || 0)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+        <h2 className="text-lg font-black text-gray-950">Encaissement du solde</h2>
+        <p className="mt-1 text-sm font-semibold text-gray-500">
+          {reservation.client ? `${reservation.client.prenom} ${reservation.client.nom} — ` : ''}
+          Reste à encaisser avant de terminer.
+        </p>
+
+        <div className="mt-4 rounded-xl bg-[#fff8fb] px-4 py-3 text-center">
+          <p className="text-[10px] font-black uppercase tracking-widest text-[#c41468]">Montant restant</p>
+          <p className="mt-1 text-2xl font-black text-gray-950">
+            {montant.toLocaleString('fr-FR')} {reservation.devise ?? 'FCFA'}
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <label className="block text-[11px] font-black uppercase tracking-wide text-gray-500">
+            Mode de paiement
+          </label>
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value)}
+            className="mt-1.5 h-11 w-full rounded-xl border border-gray-200 px-3 text-sm font-bold outline-none focus:border-[#e91e63] focus:ring-4 focus:ring-[#e91e63]/10"
+          >
+            {PAYMENT_MODES.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mt-5 grid gap-2">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => onConfirm({ enregistrer_paiement: true, mode_paiement_solde: mode })}
+            className="w-full rounded-xl bg-[#e91e63] py-3 text-sm font-black text-white transition hover:bg-[#c41468] disabled:opacity-60"
+          >
+            {saving ? 'Enregistrement...' : 'Encaisser + Terminer'}
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => onConfirm({ enregistrer_paiement: false })}
+            className="w-full rounded-xl bg-gray-100 py-3 text-sm font-black text-gray-700 transition hover:bg-gray-200 disabled:opacity-60"
+          >
+            Terminer sans enregistrer
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={onCancel}
+            className="w-full rounded-xl py-2 text-sm font-semibold text-gray-400 transition hover:text-gray-600"
+          >
+            Annuler
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ── Modal raison (transitions sensibles post-acompte) ──────────────────────
@@ -139,11 +222,13 @@ function GeranteReservationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  // Etat pour la modal raison
+  // Etat pour la modal raison (annulation post-acompte)
   const [sensitiveTarget, setSensitiveTarget] = useState<{
     reservation: Reservation
     status: ReservationStatus
   } | null>(null)
+  // Etat pour la modal solde (terminee avec montant restant)
+  const [soldeTarget, setSoldeTarget] = useState<Reservation | null>(null)
   const [saving, setSaving] = useState(false)
 
   const filtersReady = useRef(false)
@@ -192,12 +277,18 @@ function GeranteReservationsPage() {
     return () => window.clearTimeout(id)
   }, [dateTo, dateFrom, load, search, statusFilter])
 
-  const applyStatus = async (reservation: Reservation, status: ReservationStatus, raison?: string) => {
+  const applyStatus = async (
+    reservation: Reservation,
+    status: ReservationStatus,
+    raison?: string,
+    solde?: SoldeInfo,
+  ) => {
     setSaving(true)
     try {
-      await updateGeranteReservationStatus(reservation.id, status, raison)
+      await updateGeranteReservationStatus(reservation.id, status, raison, solde)
       setSuccess(`Reservation #${reservation.id} → ${STATUS_LABELS[status]}.`)
       setSensitiveTarget(null)
+      setSoldeTarget(null)
       await load(page, search, statusFilter, dateFrom, dateTo)
     } catch {
       setError('Changement de statut impossible. Verifiez votre connexion.')
@@ -207,6 +298,12 @@ function GeranteReservationsPage() {
   }
 
   const handleStatusChange = (reservation: Reservation, status: ReservationStatus) => {
+    // Passage en terminee avec un solde restant → modal encaissement
+    if (status === 'terminee' && Number(reservation.montant_restant) > 0) {
+      setSoldeTarget(reservation)
+      return
+    }
+    // Annulation/absence post-acompte → modal raison obligatoire
     const isSensitive = (SENSITIVE[reservation.statut] ?? []).includes(status)
     if (isSensitive) {
       setSensitiveTarget({ reservation, status })
@@ -217,6 +314,16 @@ function GeranteReservationsPage() {
 
   return (
     <GeranteLayout>
+      {/* Modal encaissement solde avant marquage terminee */}
+      {soldeTarget && (
+        <SoldeModal
+          reservation={soldeTarget}
+          onConfirm={(solde) => void applyStatus(soldeTarget, 'terminee', undefined, solde)}
+          onCancel={() => setSoldeTarget(null)}
+          saving={saving}
+        />
+      )}
+
       {/* Modal raison pour transitions post-acompte */}
       {sensitiveTarget && (
         <RaisonModal
