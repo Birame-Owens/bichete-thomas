@@ -9,6 +9,7 @@ use App\Services\SystemLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -110,10 +111,12 @@ class ReservationController extends Controller
 
         DB::transaction(function () use ($data, $reservation, $newStatus, $hasSolde): void {
             if ($hasSolde && ($data['enregistrer_paiement'] ?? false)) {
-                // Creer le paiement de solde avant de cloturer la reservation.
-                Paiement::query()->create([
+                // UUID temporaire obligatoire car numero_recu est NOT NULL + UNIQUE.
+                // On le remplace par le numero definitif apres avoir obtenu l id.
+                $paiement = Paiement::query()->create([
                     'reservation_id' => $reservation->id,
                     'client_id'      => $reservation->client_id,
+                    'numero_recu'    => 'TEMP-' . Str::uuid()->toString(),
                     'type'           => 'solde',
                     'mode_paiement'  => $data['mode_paiement_solde'],
                     'montant'        => $reservation->montant_restant,
@@ -121,6 +124,9 @@ class ReservationController extends Controller
                     'statut'         => 'valide',
                     'date_paiement'  => now(),
                     'notes'          => 'Solde encaisse par la gerante a la fin de la prestation.',
+                ]);
+                $paiement->update([
+                    'numero_recu' => 'BT-' . now()->format('Ymd') . '-' . str_pad((string) $paiement->id, 4, '0', STR_PAD_LEFT),
                 ]);
                 $reservation->montant_restant = 0;
             }
