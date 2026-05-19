@@ -27,13 +27,16 @@ class CatalogueController extends Controller
 
         // Les recherches textuelles sont dynamiques : pas de cache.
         // Les requêtes sans recherche (95% du trafic) sont mises en cache 5 min.
+        // La version permet d'invalider toutes les clés sans Cache::tags()
+        // (plus fiable selon la config phpredis/predis du driver Redis).
         if ($search !== '') {
             return response()->json(['data' => $this->buildCatalogueData($categoryId, $search, $naboopayEnabled)]);
         }
 
-        $cacheKey = 'catalogue:v1:' . ($categoryId ? "cat-{$categoryId}" : 'all');
+        $version = Cache::get('catalogue:cache:version', 0);
+        $cacheKey = "catalogue:{$version}:" . ($categoryId ? "cat-{$categoryId}" : 'all');
 
-        $data = Cache::tags(['catalogue'])->remember($cacheKey, 300, fn () => $this->buildCatalogueData($categoryId, $search, $naboopayEnabled));
+        $data = Cache::remember($cacheKey, 300, fn () => $this->buildCatalogueData($categoryId, $search, $naboopayEnabled));
 
         return response()->json(['data' => $data]);
     }
