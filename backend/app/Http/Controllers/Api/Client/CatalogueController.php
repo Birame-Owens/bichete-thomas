@@ -8,12 +8,13 @@ use App\Models\CategorieCoiffure;
 use App\Models\Client;
 use App\Models\CodePromo;
 use App\Models\Coiffure;
-use App\Models\ParametreSysteme;
 use App\Models\Reservation;
 use App\Services\ClientResolver;
 use App\Support\PhoneNumber;
+use App\Support\SystemSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class CatalogueController extends Controller
@@ -24,6 +25,24 @@ class CatalogueController extends Controller
         $search = trim($request->string('search')->toString());
         $naboopayEnabled = filled(config('services.naboopay.api_key'));
 
+        // Les recherches textuelles sont dynamiques : pas de cache.
+        // Les requêtes sans recherche (95% du trafic) sont mises en cache 5 min.
+        if ($search !== '') {
+            return response()->json(['data' => $this->buildCatalogueData($categoryId, $search, $naboopayEnabled)]);
+        }
+
+        $cacheKey = 'catalogue:v1:' . ($categoryId ? "cat-{$categoryId}" : 'all');
+
+        $data = Cache::remember($cacheKey, 300, fn () => $this->buildCatalogueData($categoryId, $search, $naboopayEnabled));
+
+        return response()->json(['data' => $data]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildCatalogueData(?int $categoryId, string $search, bool $naboopayEnabled): array
+    {
         $categories = CategorieCoiffure::query()
             ->where('actif', true)
             ->withCount(['coiffures' => fn ($query) => $query->where('actif', true)])
@@ -63,29 +82,27 @@ class CatalogueController extends Controller
             ->get()
             ->map(fn (Coiffure $coiffure): array => $this->formatCoiffure($coiffure));
 
-        return response()->json([
-            'data' => [
-                'categories' => $categories,
-                'coiffures' => $coiffures,
-                'promotions' => $this->activePromotions(),
-                'settings' => [
-                    'devise' => $this->settingValue('devise', 'FCFA'),
-                    'telephone_whatsapp' => $this->settingValue('telephone_whatsapp', '221778153939'),
-                    'heure_ouverture' => $this->settingValue('heure_ouverture', '09:00'),
-                    'heure_fermeture' => $this->settingValue('heure_fermeture', '19:00'),
-                    'jours_fermeture' => $this->settingValue('jours_fermeture', []),
-                    'montant_acompte_defaut' => $this->settingValue('montant_acompte_defaut', 0),
-                    'pourcentage_acompte' => $this->settingValue('pourcentage_acompte', 0),
-                    'limite_reservations_par_jour' => $this->settingValue('limite_reservations_par_jour', 15),
-                    'limite_reservations_par_creneau' => $this->settingValue('limite_reservations_par_creneau', 3),
-                    'paiements_en_ligne' => [
-                        'wave' => $naboopayEnabled,
-                        'orange_money' => $naboopayEnabled,
-                        'carte_bancaire' => $naboopayEnabled,
-                    ],
+        return [
+            'categories' => $categories,
+            'coiffures' => $coiffures,
+            'promotions' => $this->activePromotions(),
+            'settings' => [
+                'devise' => SystemSettings::get('devise', 'FCFA'),
+                'telephone_whatsapp' => SystemSettings::get('telephone_whatsapp', '221778153939'),
+                'heure_ouverture' => SystemSettings::get('heure_ouverture', '09:00'),
+                'heure_fermeture' => SystemSettings::get('heure_fermeture', '19:00'),
+                'jours_fermeture' => SystemSettings::get('jours_fermeture', []),
+                'montant_acompte_defaut' => SystemSettings::get('montant_acompte_defaut', 0),
+                'pourcentage_acompte' => SystemSettings::get('pourcentage_acompte', 0),
+                'limite_reservations_par_jour' => SystemSettings::get('limite_reservations_par_jour', 15),
+                'limite_reservations_par_creneau' => SystemSettings::get('limite_reservations_par_creneau', 3),
+                'paiements_en_ligne' => [
+                    'wave' => $naboopayEnabled,
+                    'orange_money' => $naboopayEnabled,
+                    'carte_bancaire' => $naboopayEnabled,
                 ],
             ],
-        ]);
+        ];
     }
 
     public function show(Coiffure $coiffure): JsonResponse
@@ -427,13 +444,6 @@ class CatalogueController extends Controller
             ])
             ->values()
             ->all();
-    }
-
-    private function settingValue(string $key, mixed $default): mixed
-    {
-        $setting = ParametreSysteme::query()->where('cle', $key)->first();
-
-        return $setting?->valeur['value'] ?? $default;
     }
 
     /**
