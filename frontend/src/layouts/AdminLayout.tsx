@@ -75,7 +75,7 @@ const sections: Section[] = [
   { label: 'Messages WhatsApp', path: '/admin/messages', icon: MessageCircle, comingSoon: true },
   { label: 'Photos prestations', path: '/admin/photos', icon: Camera, comingSoon: true },
   { label: 'Rapports & Statistiques', path: '/admin/rapports', icon: BarChart3 },
-  { label: 'Logs systeme', path: '/admin/logs', icon: ShoppingBag, comingSoon: true },
+  { label: 'Logs systeme', path: '/admin/logs', icon: ShoppingBag },
   { label: 'Parametres', path: '/admin/parametres', icon: Settings },
 ]
 

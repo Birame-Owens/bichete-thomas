@@ -33,6 +33,7 @@ const GerantesPage = lazy(() => import('./features/admin/personnel/GerantesPage'
 const CoiffeusesPage = lazy(() => import('./features/admin/personnel/CoiffeusesPage'))
 const SettingsPage = lazy(() => import('./features/admin/settings/SettingsPage'))
 const PromotionsPage = lazy(() => import('./features/admin/promotions/PromotionsPage'))
+const LogsPage = lazy(() => import('./features/admin/logs-systeme/LogsPage'))
 const GeranteReservationsPage = lazy(() => import('./features/gerante/GeranteReservationsPage'))
 
 function NotFound() {
@@ -95,6 +96,7 @@ function App() {
       <Route path="/admin/personnel/gerantes" element={<AdminRoute><GerantesPage /></AdminRoute>} />
       <Route path="/admin/personnel/coiffeuses" element={<AdminRoute><CoiffeusesPage /></AdminRoute>} />
       <Route path="/admin/promotions" element={<AdminRoute><PromotionsPage /></AdminRoute>} />
+      <Route path="/admin/logs" element={<AdminRoute><LogsPage /></AdminRoute>} />
       <Route path="/admin/parametres" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       <Route path="/manager" element={<Navigate to="/manager/reservations" replace />} />
       <Route path="/manager/dashboard" element={<Navigate to="/manager/reservations" replace />} />
