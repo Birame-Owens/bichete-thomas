@@ -182,6 +182,10 @@ export function connexion() {
     {
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       tags:    { scenario: 'connexion' },
+      // 404 (numéro inconnu), 422 (validation), 429 (rate limit) sont des
+      // réponses attendues avec de faux numéros — ne pas les compter comme
+      // http_req_failed pour ne pas fausser le taux d'erreur global.
+      responseCallback: http.expectedStatuses({ min: 200, max: 299 }, 404, 422, 429),
     }
   )
   authDuration.add(Date.now() - debut)
