@@ -206,7 +206,7 @@ class CatalogueController extends Controller
             ] : null,
             'prix_min' => $minPrice,
             'duree_min_minutes' => $minDuration,
-            'images' => $images,
+            'images' => $images->all(),
             'avis_resume' => [
                 'moyenne' => $reviewsTotal > 0 ? round($reviewsAverage, 1) : 0,
                 'total' => $reviewsTotal,
@@ -219,12 +219,12 @@ class CatalogueController extends Controller
                 'nom' => $variant->nom,
                 'prix' => (float) $variant->prix,
                 'duree_minutes' => $variant->duree_minutes,
-            ])->values(),
+            ])->values()->all(),
             'options' => $coiffure->options->map(fn ($option): array => [
                 'id' => $option->id,
                 'nom' => $option->nom,
                 'prix' => (float) $option->prix,
-            ])->values(),
+            ])->values()->all(),
         ];
     }
 
