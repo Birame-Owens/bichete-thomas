@@ -86,8 +86,8 @@ class CatalogueController extends Controller
             ->map(fn (Coiffure $coiffure): array => $this->formatCoiffure($coiffure));
 
         return [
-            'categories' => $categories,
-            'coiffures' => $coiffures,
+            'categories' => $categories->values()->all(),
+            'coiffures' => $coiffures->values()->all(),
             'promotions' => $this->activePromotions(),
             'settings' => [
                 'devise' => SystemSettings::get('devise', 'FCFA'),
