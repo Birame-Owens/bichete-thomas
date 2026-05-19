@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\Gerante;
 
 use App\Http\Controllers\Controller;
+use App\Models\Paiement;
 use App\Models\Reservation;
 use App\Services\SystemLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -77,12 +79,22 @@ class ReservationController extends Controller
             true
         );
 
+        $isTerminee = $request->input('statut') === 'terminee';
+        $hasSolde   = $isTerminee && (float) $reservation->montant_restant > 0;
+
         $data = $request->validate([
             'statut' => ['required', Rule::in(array_keys(self::TRANSITIONS))],
             // Raison obligatoire uniquement pour les transitions post-acompte
             'raison'  => $isSensitive
                 ? ['required', 'string', 'min:20', 'max:1000']
                 : ['sometimes', 'nullable', 'string', 'max:1000'],
+            // Solde requis quand montant_restant > 0 et passage en terminee
+            'enregistrer_paiement' => $hasSolde
+                ? ['required', 'boolean']
+                : ['sometimes', 'boolean'],
+            'mode_paiement_solde'  => ($hasSolde && $request->boolean('enregistrer_paiement'))
+                ? ['required', Rule::in(['especes', 'wave', 'orange_money', 'carte_bancaire', 'autre'])]
+                : ['sometimes', 'nullable', 'string'],
         ]);
 
         $allowed = self::TRANSITIONS[$reservation->statut] ?? [];
@@ -96,9 +108,27 @@ class ReservationController extends Controller
         $oldStatus = $reservation->statut;
         $newStatus = $data['statut'];
 
-        $reservation->statut = $newStatus;
-        $this->applyStatusTimestamps($reservation);
-        $reservation->save();
+        DB::transaction(function () use ($data, $reservation, $newStatus, $hasSolde): void {
+            if ($hasSolde && ($data['enregistrer_paiement'] ?? false)) {
+                // Creer le paiement de solde avant de cloturer la reservation.
+                Paiement::query()->create([
+                    'reservation_id' => $reservation->id,
+                    'client_id'      => $reservation->client_id,
+                    'type'           => 'solde',
+                    'mode_paiement'  => $data['mode_paiement_solde'],
+                    'montant'        => $reservation->montant_restant,
+                    'devise'         => $reservation->devise ?? 'FCFA',
+                    'statut'         => 'valide',
+                    'date_paiement'  => now(),
+                    'notes'          => 'Solde encaisse par la gerante a la fin de la prestation.',
+                ]);
+                $reservation->montant_restant = 0;
+            }
+
+            $reservation->statut = $newStatus;
+            $this->applyStatusTimestamps($reservation);
+            $reservation->save();
+        });
 
         $this->logStatusChange($request, $reservation, $oldStatus, $newStatus, $data['raison'] ?? null, $isSensitive);
 
