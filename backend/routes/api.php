@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Admin\DepenseController;
 use App\Http\Controllers\Api\Admin\EvenementAnalyticsController;
 use App\Http\Controllers\Api\Admin\GeranteController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
+use App\Http\Controllers\Api\Gerante\ReservationController as GeranteReservationController;
 use App\Http\Controllers\Api\Admin\ListeNoireClientController;
 use App\Http\Controllers\Api\Admin\LogSystemeController;
 use App\Http\Controllers\Api\Admin\MouvementCaisseController;
@@ -144,4 +145,16 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
         Route::apiResource('evenements-analytics', EvenementAnalyticsController::class)
             ->only(['index', 'show'])
             ->parameters(['evenements-analytics' => 'evenementAnalytics']);
+    });
+
+// Espace gérante : accès restreint au suivi des réservations du jour.
+// Séparé du groupe admin pour ne donner que les permissions nécessaires
+// (principe du moindre privilège) et faciliter l'évolution indépendante.
+Route::middleware(['auth.token', 'role:gerante', 'log.admin'])
+    ->prefix('gerante')
+    ->name('gerante.')
+    ->group(function (): void {
+        Route::get('reservations', [GeranteReservationController::class, 'index'])->name('reservations.index');
+        Route::get('reservations/{reservation}', [GeranteReservationController::class, 'show'])->name('reservations.show');
+        Route::patch('reservations/{reservation}/statut', [GeranteReservationController::class, 'updateStatus'])->name('reservations.statut');
     });
