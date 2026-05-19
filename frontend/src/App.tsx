@@ -33,19 +33,7 @@ const GerantesPage = lazy(() => import('./features/admin/personnel/GerantesPage'
 const CoiffeusesPage = lazy(() => import('./features/admin/personnel/CoiffeusesPage'))
 const SettingsPage = lazy(() => import('./features/admin/settings/SettingsPage'))
 const PromotionsPage = lazy(() => import('./features/admin/promotions/PromotionsPage'))
-
-function ManagerDashboard() {
-  return (
-    <div className="min-h-screen bg-[#faf9fa] px-6 py-12">
-      <div className="mx-auto w-full max-w-3xl rounded-xl border border-gray-100 bg-white p-8 shadow-sm">
-        <h1 className="text-3xl font-black text-gray-950">Espace gerante</h1>
-        <p className="mt-3 text-sm font-semibold text-gray-500">
-          Votre espace de pilotage sera branche sur les prochains modules operationnels.
-        </p>
-      </div>
-    </div>
-  )
-}
+const GeranteReservationsPage = lazy(() => import('./features/gerante/GeranteReservationsPage'))
 
 function NotFound() {
   return (
@@ -108,11 +96,15 @@ function App() {
       <Route path="/admin/personnel/coiffeuses" element={<AdminRoute><CoiffeusesPage /></AdminRoute>} />
       <Route path="/admin/promotions" element={<AdminRoute><PromotionsPage /></AdminRoute>} />
       <Route path="/admin/parametres" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+      <Route path="/manager" element={<Navigate to="/manager/reservations" replace />} />
+      <Route path="/manager/dashboard" element={<Navigate to="/manager/reservations" replace />} />
       <Route
-        path="/manager/dashboard"
+        path="/manager/reservations"
         element={
           <RequireAuth role="gerante">
-            <ManagerDashboard />
+            <Suspense fallback={<RouteSuspenseFallback />}>
+              <GeranteReservationsPage />
+            </Suspense>
           </RequireAuth>
         }
       />
