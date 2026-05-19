@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\CategorieCoiffure;
+use App\Models\CodePromo;
+use App\Models\Coiffure;
+use App\Observers\CatalogueObserver;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -28,5 +32,11 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
         }
+
+        // Invalidation cache catalogue dès qu'un admin modifie une coiffure,
+        // une catégorie ou un code promo. Le flush est immédiat (pas d'attente TTL).
+        Coiffure::observe(CatalogueObserver::class);
+        CategorieCoiffure::observe(CatalogueObserver::class);
+        CodePromo::observe(CatalogueObserver::class);
     }
 }

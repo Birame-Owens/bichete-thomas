@@ -33,7 +33,7 @@ class CatalogueController extends Controller
 
         $cacheKey = 'catalogue:v1:' . ($categoryId ? "cat-{$categoryId}" : 'all');
 
-        $data = Cache::remember($cacheKey, 300, fn () => $this->buildCatalogueData($categoryId, $search, $naboopayEnabled));
+        $data = Cache::tags(['catalogue'])->remember($cacheKey, 300, fn () => $this->buildCatalogueData($categoryId, $search, $naboopayEnabled));
 
         return response()->json(['data' => $data]);
     }
