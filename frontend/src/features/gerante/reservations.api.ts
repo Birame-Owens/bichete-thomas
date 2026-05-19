@@ -21,14 +21,21 @@ export async function getGeranteReservation(id: number): Promise<Reservation> {
   return response.data.data
 }
 
+export type SoldeInfo = {
+  enregistrer_paiement: boolean
+  mode_paiement_solde?: string
+}
+
 export async function updateGeranteReservationStatus(
   id: number,
   statut: ReservationStatus,
   raison?: string,
+  solde?: SoldeInfo,
 ): Promise<Reservation> {
   const response = await apiClient.patch<{ data: Reservation }>(`/gerante/reservations/${id}/statut`, {
     statut,
     ...(raison ? { raison } : {}),
+    ...(solde ?? {}),
   })
   return response.data.data
 }
