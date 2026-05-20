@@ -908,7 +908,14 @@ function ReservationsPage() {
                     <input className={inputClass} type="date" value={form.date_reservation} onChange={(event) => setForm((current) => ({ ...current, date_reservation: event.target.value }))} required />
                   </FormField>
                   <FormField label="Heure debut">
-                    <input className={inputClass} type="time" value={form.heure_debut} onChange={(event) => setForm((current) => ({ ...current, heure_debut: event.target.value }))} required />
+                    <input
+                      className={inputClass}
+                      type="time"
+                      value={form.heure_debut}
+                      min={(() => { const n = new Date(); const todayStr = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; return !editing && form.date_reservation === todayStr ? `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}` : undefined })()}
+                      onChange={(event) => setForm((current) => ({ ...current, heure_debut: event.target.value }))}
+                      required
+                    />
                   </FormField>
                   <FormField label="Statut">
                     <select className={inputClass} value={form.statut} onChange={(event) => setForm((current) => ({ ...current, statut: event.target.value as ReservationStatus }))}>

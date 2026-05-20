@@ -369,6 +369,14 @@ class ReservationController extends Controller
         $startsAt = Carbon::createFromFormat('Y-m-d H:i', sprintf('%s %s', $reservationData['date_reservation'], $reservationData['heure_debut']));
         $endsAt = $startsAt->copy()->addMinutes($duration);
 
+        // Pour une nouvelle reservation : bloquer un creneau passe sur le jour courant.
+        // Les dates passees restent autorisees pour la saisie retroactive.
+        if ($reservation === null && $startsAt->isToday() && $startsAt->isPast()) {
+            throw ValidationException::withMessages([
+                'heure_debut' => 'Le creneau selectionne est deja passe.',
+            ]);
+        }
+
         if (! $startsAt->isSameDay($endsAt)) {
             throw ValidationException::withMessages([
                 'heure_debut' => 'La reservation doit se terminer le meme jour.',

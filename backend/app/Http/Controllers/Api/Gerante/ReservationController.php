@@ -87,7 +87,7 @@ class ReservationController extends Controller
         $data = $request->validate([
             'client_id'                      => ['required', 'integer', 'exists:clients,id'],
             'coiffeuse_id'                   => ['nullable', 'integer', Rule::exists('coiffeuses', 'id')->where('actif', true)],
-            'date_reservation'               => ['required', 'date'],
+            'date_reservation'               => ['required', 'date', 'after_or_equal:today'],
             'heure_debut'                    => ['required', 'date_format:H:i'],
             'details'                        => ['required', 'array', 'min:1'],
             'details.*.coiffure_id'          => ['required', 'integer', 'exists:coiffures,id'],
@@ -130,6 +130,13 @@ class ReservationController extends Controller
 
         $startsAt = Carbon::createFromFormat('Y-m-d H:i', $data['date_reservation'] . ' ' . $data['heure_debut']);
         $endsAt   = $startsAt->copy()->addMinutes($duration);
+
+        // Creneau dans le passe sur le jour courant : interdit meme si la date est valide.
+        if ($startsAt->isPast()) {
+            throw ValidationException::withMessages([
+                'heure_debut' => 'Le creneau selectionne est deja passe.',
+            ]);
+        }
 
         if (! $startsAt->isSameDay($endsAt)) {
             throw ValidationException::withMessages([
