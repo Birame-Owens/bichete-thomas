@@ -39,8 +39,12 @@ use App\Http\Controllers\Api\SeoController;
 use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/documentation', [DocumentationController::class, 'ui']);
-Route::get('/openapi.json', [DocumentationController::class, 'openApi']);
+// Documentation Swagger : desactivee en production pour ne pas exposer
+// la liste complete des endpoints aux attaquants.
+if (! app()->isProduction()) {
+    Route::get('/documentation', [DocumentationController::class, 'ui']);
+    Route::get('/openapi.json', [DocumentationController::class, 'openApi']);
+}
 Route::get('/sitemap.xml', [SitemapController::class, 'index']);
 Route::get('/seo/{slug?}', [SeoController::class, 'show'])->where('slug', '.*');
 Route::post('/analytics/events', [AnalyticsController::class, 'store'])->middleware('throttle:30,1');
