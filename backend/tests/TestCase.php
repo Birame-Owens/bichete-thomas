@@ -109,4 +109,44 @@ abstract class TestCase extends BaseTestCase
         // (defaut "no credentials, no cookies").
         return $this->withCredentials()->withUnencryptedCookies($auth['cookies']);
     }
+
+    /**
+     * Cree un utilisateur gerante actif.
+     */
+    protected function createGeranteUser(string $email = 'gerante@test.local', string $password = 'TestAdmin2026!'): User
+    {
+        $role = Role::query()->firstOrCreate(
+            ['nom' => 'gerante'],
+            ['description' => 'Gerante (test)'],
+        );
+
+        return User::query()->create([
+            'role_id'            => $role->id,
+            'name'               => 'Test Gerante',
+            'email'              => $email,
+            'password'           => Hash::make($password),
+            'actif'              => true,
+            'email_verified_at'  => now(),
+        ]);
+    }
+
+    /**
+     * Login complet en tant que gerante — meme interface que loggedInAdmin().
+     *
+     * @return array{user: User, cookies: array<string, string>, csrf: string}
+     */
+    protected function loggedInGerante(string $email = 'gerante@test.local'): array
+    {
+        $user  = $this->createGeranteUser($email);
+        $login = $this->loginAs($user);
+        $login->assertOk();
+
+        $cookies = $this->extractAuthCookies($login);
+
+        return [
+            'user'    => $user,
+            'cookies' => $cookies,
+            'csrf'    => $cookies[AuthController::CSRF_COOKIE] ?? '',
+        ];
+    }
 }
