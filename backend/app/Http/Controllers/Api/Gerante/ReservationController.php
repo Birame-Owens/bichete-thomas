@@ -33,11 +33,13 @@ class ReservationController extends Controller
         'absence'      => [],
     ];
 
-    // Transitions sensibles : un acompte a deja ete encaisse. La raison est
+    // Transitions sensibles : un paiement a deja ete encaisse. La raison est
     // obligatoire (min 20 car.) pour tracer toute annulation post-paiement
     // et decourager les detournements de caisse.
+    // en_cours couvre aussi le cas "soldee" : paiement complet encaisse a la creation.
     private const SENSITIVE_TRANSITIONS = [
         'acompte_paye' => ['annulee', 'absence'],
+        'en_cours'     => ['annulee', 'absence'],
     ];
 
     private const BLOCKING_STATUSES = [
@@ -155,6 +157,14 @@ class ReservationController extends Controller
         $deposit = min(max($deposit, 0), $subtotal);
 
         $isSoldee = $data['type_paiement'] === 'soldee';
+
+        // Si la gerante choisit acompte mais qu aucun montant n est configure,
+        // on refuse : mieux vaut un message clair que creer un paiement a 0 FCFA.
+        if (! $isSoldee && $deposit <= 0) {
+            throw ValidationException::withMessages([
+                'type_paiement' => 'Aucun acompte configure dans le systeme. Choisissez "Soldee" pour un paiement complet.',
+            ]);
+        }
 
         [$reservation, $paiement] = DB::transaction(function () use ($data, $details, $subtotal, $duration, $deposit, $endsAt, $isSoldee): array {
             // Soldee : la cliente paie tout maintenant, service en cours.
