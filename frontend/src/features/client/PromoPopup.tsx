@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { apiClient } from '../../lib/apiClient'
 
@@ -25,6 +25,8 @@ function formatDiscount(type: 'pourcentage' | 'montant', valeur: number | string
 function PromoPopup() {
   const [promo, setPromo] = useState<PromoData | null>(null)
   const [visible, setVisible] = useState(false)
+  const [imgFailed, setImgFailed] = useState(false)
+  const imgRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
     // Bloqué si déjà vu dans cette session (dismiss ou clic CTA)
@@ -77,14 +79,25 @@ function PromoPopup() {
           <X className="h-4 w-4" />
         </button>
 
-        {/* Image en-tête du popup */}
-        <div className="h-56 overflow-hidden">
-          <img
-            src="/popup-promo.png"
-            alt="Offre spéciale Salon Thomas"
-            className="h-full w-full object-cover object-top"
-          />
-        </div>
+        {/* Image en-tête du popup — masquée si elle échoue à charger (connexion lente) */}
+        {!imgFailed && (
+          <div className="h-56 overflow-hidden">
+            <img
+              ref={imgRef}
+              src="/popup-promo.webp"
+              alt="Offre spéciale Salon Thomas"
+              className="h-full w-full object-cover object-top"
+              onError={() => {
+                // Tentative fallback PNG si WebP non supporté ou absent
+                if (imgRef.current && imgRef.current.src.endsWith('.webp')) {
+                  imgRef.current.src = '/popup-promo.png'
+                } else {
+                  setImgFailed(true)
+                }
+              }}
+            />
+          </div>
+        )}
 
         {/* Corps du popup */}
         <div className="px-6 py-5 text-center">
