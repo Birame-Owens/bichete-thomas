@@ -104,22 +104,16 @@ class DashboardController extends Controller
             ];
         }
 
+        // Les remboursements (type=remboursement, statut=valide) sont deduits
+        // du CA pour reflechir l argent reellement encaisse apres retours.
+        $caToday    = $this->netCA(now()->toDateString());
+        $caYesterday = $this->netCA(now()->subDay()->toDateString());
+
         return [
             'available' => true,
-            'value' => $today = (float) DB::table('paiements')
-                ->whereDate('date_paiement', now()->toDateString())
-                ->where('statut', 'valide')
-                ->whereIn('type', ['acompte', 'solde', 'complet', 'ajustement'])
-                ->sum('montant'),
-            'trend' => $this->trendLabel(
-                $today,
-                (float) DB::table('paiements')
-                    ->whereDate('date_paiement', now()->subDay()->toDateString())
-                    ->where('statut', 'valide')
-                    ->whereIn('type', ['acompte', 'solde', 'complet', 'ajustement'])
-                    ->sum('montant')
-            ),
-            'currency' => 'FCFA',
+            'value'     => $caToday,
+            'trend'     => $this->trendLabel($caToday, $caYesterday),
+            'currency'  => 'FCFA',
         ];
     }
 
@@ -454,6 +448,23 @@ class DashboardController extends Controller
     /**
      * @return array<string, mixed>
      */
+    private function netCA(string $date): float
+    {
+        $entrees = (float) DB::table('paiements')
+            ->whereDate('date_paiement', $date)
+            ->where('statut', 'valide')
+            ->whereIn('type', ['acompte', 'solde', 'complet', 'ajustement'])
+            ->sum('montant');
+
+        $remboursements = (float) DB::table('paiements')
+            ->whereDate('date_paiement', $date)
+            ->where('statut', 'valide')
+            ->where('type', 'remboursement')
+            ->sum('montant');
+
+        return max(0, $entrees - $remboursements);
+    }
+
     private function depensesRecentes(): array
     {
         if (! $this->hasTable('depenses')) {

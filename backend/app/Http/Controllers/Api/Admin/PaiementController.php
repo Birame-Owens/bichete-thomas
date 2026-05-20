@@ -11,6 +11,7 @@ use App\Models\Paiement;
 use App\Models\ParametreSysteme;
 use App\Models\Reservation;
 use App\Services\ClientResolver;
+use App\Services\SystemLogger;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -28,7 +29,10 @@ class PaiementController extends Controller
     private const METHODS = ['especes', 'wave', 'orange_money', 'carte_bancaire', 'virement', 'autre'];
     private const STATUSES = ['en_attente', 'valide', 'annule', 'rembourse'];
 
-    public function __construct(private readonly ClientResolver $clientResolver) {}
+    public function __construct(
+        private readonly ClientResolver $clientResolver,
+        private readonly SystemLogger   $logger,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -51,9 +55,16 @@ class PaiementController extends Controller
         $data = $this->validatedPaymentData($request);
 
         $paiement = DB::transaction(fn (): Paiement => $this->persistPayment($data));
-        // Notif recue en queue (I6) : la requete admin repond sans attendre
-        // Twilio/WhatsApp/Mail.
         SendPaymentReceiptNotifications::dispatch($paiement->id);
+
+        $this->logger->record(
+            action: 'admin_paiement_creation',
+            module: 'paiements',
+            description: "Paiement #{$paiement->id} cree ({$paiement->type}, {$paiement->montant} {$paiement->devise})",
+            subject: $paiement,
+            after: ['type' => $paiement->type, 'montant' => $paiement->montant, 'statut' => $paiement->statut, 'mode' => $paiement->mode_paiement],
+            request: $request,
+        );
 
         return response()->json([
             'message' => 'Paiement enregistre.',
@@ -74,11 +85,21 @@ class PaiementController extends Controller
 
     public function update(Request $request, Paiement $paiement): JsonResponse
     {
-        $data = $this->validatedPaymentData($request, $paiement);
+        $before = ['type' => $paiement->type, 'montant' => $paiement->montant, 'statut' => $paiement->statut];
+        $data   = $this->validatedPaymentData($request, $paiement);
 
         $paiement = DB::transaction(fn (): Paiement => $this->persistPayment($data, $paiement));
-        // Notif recue en queue (I6).
         SendPaymentReceiptNotifications::dispatch($paiement->id);
+
+        $this->logger->record(
+            action: 'admin_paiement_modification',
+            module: 'paiements',
+            description: "Paiement #{$paiement->id} modifie",
+            subject: $paiement,
+            before: $before,
+            after: ['type' => $paiement->type, 'montant' => $paiement->montant, 'statut' => $paiement->statut, 'mode' => $paiement->mode_paiement],
+            request: $request,
+        );
 
         return response()->json([
             'message' => 'Paiement mis a jour.',
@@ -89,10 +110,10 @@ class PaiementController extends Controller
 
     public function cancel(Request $request, Paiement $paiement): JsonResponse
     {
-        $data = $request->validate([
+        $data  = $request->validate([
             'notes' => ['nullable', 'string', 'max:5000'],
         ]);
-
+        $before        = ['type' => $paiement->type, 'montant' => $paiement->montant, 'statut' => $paiement->statut];
         $reservationId = $paiement->reservation_id;
 
         DB::transaction(function () use ($paiement, $data, $reservationId): void {
@@ -104,6 +125,16 @@ class PaiementController extends Controller
             ])->save();
             $this->syncReservationPaymentState($reservationId);
         });
+
+        $this->logger->record(
+            action: 'admin_paiement_annulation',
+            module: 'paiements',
+            description: "Paiement #{$paiement->id} annule ({$paiement->type}, {$paiement->montant} {$paiement->devise})",
+            subject: $paiement,
+            before: $before,
+            after:  ['statut' => 'annule'],
+            request: $request,
+        );
 
         return response()->json([
             'message' => 'Paiement annule.',
@@ -131,7 +162,7 @@ class PaiementController extends Controller
         ]);
     }
 
-    public function destroy(Paiement $paiement): JsonResponse
+    public function destroy(Request $request, Paiement $paiement): JsonResponse
     {
         // Un paiement valide est une trace comptable : utiliser l annulation plutot.
         if ($paiement->statut === 'valide') {
@@ -140,6 +171,7 @@ class PaiementController extends Controller
             ]);
         }
 
+        $snapshot      = ['type' => $paiement->type, 'montant' => $paiement->montant, 'statut' => $paiement->statut];
         $reservationId = $paiement->reservation_id;
 
         DB::transaction(function () use ($paiement, $reservationId): void {
@@ -148,6 +180,15 @@ class PaiementController extends Controller
             $paiement->delete();
             $this->syncReservationPaymentState($reservationId);
         });
+
+        $this->logger->record(
+            action: 'admin_paiement_suppression',
+            module: 'paiements',
+            description: "Paiement #{$paiement->id} supprime ({$paiement->type}, {$paiement->montant} {$paiement->devise})",
+            subject: null,
+            before: $snapshot,
+            request: $request,
+        );
 
         return response()->json(['message' => 'Paiement supprime.']);
     }

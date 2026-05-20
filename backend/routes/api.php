@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Admin\EvenementAnalyticsController;
 use App\Http\Controllers\Api\Admin\GeranteController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
 use App\Http\Controllers\Api\Gerante\ClientController as GeranteClientController;
+use App\Http\Controllers\Api\Gerante\PaiementController as GerantePaiementController;
 use App\Http\Controllers\Api\Gerante\ReservationController as GeranteReservationController;
 use App\Http\Controllers\Api\Admin\ListeNoireClientController;
 use App\Http\Controllers\Api\Admin\LogSystemeController;
@@ -167,4 +168,6 @@ Route::middleware(['auth.token', 'role:gerante', 'log.admin'])
         Route::post('clients', [GeranteClientController::class, 'store'])->name('clients.store');
         Route::get('clients/{client}', [GeranteClientController::class, 'show'])->name('clients.show');
         Route::put('clients/{client}', [GeranteClientController::class, 'update'])->name('clients.update');
+        Route::get('paiements', [GerantePaiementController::class, 'index'])->name('paiements.index');
+        Route::get('paiements/{paiement}', [GerantePaiementController::class, 'show'])->name('paiements.show');
     });

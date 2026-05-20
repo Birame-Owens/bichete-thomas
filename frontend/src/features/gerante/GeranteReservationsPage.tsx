@@ -236,7 +236,7 @@ function NouvelleReservationModal({ onClose, onSaved }: NouvelleReservationModal
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [heure, setHeure] = useState('10:00')
   const [notes, setNotes] = useState('')
-  const [enregistrerAcompte, setEnregistrerAcompte] = useState(false)
+  const [typePaiement, setTypePaiement] = useState<'acompte' | 'soldee'>('acompte')
   const [modePaiement, setModePaiement] = useState('especes')
 
   const [saving, setSaving] = useState(false)
@@ -304,13 +304,13 @@ function NouvelleReservationModal({ onClose, onSaved }: NouvelleReservationModal
     setSaving(true)
     try {
       await createGeranteReservation({
-        client_id:             clientId,
-        date_reservation:      date,
-        heure_debut:           heure,
-        details:               [{ coiffure_id: coiffureId, variante_coiffure_id: varianteId, quantite: 1 }],
-        notes:                 notes || undefined,
-        enregistrer_acompte:   enregistrerAcompte || undefined,
-        mode_paiement_acompte: enregistrerAcompte ? modePaiement : undefined,
+        client_id:        clientId,
+        date_reservation: date,
+        heure_debut:      heure,
+        details:          [{ coiffure_id: coiffureId, variante_coiffure_id: varianteId, quantite: 1 }],
+        notes:            notes || undefined,
+        type_paiement:    typePaiement,
+        mode_paiement:    modePaiement,
       })
       onSaved()
     } catch (err: unknown) {
@@ -454,55 +454,75 @@ function NouvelleReservationModal({ onClose, onSaved }: NouvelleReservationModal
             />
           </div>
 
-          {/* Acompte */}
+          {/* Paiement : radio acompte / soldee */}
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-            {/* Montant de l acompte calcule en temps reel des la selection de la variante */}
-            {acompteEstime !== null && acompteEstime > 0 && (
-              <div className="mb-3 rounded-lg bg-[#fff2f7] px-3 py-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#c41468]">
-                  Acompte attendu
-                </p>
-                <p className="mt-0.5 text-lg font-black text-[#c41468]">
-                  {acompteEstime.toLocaleString('fr-FR')} FCFA
-                </p>
-                <p className="text-[10px] text-[#c41468]/60">
-                  {catSettings.pourcentage_acompte > 0
-                    ? `${catSettings.pourcentage_acompte}% du prix de la prestation`
-                    : 'Montant fixe configure'}
-                </p>
-              </div>
-            )}
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={enregistrerAcompte}
-                onChange={(e) => setEnregistrerAcompte(e.target.checked)}
-                className="h-4 w-4 rounded accent-[#e91e63]"
-              />
-              <span className="text-[13px] font-semibold text-gray-700">Encaisser l&apos;acompte maintenant</span>
-            </label>
-            {enregistrerAcompte && (
-              <div className="mt-3">
-                <label className="mb-1 block text-[12px] font-semibold text-gray-700">Mode de paiement</label>
-                <select
-                  value={modePaiement}
-                  onChange={(e) => setModePaiement(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-[#e91e63] focus:ring-2 focus:ring-[#e91e63]/20"
-                >
-                  {PAYMENT_MODES.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
-                {errors.mode_paiement_acompte && (
-                  <p className="mt-1 text-[11px] text-red-500">{errors.mode_paiement_acompte[0]}</p>
-                )}
-              </div>
-            )}
-            {(!acompteEstime || acompteEstime === 0) && (
-              <p className="mt-2 text-[11px] text-gray-400">
-                Selectionnez une coiffure pour voir le montant de l&apos;acompte.
-              </p>
-            )}
+            <p className="mb-2 text-[12px] font-semibold text-gray-700">Mode d&apos;encaissement <span className="text-red-500">*</span></p>
+            <div className="flex flex-col gap-2">
+              {/* Option acompte */}
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-gray-200 bg-white p-3 hover:border-[#e91e63]/40">
+                <input
+                  type="radio"
+                  name="type_paiement"
+                  value="acompte"
+                  checked={typePaiement === 'acompte'}
+                  onChange={() => setTypePaiement('acompte')}
+                  className="mt-0.5 accent-[#e91e63]"
+                />
+                <div className="flex-1">
+                  <p className="text-[13px] font-semibold text-gray-800">Encaisser l&apos;acompte</p>
+                  {selectedVariante && acompteEstime !== null && acompteEstime > 0 ? (
+                    <p className="mt-0.5 text-[12px] font-bold text-[#c41468]">
+                      {acompteEstime.toLocaleString('fr-FR')} FCFA
+                      <span className="ml-1 font-normal text-[#c41468]/60">
+                        ({catSettings.pourcentage_acompte > 0 ? `${catSettings.pourcentage_acompte}%` : 'montant fixe'})
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-[11px] text-gray-400">Selectionnez une coiffure pour voir le montant</p>
+                  )}
+                </div>
+              </label>
+
+              {/* Option soldee */}
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-gray-200 bg-white p-3 hover:border-[#e91e63]/40">
+                <input
+                  type="radio"
+                  name="type_paiement"
+                  value="soldee"
+                  checked={typePaiement === 'soldee'}
+                  onChange={() => setTypePaiement('soldee')}
+                  className="mt-0.5 accent-[#e91e63]"
+                />
+                <div className="flex-1">
+                  <p className="text-[13px] font-semibold text-gray-800">Soldee (paiement complet)</p>
+                  {selectedVariante ? (
+                    <p className="mt-0.5 text-[12px] font-bold text-[#c41468]">
+                      {selectedVariante.prix.toLocaleString('fr-FR')} FCFA
+                      <span className="ml-1 font-normal text-[#c41468]/60">— tout en une fois</span>
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-[11px] text-gray-400">Selectionnez une coiffure pour voir le montant</p>
+                  )}
+                </div>
+              </label>
+            </div>
+
+            {/* Mode de paiement — toujours visible */}
+            <div className="mt-3">
+              <label className="mb-1 block text-[12px] font-semibold text-gray-700">Mode de paiement <span className="text-red-500">*</span></label>
+              <select
+                value={modePaiement}
+                onChange={(e) => setModePaiement(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-[#e91e63] focus:ring-2 focus:ring-[#e91e63]/20"
+              >
+                {PAYMENT_MODES.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+              {errors.mode_paiement && (
+                <p className="mt-1 text-[11px] text-red-500">{errors.mode_paiement[0]}</p>
+              )}
+            </div>
           </div>
 
           {/* Boutons */}

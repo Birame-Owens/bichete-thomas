@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Gerante;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendPaymentReceiptNotifications;
 use App\Models\Client;
 use App\Models\Coiffure;
 use App\Models\Paiement;
@@ -82,7 +83,7 @@ class ReservationController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $enregistrerAcompte = $request->boolean('enregistrer_acompte', false);
+        $typePaiement = $request->input('type_paiement'); // 'acompte' | 'soldee'
 
         $data = $request->validate([
             'client_id'                      => ['required', 'integer', 'exists:clients,id'],
@@ -94,12 +95,9 @@ class ReservationController extends Controller
             'details.*.variante_coiffure_id' => ['required', 'integer', 'exists:variantes_coiffures,id'],
             'details.*.quantite'             => ['sometimes', 'integer', 'min:1', 'max:10'],
             'notes'                          => ['nullable', 'string', 'max:5000'],
-            'enregistrer_acompte'            => ['sometimes', 'boolean'],
-            'mode_paiement_acompte'          => [
-                $enregistrerAcompte ? 'required' : 'sometimes',
-                'nullable',
-                Rule::in(['especes', 'wave', 'orange_money', 'carte_bancaire', 'autre']),
-            ],
+            // La gerante doit toujours encaisser un paiement a la creation.
+            'type_paiement'  => ['required', Rule::in(['acompte', 'soldee'])],
+            'mode_paiement'  => ['required', Rule::in(['especes', 'wave', 'orange_money', 'carte_bancaire', 'autre'])],
         ]);
 
         $client = Client::query()->find($data['client_id']);
@@ -148,7 +146,7 @@ class ReservationController extends Controller
         $this->ensureWithinBusinessHours($startsAt, $endsAt);
         $this->ensureSalonCapacity($data, null);
 
-        // Acompte cible calcule par les parametres systeme
+        // Montant d acompte calcule par les parametres systeme (utile uniquement si type=acompte)
         $depositPercent  = (float) $this->settingValue('pourcentage_acompte', 0);
         $depositFallback = (float) $this->settingValue('montant_acompte_defaut', 0);
         $deposit         = $depositPercent > 0
@@ -156,12 +154,18 @@ class ReservationController extends Controller
             : min($depositFallback, $subtotal);
         $deposit = min(max($deposit, 0), $subtotal);
 
-        $reservation = DB::transaction(function () use ($data, $details, $subtotal, $duration, $deposit, $endsAt): Reservation {
-            // La source est toujours physique : la gerante gere uniquement
-            // les clientes qui se presentent en personne au salon.
-            $statut = ($data['enregistrer_acompte'] ?? false) && $deposit > 0
-                ? 'acompte_paye'
-                : 'en_attente';
+        $isSoldee = $data['type_paiement'] === 'soldee';
+
+        [$reservation, $paiement] = DB::transaction(function () use ($data, $details, $subtotal, $duration, $deposit, $endsAt, $isSoldee): array {
+            // Soldee : la cliente paie tout maintenant, service en cours.
+            // Acompte : elle verse un depot, reste a payer plus tard.
+            $statut         = $isSoldee ? 'en_cours'     : 'acompte_paye';
+            $montantPaiement = $isSoldee ? $subtotal      : $deposit;
+            $montantRestant  = $isSoldee ? 0.0            : round(max($subtotal - $deposit, 0), 2);
+            $typePaiem       = $isSoldee ? 'complet'      : 'acompte';
+            $notesPaiem      = $isSoldee
+                ? 'Paiement complet encaisse par la gerante a la creation (soldee).'
+                : 'Acompte encaisse par la gerante a la creation de la reservation.';
 
             $res = Reservation::query()->create([
                 'client_id'            => $data['client_id'],
@@ -174,8 +178,8 @@ class ReservationController extends Controller
                 'source'               => 'physique',
                 'montant_total'        => round($subtotal, 2),
                 'montant_reduction'    => 0,
-                'montant_acompte'      => round($deposit, 2),
-                'montant_restant'      => round(max($subtotal - $deposit, 0), 2),
+                'montant_acompte'      => round($montantPaiement, 2),
+                'montant_restant'      => $montantRestant,
                 'devise'               => 'FCFA',
                 'fidelite_appliquee'   => false,
                 'notes'                => $data['notes'] ?? null,
@@ -185,28 +189,29 @@ class ReservationController extends Controller
                 $res->details()->create($detail);
             }
 
-            if ($statut === 'acompte_paye') {
-                // UUID temporaire obligatoire car numero_recu est NOT NULL + UNIQUE.
-                // On le remplace par le numero definitif apres avoir obtenu l id.
-                $paiement = Paiement::query()->create([
-                    'reservation_id' => $res->id,
-                    'client_id'      => $res->client_id,
-                    'numero_recu'    => 'TEMP-' . Str::uuid()->toString(),
-                    'type'           => 'acompte',
-                    'mode_paiement'  => $data['mode_paiement_acompte'],
-                    'montant'        => $res->montant_acompte,
-                    'devise'         => 'FCFA',
-                    'statut'         => 'valide',
-                    'date_paiement'  => now(),
-                    'notes'          => 'Acompte encaisse par la gerante a la creation de la reservation.',
-                ]);
-                $paiement->update([
-                    'numero_recu' => 'BT-' . now()->format('Ymd') . '-' . str_pad((string) $paiement->id, 4, '0', STR_PAD_LEFT),
-                ]);
-            }
+            // UUID temporaire obligatoire car numero_recu est NOT NULL + UNIQUE.
+            // On le remplace par le numero definitif apres avoir obtenu l id.
+            $paiem = Paiement::query()->create([
+                'reservation_id' => $res->id,
+                'client_id'      => $res->client_id,
+                'numero_recu'    => 'TEMP-' . Str::uuid()->toString(),
+                'type'           => $typePaiem,
+                'mode_paiement'  => $data['mode_paiement'],
+                'montant'        => round($montantPaiement, 2),
+                'devise'         => 'FCFA',
+                'statut'         => 'valide',
+                'date_paiement'  => now(),
+                'notes'          => $notesPaiem,
+            ]);
+            $paiem->update([
+                'numero_recu' => 'BT-' . now()->format('Ymd') . '-' . str_pad((string) $paiem->id, 4, '0', STR_PAD_LEFT),
+            ]);
 
-            return $res;
+            return [$res, $paiem];
         });
+
+        // Notif cliente (WhatsApp + email) en queue, sans bloquer la reponse.
+        SendPaymentReceiptNotifications::dispatch($paiement->id);
 
         $this->logger->record(
             action: 'gerante_creation_reservation',
@@ -214,15 +219,16 @@ class ReservationController extends Controller
             description: "Reservation #{$reservation->id} creee en physique pour la cliente #{$reservation->client_id}",
             subject: $reservation,
             after: [
-                'statut'        => $reservation->statut,
-                'montant_total' => $reservation->montant_total,
-                'source'        => 'physique',
+                'statut'         => $reservation->statut,
+                'montant_total'  => $reservation->montant_total,
+                'type_paiement'  => $data['type_paiement'],
+                'source'         => 'physique',
             ],
             metadata: array_filter([
-                'reservation_id'   => $reservation->id,
-                'client_id'        => $reservation->client_id,
-                'acompte_encaisse' => ($data['enregistrer_acompte'] ?? false) && $reservation->statut === 'acompte_paye',
-                'actor_role'       => 'gerante',
+                'reservation_id' => $reservation->id,
+                'client_id'      => $reservation->client_id,
+                'type_paiement'  => $data['type_paiement'],
+                'actor_role'     => 'gerante',
             ]),
             request: $request,
         );
@@ -270,7 +276,9 @@ class ReservationController extends Controller
         $oldStatus = $reservation->statut;
         $newStatus = $data['statut'];
 
-        DB::transaction(function () use ($data, $reservation, $newStatus, $hasSolde): void {
+        $soldePaiementId = null;
+
+        DB::transaction(function () use ($data, $reservation, $newStatus, $hasSolde, &$soldePaiementId): void {
             if ($hasSolde && ($data['enregistrer_paiement'] ?? false)) {
                 // UUID temporaire obligatoire car numero_recu est NOT NULL + UNIQUE.
                 // On le remplace par le numero definitif apres avoir obtenu l id.
@@ -290,12 +298,18 @@ class ReservationController extends Controller
                     'numero_recu' => 'BT-' . now()->format('Ymd') . '-' . str_pad((string) $paiement->id, 4, '0', STR_PAD_LEFT),
                 ]);
                 $reservation->montant_restant = 0;
+                $soldePaiementId = $paiement->id;
             }
 
             $reservation->statut = $newStatus;
             $this->applyStatusTimestamps($reservation);
             $reservation->save();
         });
+
+        // Notif solde paye : envoye en queue apres la transaction pour ne pas bloquer.
+        if ($soldePaiementId !== null) {
+            SendPaymentReceiptNotifications::dispatch($soldePaiementId);
+        }
 
         $this->logStatusChange($request, $reservation, $oldStatus, $newStatus, $data['raison'] ?? null, $isSensitive);
 

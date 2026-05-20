@@ -14,8 +14,8 @@ export type GeranteReservationForm = {
   heure_debut: string
   details: GeranteReservationDetail[]
   notes?: string
-  enregistrer_acompte?: boolean
-  mode_paiement_acompte?: string
+  type_paiement: 'acompte' | 'soldee'
+  mode_paiement: string
 }
 
 type QueryParams = {
