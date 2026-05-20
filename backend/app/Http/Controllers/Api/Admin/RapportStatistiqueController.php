@@ -161,11 +161,20 @@ class RapportStatistiqueController extends Controller
             return 0.0;
         }
 
-        return (float) DB::table('paiements')
+        $entrees = (float) DB::table('paiements')
             ->whereBetween('date_paiement', [$start, $end])
             ->where('statut', 'valide')
             ->whereIn('type', ['acompte', 'solde', 'complet', 'ajustement'])
             ->sum('montant');
+
+        // Les remboursements reduisent le CA net de la periode.
+        $remboursements = (float) DB::table('paiements')
+            ->whereBetween('date_paiement', [$start, $end])
+            ->where('statut', 'valide')
+            ->where('type', 'remboursement')
+            ->sum('montant');
+
+        return max(0, $entrees - $remboursements);
     }
 
     private function depenses(CarbonImmutable $start, CarbonImmutable $end): float

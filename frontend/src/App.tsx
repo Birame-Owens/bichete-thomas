@@ -36,6 +36,7 @@ const PromotionsPage = lazy(() => import('./features/admin/promotions/Promotions
 const LogsPage = lazy(() => import('./features/admin/logs-systeme/LogsPage'))
 const GeranteReservationsPage = lazy(() => import('./features/gerante/GeranteReservationsPage'))
 const GeranteClientsPage = lazy(() => import('./features/gerante/GeranteClientsPage'))
+const GerantePaiementsPage = lazy(() => import('./features/gerante/GerantePaiementsPage'))
 
 function NotFound() {
   return (
@@ -117,6 +118,16 @@ function App() {
           <RequireAuth role="gerante">
             <Suspense fallback={<RouteSuspenseFallback />}>
               <GeranteClientsPage />
+            </Suspense>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/manager/paiements"
+        element={
+          <RequireAuth role="gerante">
+            <Suspense fallback={<RouteSuspenseFallback />}>
+              <GerantePaiementsPage />
             </Suspense>
           </RequireAuth>
         }
