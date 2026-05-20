@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Security;
 
+use App\Models\Reservation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -111,11 +112,14 @@ class RoleIsolationTest extends TestCase
 
     public function test_admin_ne_peut_pas_changer_statut_via_route_gerante(): void
     {
-        $auth = $this->loggedInAdmin();
+        $auth        = $this->loggedInAdmin();
+        // Une reservation doit exister pour que le route model binding ne
+        // retourne pas 404 avant que le middleware role:gerante ne s execute.
+        $reservation = Reservation::factory()->create(['statut' => 'en_attente']);
 
         $this->authenticatedAs($auth)
             ->withHeader('X-XSRF-TOKEN', $auth['csrf'])
-            ->patchJson('/api/gerante/reservations/1/statut', ['statut' => 'confirmee'])
+            ->patchJson("/api/gerante/reservations/{$reservation->id}/statut", ['statut' => 'confirmee'])
             ->assertStatus(403);
     }
 }

@@ -48,32 +48,35 @@ class ReservationStatusTest extends TestCase
 
     // ─── Transitions valides ─────────────────────────────────────────────────
 
-    public function test_en_attente_vers_confirmee(): void
+    public function test_acompte_paye_vers_terminee(): void
     {
         $auth        = $this->loggedInAdmin();
-        $reservation = Reservation::factory()->create(['statut' => 'en_attente']);
+        $reservation = Reservation::factory()->create([
+            'statut'          => 'acompte_paye',
+            'montant_restant' => 0,
+        ]);
 
         $this->authenticatedAs($auth)
             ->withHeader('X-XSRF-TOKEN', $auth['csrf'])
             ->patchJson("/api/admin/reservations/{$reservation->id}/statut", [
-                'statut' => 'confirmee',
+                'statut' => 'terminee',
             ])
             ->assertOk()
-            ->assertJsonPath('data.statut', 'confirmee');
+            ->assertJsonPath('data.statut', 'terminee');
     }
 
-    public function test_confirmee_vers_en_cours(): void
+    public function test_en_cours_vers_annulee(): void
     {
         $auth        = $this->loggedInAdmin();
-        $reservation = Reservation::factory()->create(['statut' => 'confirmee']);
+        $reservation = Reservation::factory()->create(['statut' => 'en_cours']);
 
         $this->authenticatedAs($auth)
             ->withHeader('X-XSRF-TOKEN', $auth['csrf'])
             ->patchJson("/api/admin/reservations/{$reservation->id}/statut", [
-                'statut' => 'en_cours',
+                'statut' => 'annulee',
             ])
             ->assertOk()
-            ->assertJsonPath('data.statut', 'en_cours');
+            ->assertJsonPath('data.statut', 'annulee');
     }
 
     public function test_en_cours_vers_terminee(): void
