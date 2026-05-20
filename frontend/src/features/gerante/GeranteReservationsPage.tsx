@@ -420,6 +420,7 @@ function NouvelleReservationModal({ onClose, onSaved }: NouvelleReservationModal
               <input
                 type="date"
                 value={date}
+                min={(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}` })()}
                 onChange={(e) => setDate(e.target.value)}
                 required
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-[#e91e63] focus:ring-2 focus:ring-[#e91e63]/20"
@@ -433,6 +434,7 @@ function NouvelleReservationModal({ onClose, onSaved }: NouvelleReservationModal
               <input
                 type="time"
                 value={heure}
+                min={(() => { const n = new Date(); const todayStr = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; return date === todayStr ? `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}` : undefined })()}
                 onChange={(e) => setHeure(e.target.value)}
                 required
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-[#e91e63] focus:ring-2 focus:ring-[#e91e63]/20"
