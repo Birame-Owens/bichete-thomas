@@ -1,6 +1,23 @@
 import { apiClient } from '../../lib/apiClient'
 import type { LaravelPaginated, Reservation, ReservationStatus } from '../admin/reservations/reservations.types'
 
+export type GeranteReservationDetail = {
+  coiffure_id: number
+  variante_coiffure_id: number
+  quantite?: number
+}
+
+export type GeranteReservationForm = {
+  client_id: number
+  coiffeuse_id?: number | null
+  date_reservation: string
+  heure_debut: string
+  details: GeranteReservationDetail[]
+  notes?: string
+  enregistrer_acompte?: boolean
+  mode_paiement_acompte?: string
+}
+
 type QueryParams = {
   page?: number
   per_page?: number
@@ -24,6 +41,11 @@ export async function getGeranteReservation(id: number): Promise<Reservation> {
 export type SoldeInfo = {
   enregistrer_paiement: boolean
   mode_paiement_solde?: string
+}
+
+export async function createGeranteReservation(form: GeranteReservationForm): Promise<Reservation> {
+  const response = await apiClient.post<{ data: Reservation }>('/gerante/reservations', form)
+  return response.data.data
 }
 
 export async function updateGeranteReservationStatus(

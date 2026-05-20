@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertTriangle, CalendarDays, Clock3, RefreshCw, Scissors, Search, UserRound } from 'lucide-react'
+import { AlertTriangle, CalendarDays, Clock3, Plus, RefreshCw, Scissors, Search, UserRound, X } from 'lucide-react'
 import GeranteLayout from '../../layouts/GeranteLayout'
-import { getGeranteReservations, updateGeranteReservationStatus, type SoldeInfo } from './reservations.api'
-import type { LaravelPaginated, Reservation, ReservationStatus } from '../admin/reservations/reservations.types'
+import { apiClient } from '../../lib/apiClient'
+import { getGeranteClients } from './clients.api'
+import { createGeranteReservation, getGeranteReservations, updateGeranteReservationStatus, type SoldeInfo } from './reservations.api'
+import type { Client, LaravelPaginated, Reservation, ReservationStatus } from '../admin/reservations/reservations.types'
 
 // Miroir exact de TRANSITIONS dans Gerante/ReservationController.php.
 const TRANSITIONS: Record<ReservationStatus, ReservationStatus[]> = {
@@ -208,6 +210,285 @@ function RaisonModal({ reservation, targetStatus, onConfirm, onCancel, saving }:
   )
 }
 
+// ── Types catalogue (endpoint public /client/catalogue) ───────────────────
+
+type CatVariante = { id: number; nom: string; prix: number; duree_minutes: number }
+type CatCoiffure = { id: number; nom: string; variantes: CatVariante[] }
+
+// ── Modal creation reservation physique ───────────────────────────────────
+
+type NouvelleReservationModalProps = {
+  onClose: () => void
+  onSaved: () => void
+}
+
+function NouvelleReservationModal({ onClose, onSaved }: NouvelleReservationModalProps) {
+  const [coiffures, setCoiffures] = useState<CatCoiffure[]>([])
+  const [clients, setClients] = useState<Client[]>([])
+  const [clientSearch, setClientSearch] = useState('')
+  const [loadingClients, setLoadingClients] = useState(false)
+
+  const [clientId, setClientId] = useState<number | null>(null)
+  const [coiffureId, setCoiffureId] = useState<number | null>(null)
+  const [varianteId, setVarianteId] = useState<number | null>(null)
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [heure, setHeure] = useState('10:00')
+  const [notes, setNotes] = useState('')
+  const [enregistrerAcompte, setEnregistrerAcompte] = useState(false)
+  const [modePaiement, setModePaiement] = useState('especes')
+
+  const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string[]>>({})
+  const clientSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Chargement du catalogue coiffures au montage
+  useEffect(() => {
+    void apiClient
+      .get<{ data: { coiffures: CatCoiffure[] } }>('/client/catalogue')
+      .then((r) => setCoiffures(r.data.data.coiffures))
+      .catch(() => {})
+  }, [])
+
+  // Recherche cliente avec debounce
+  useEffect(() => {
+    if (clientSearchRef.current) clearTimeout(clientSearchRef.current)
+    if (!clientSearch.trim()) {
+      setClients([])
+      return
+    }
+    clientSearchRef.current = setTimeout(() => {
+      setLoadingClients(true)
+      void getGeranteClients({ search: clientSearch, per_page: 10 })
+        .then((r) => setClients(r.data))
+        .catch(() => {})
+        .finally(() => setLoadingClients(false))
+    }, 300)
+  }, [clientSearch])
+
+  const selectedCoiffure = coiffures.find((c) => c.id === coiffureId) ?? null
+
+  function handleCoiffureChange(id: number) {
+    setCoiffureId(id)
+    setVarianteId(null)
+  }
+
+  function selectClient(c: Client) {
+    setClientId(c.id)
+    setClientSearch(`${c.prenom} ${c.nom} — ${c.telephone}`)
+    setClients([])
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!clientId || !coiffureId || !varianteId) return
+    setErrors({})
+    setSaving(true)
+    try {
+      await createGeranteReservation({
+        client_id:             clientId,
+        date_reservation:      date,
+        heure_debut:           heure,
+        details:               [{ coiffure_id: coiffureId, variante_coiffure_id: varianteId, quantite: 1 }],
+        notes:                 notes || undefined,
+        enregistrer_acompte:   enregistrerAcompte || undefined,
+        mode_paiement_acompte: enregistrerAcompte ? modePaiement : undefined,
+      })
+      onSaved()
+    } catch (err: unknown) {
+      const resp = (err as { response?: { data?: { errors?: Record<string, string[]> } } })?.response
+      setErrors(resp?.data?.errors ?? {})
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+          <h2 className="font-display text-lg font-bold text-gray-900">Nouvelle reservation</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-gray-100">
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
+
+        <form onSubmit={(e) => void handleSubmit(e)} className="flex max-h-[72vh] flex-col gap-4 overflow-y-auto px-6 py-5">
+          {/* Recherche cliente */}
+          <div>
+            <label className="mb-1 block text-[12px] font-semibold text-gray-700">
+              Cliente <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="search"
+                placeholder="Rechercher par nom ou telephone..."
+                value={clientSearch}
+                onChange={(e) => { setClientSearch(e.target.value); setClientId(null) }}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-[#e91e63] focus:ring-2 focus:ring-[#e91e63]/20"
+              />
+              {loadingClients && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">...</span>
+              )}
+            </div>
+            {clients.length > 0 && (
+              <div className="mt-1 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                {clients.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => selectClient(c)}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] hover:bg-gray-50"
+                  >
+                    <UserRound className="h-4 w-4 shrink-0 text-gray-400" />
+                    <span className="font-semibold text-gray-900">{c.prenom} {c.nom}</span>
+                    <span className="font-mono text-[11px] text-gray-500">{c.telephone}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {clientId && (
+              <p className="mt-1 text-[11px] font-semibold text-emerald-600">Cliente selectionnee</p>
+            )}
+            {errors.client_id && <p className="mt-1 text-[11px] text-red-500">{errors.client_id[0]}</p>}
+          </div>
+
+          {/* Coiffure + Variante */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-gray-700">
+                Coiffure <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={coiffureId ?? ''}
+                onChange={(e) => handleCoiffureChange(Number(e.target.value))}
+                required
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-[#e91e63] focus:ring-2 focus:ring-[#e91e63]/20"
+              >
+                <option value="">Choisir...</option>
+                {coiffures.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nom}</option>
+                ))}
+              </select>
+              {errors.details && <p className="mt-1 text-[11px] text-red-500">{errors.details[0]}</p>}
+            </div>
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-gray-700">
+                Variante <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={varianteId ?? ''}
+                onChange={(e) => setVarianteId(Number(e.target.value))}
+                disabled={!selectedCoiffure}
+                required
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-[#e91e63] focus:ring-2 focus:ring-[#e91e63]/20 disabled:opacity-50"
+              >
+                <option value="">Choisir...</option>
+                {(selectedCoiffure?.variantes ?? []).map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.nom} — {v.prix.toLocaleString('fr-FR')} FCFA
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Date + Heure */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-gray-700">
+                Date <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-[#e91e63] focus:ring-2 focus:ring-[#e91e63]/20"
+              />
+              {errors.date_reservation && <p className="mt-1 text-[11px] text-red-500">{errors.date_reservation[0]}</p>}
+            </div>
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-gray-700">
+                Heure <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="time"
+                value={heure}
+                onChange={(e) => setHeure(e.target.value)}
+                required
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-[#e91e63] focus:ring-2 focus:ring-[#e91e63]/20"
+              />
+              {errors.heure_debut && <p className="mt-1 text-[11px] text-red-500">{errors.heure_debut[0]}</p>}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="mb-1 block text-[12px] font-semibold text-gray-700">Notes (optionnel)</label>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-[#e91e63] focus:ring-2 focus:ring-[#e91e63]/20"
+            />
+          </div>
+
+          {/* Acompte */}
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={enregistrerAcompte}
+                onChange={(e) => setEnregistrerAcompte(e.target.checked)}
+                className="h-4 w-4 rounded accent-[#e91e63]"
+              />
+              <span className="text-[13px] font-semibold text-gray-700">Encaisser l&apos;acompte maintenant</span>
+            </label>
+            {enregistrerAcompte && (
+              <div className="mt-3">
+                <label className="mb-1 block text-[12px] font-semibold text-gray-700">Mode de paiement</label>
+                <select
+                  value={modePaiement}
+                  onChange={(e) => setModePaiement(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-[#e91e63] focus:ring-2 focus:ring-[#e91e63]/20"
+                >
+                  {PAYMENT_MODES.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+                {errors.mode_paiement_acompte && (
+                  <p className="mt-1 text-[11px] text-red-500">{errors.mode_paiement_acompte[0]}</p>
+                )}
+              </div>
+            )}
+            <p className="mt-2 text-[11px] text-gray-400">
+              Le montant est calcule selon le parametre systeme (pourcentage ou montant fixe).
+            </p>
+          </div>
+
+          {/* Boutons */}
+          <div className="flex gap-3 border-t border-gray-100 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-gray-200 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !clientId || !coiffureId || !varianteId}
+              className="flex-1 rounded-xl bg-[#e91e63] py-2 text-sm font-semibold text-white hover:bg-[#c41468] disabled:opacity-60"
+            >
+              {saving ? 'Enregistrement...' : 'Creer la reservation'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Page principale ────────────────────────────────────────────────────────
 
 function GeranteReservationsPage() {
@@ -221,6 +502,8 @@ function GeranteReservationsPage() {
   const [dateTo, setDateTo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  const [createModalOpen, setCreateModalOpen] = useState(false)
 
   // Etat pour la modal raison (annulation post-acompte)
   const [sensitiveTarget, setSensitiveTarget] = useState<{
@@ -314,6 +597,17 @@ function GeranteReservationsPage() {
 
   return (
     <GeranteLayout>
+      {/* Modal creation reservation physique */}
+      {createModalOpen && (
+        <NouvelleReservationModal
+          onClose={() => setCreateModalOpen(false)}
+          onSaved={() => {
+            setCreateModalOpen(false)
+            void load(page, search, statusFilter, dateFrom, dateTo)
+          }}
+        />
+      )}
+
       {/* Modal encaissement solde avant marquage terminee */}
       {soldeTarget && (
         <SoldeModal
@@ -344,14 +638,24 @@ function GeranteReservationsPage() {
             Suivez et mettez a jour les statuts. Pour toute annulation apres acompte, une raison est obligatoire.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void load(page, search, statusFilter, dateFrom, dateTo)}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Actualiser
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => void load(page, search, statusFilter, dateFrom, dateTo)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Actualiser
+          </button>
+          <button
+            type="button"
+            onClick={() => setCreateModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e91e63] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#c41468]"
+          >
+            <Plus className="h-4 w-4" />
+            Nouvelle reservation
+          </button>
+        </div>
       </div>
 
       {/* Filtres */}

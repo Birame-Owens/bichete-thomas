@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\CodePromo;
 use App\Models\Coiffure;
+use App\Models\Paiement;
 use App\Models\ParametreSysteme;
 use App\Models\RegleFidelite;
 use App\Models\Reservation;
@@ -14,6 +15,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Propaganistas\LaravelPhone\Rules\Phone;
@@ -36,7 +38,7 @@ class ReservationController extends Controller
     private const VALID_TRANSITIONS = [
         'en_attente'   => ['annulee', 'absence'],
         'confirmee'    => ['annulee', 'absence'],
-        'acompte_paye' => ['terminee', 'annulee', 'absence'],
+        'acompte_paye' => ['en_cours', 'terminee', 'annulee', 'absence'],
         'en_cours'     => ['terminee', 'annulee', 'absence'],
         'terminee'     => [],
         'annulee'      => [],
@@ -203,6 +205,9 @@ class ReservationController extends Controller
      */
     private function validatedReservationData(Request $request, ?Reservation $reservation = null): array
     {
+        // Acompte a la creation : requis seulement si l admin coche la case.
+        $enregistrerAcompte = $request->boolean('enregistrer_acompte', false);
+
         $data = $request->validate([
             'client_id' => ['nullable', 'integer', 'exists:clients,id'],
             'client' => ['nullable', 'array'],
@@ -227,6 +232,14 @@ class ReservationController extends Controller
             'details.*.quantite' => ['sometimes', 'integer', 'min:1', 'max:10'],
             'details.*.option_ids' => ['sometimes', 'array'],
             'details.*.option_ids.*' => ['integer', 'distinct', 'exists:options_coiffures,id'],
+            // Enregistrement d un acompte physique directement a la creation
+            // (uniquement pour un nouveau dossier, pas pour les mises a jour).
+            'enregistrer_acompte'   => ['sometimes', 'boolean'],
+            'mode_paiement_acompte' => [
+                $enregistrerAcompte ? 'required' : 'sometimes',
+                'nullable',
+                Rule::in(['especes', 'wave', 'orange_money', 'carte_bancaire', 'autre']),
+            ],
         ]);
 
         $clientId = $data['client_id'] ?? $reservation?->client_id;
@@ -261,6 +274,7 @@ class ReservationController extends Controller
      */
     private function persistReservation(array $data, ?Reservation $reservation = null): Reservation
     {
+        $isNew = $reservation === null;
         $oldStatus = $reservation?->statut;
         $oldClientId = $reservation?->client_id;
         $oldCodePromoId = $reservation?->code_promo_id;
@@ -301,6 +315,29 @@ class ReservationController extends Controller
 
         $this->syncPromoUsage($oldCodePromoId, $reservation->code_promo_id);
         $this->syncClientCompletion($oldClientId, $oldStatus, $reservation->client_id, $reservation->statut, $reservation->fidelite_appliquee);
+
+        // Acompte physique encaisse par l admin a la creation :
+        // on cree le paiement puis on bascule le statut en acompte_paye.
+        // Uniquement sur les nouvelles reservations pour eviter les doublons.
+        if ($isNew && ($data['enregistrer_acompte'] ?? false) && (float) $reservation->montant_acompte > 0) {
+            $paiement = Paiement::query()->create([
+                'reservation_id' => $reservation->id,
+                'client_id'      => $reservation->client_id,
+                'numero_recu'    => 'TEMP-' . Str::uuid()->toString(),
+                'type'           => 'acompte',
+                'mode_paiement'  => $data['mode_paiement_acompte'],
+                'montant'        => $reservation->montant_acompte,
+                'devise'         => $reservation->devise,
+                'statut'         => 'valide',
+                'date_paiement'  => now(),
+                'notes'          => 'Acompte encaisse par l admin a la creation de la reservation.',
+            ]);
+            $paiement->update([
+                'numero_recu' => 'BT-' . now()->format('Ymd') . '-' . str_pad((string) $paiement->id, 4, '0', STR_PAD_LEFT),
+            ]);
+            $reservation->statut = 'acompte_paye';
+            $reservation->save();
+        }
 
         return $reservation->load($this->relations());
     }
