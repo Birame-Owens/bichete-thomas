@@ -72,10 +72,21 @@ class ReservationStatusTest extends TestCase
         $auth        = $this->loggedInGerante();
         $reservation = Reservation::factory()->create(['statut' => 'en_cours']);
 
+        // Sans raison : refuse (en_cours est dans SENSITIVE_TRANSITIONS comme acompte_paye)
         $this->authenticatedAs($auth)
             ->withHeader('X-XSRF-TOKEN', $auth['csrf'])
             ->patchJson("/api/gerante/reservations/{$reservation->id}/statut", [
                 'statut' => 'annulee',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['raison']);
+
+        // Avec raison suffisamment longue : accepte
+        $this->authenticatedAs($auth)
+            ->withHeader('X-XSRF-TOKEN', $auth['csrf'])
+            ->patchJson("/api/gerante/reservations/{$reservation->id}/statut", [
+                'statut' => 'annulee',
+                'raison' => 'Cliente ne sest pas presentee apres paiement complet.',
             ])
             ->assertOk()
             ->assertJsonPath('data.statut', 'annulee');
