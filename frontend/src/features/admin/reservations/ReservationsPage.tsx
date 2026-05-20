@@ -17,11 +17,13 @@ import AdminLayout from '../../../layouts/AdminLayout'
 import {
   createReservation,
   deleteReservation,
+  getAcompteSettings,
   getReservation,
   getReservationLookups,
   getReservations,
   updateReservation,
   updateReservationStatus,
+  type AcompteSettings,
 } from './reservations.api'
 import { createPayment } from '../payments/payments.api'
 import type { PaymentMethod } from '../payments/payments.types'
@@ -67,7 +69,7 @@ const legacyStatusLabels: Partial<Record<ReservationStatus, string>> = {
 const allowedTransitions: Record<ReservationStatus, ReservationStatus[]> = {
   en_attente:   ['annulee', 'absence'],
   confirmee:    ['annulee', 'absence'],
-  acompte_paye: ['terminee', 'annulee', 'absence'],
+  acompte_paye: ['en_cours', 'terminee', 'annulee', 'absence'],
   en_cours:     ['terminee', 'annulee', 'absence'],
   terminee:     [],
   annulee:      [],
@@ -225,6 +227,10 @@ function ReservationsPage() {
   const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(true)
   const [lookupsLoading, setLookupsLoading] = useState(true)
+  const [acompteSettings, setAcompteSettings] = useState<AcompteSettings>({
+    pourcentage_acompte: 0,
+    montant_acompte_defaut: 0,
+  })
   const [saving, setSaving] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
@@ -272,11 +278,14 @@ function ReservationsPage() {
       }
     })
 
-    return {
-      subtotal,
-      duration,
-    }
-  }, [form.details, lookups.coiffures])
+    // Acompte calcule selon les parametres systeme (miroir du calcul serveur)
+    const pct  = acompteSettings.pourcentage_acompte
+    const fixe = acompteSettings.montant_acompte_defaut
+    const raw  = pct > 0 ? Math.round(subtotal * pct / 100) : Math.min(fixe, subtotal)
+    const computedAcompte = Math.min(Math.max(raw, 0), subtotal)
+
+    return { subtotal, duration, computedAcompte }
+  }, [form.details, lookups.coiffures, acompteSettings])
 
   const loadPage = useCallback(async (nextPage: number, nextSearch: string, nextStatus: string, nextCoiffeuse: string, nextFrom: string, nextTo: string) => {
     setLoading(true)
@@ -338,6 +347,10 @@ function ReservationsPage() {
           setLookupsLoading(false)
         }
       })
+
+    getAcompteSettings()
+      .then((s) => { if (!cancelled) setAcompteSettings(s) })
+      .catch(() => {})
 
     return () => {
       cancelled = true
@@ -929,7 +942,12 @@ function ReservationsPage() {
                       ))}
                     </select>
                   </FormField>
-                  <FormField label="Acompte" hint="Vide = calcul automatique">
+                  <FormField
+                    label="Acompte"
+                    hint={preview.subtotal > 0
+                      ? `Vide = auto : ${preview.computedAcompte.toLocaleString('fr-FR')} FCFA${acompteSettings.pourcentage_acompte > 0 ? ` (${acompteSettings.pourcentage_acompte}%)` : ''}`
+                      : 'Vide = calcul automatique'}
+                  >
                     <input className={inputClass} type="number" min="0" step="1" value={form.montant_acompte} onChange={(event) => setForm((current) => ({ ...current, montant_acompte: event.target.value }))} />
                   </FormField>
                 </div>
@@ -955,6 +973,20 @@ function ReservationsPage() {
                       {preview.duration > 0 ? estimatedEnd(form.date_reservation, form.heure_debut, preview.duration) : '-'}
                     </p>
                   </div>
+                  {preview.subtotal > 0 && (
+                    <div className="rounded-lg bg-[#fff2f7] px-3 py-3">
+                      <p className="text-xs font-black uppercase tracking-[0.08em] text-[#c41468]">Acompte attendu</p>
+                      <p className="mt-1 text-xl font-black text-[#c41468]">
+                        {preview.computedAcompte.toLocaleString('fr-FR')} FCFA
+                      </p>
+                      <p className="mt-0.5 text-[10px] font-semibold text-[#c41468]/60">
+                        {acompteSettings.pourcentage_acompte > 0
+                          ? `${acompteSettings.pourcentage_acompte}% du total`
+                          : 'Montant fixe systeme'}
+                        {form.montant_acompte ? ' (champ manuel prioritaire)' : ''}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </section>
             </div>

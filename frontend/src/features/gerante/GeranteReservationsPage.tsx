@@ -214,6 +214,7 @@ function RaisonModal({ reservation, targetStatus, onConfirm, onCancel, saving }:
 
 type CatVariante = { id: number; nom: string; prix: number; duree_minutes: number }
 type CatCoiffure = { id: number; nom: string; variantes: CatVariante[] }
+type CatSettings = { pourcentage_acompte: number; montant_acompte_defaut: number }
 
 // ── Modal creation reservation physique ───────────────────────────────────
 
@@ -224,6 +225,7 @@ type NouvelleReservationModalProps = {
 
 function NouvelleReservationModal({ onClose, onSaved }: NouvelleReservationModalProps) {
   const [coiffures, setCoiffures] = useState<CatCoiffure[]>([])
+  const [catSettings, setCatSettings] = useState<CatSettings>({ pourcentage_acompte: 0, montant_acompte_defaut: 0 })
   const [clients, setClients] = useState<Client[]>([])
   const [clientSearch, setClientSearch] = useState('')
   const [loadingClients, setLoadingClients] = useState(false)
@@ -241,11 +243,17 @@ function NouvelleReservationModal({ onClose, onSaved }: NouvelleReservationModal
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const clientSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Chargement du catalogue coiffures au montage
+  // Chargement du catalogue (coiffures + parametres acompte) au montage
   useEffect(() => {
     void apiClient
-      .get<{ data: { coiffures: CatCoiffure[] } }>('/client/catalogue')
-      .then((r) => setCoiffures(r.data.data.coiffures))
+      .get<{ data: { coiffures: CatCoiffure[]; settings: CatSettings } }>('/client/catalogue')
+      .then((r) => {
+        setCoiffures(r.data.data.coiffures)
+        setCatSettings({
+          pourcentage_acompte:    r.data.data.settings.pourcentage_acompte    ?? 0,
+          montant_acompte_defaut: r.data.data.settings.montant_acompte_defaut ?? 0,
+        })
+      })
       .catch(() => {})
   }, [])
 
@@ -265,7 +273,18 @@ function NouvelleReservationModal({ onClose, onSaved }: NouvelleReservationModal
     }, 300)
   }, [clientSearch])
 
-  const selectedCoiffure = coiffures.find((c) => c.id === coiffureId) ?? null
+  const selectedCoiffure  = coiffures.find((c) => c.id === coiffureId) ?? null
+  const selectedVariante  = selectedCoiffure?.variantes.find((v) => v.id === varianteId) ?? null
+
+  // Calcul cote client du montant acompte attendu (miroir du calcul serveur)
+  let acompteEstime: number | null = null
+  if (selectedVariante) {
+    const prix = selectedVariante.prix
+    const pct  = catSettings.pourcentage_acompte
+    const fixe = catSettings.montant_acompte_defaut
+    const raw  = pct > 0 ? Math.round(prix * pct / 100) : Math.min(fixe, prix)
+    acompteEstime = Math.min(Math.max(raw, 0), prix)
+  }
 
   function handleCoiffureChange(id: number) {
     setCoiffureId(id)
@@ -435,6 +454,22 @@ function NouvelleReservationModal({ onClose, onSaved }: NouvelleReservationModal
 
           {/* Acompte */}
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+            {/* Montant de l acompte calcule en temps reel des la selection de la variante */}
+            {acompteEstime !== null && acompteEstime > 0 && (
+              <div className="mb-3 rounded-lg bg-[#fff2f7] px-3 py-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#c41468]">
+                  Acompte attendu
+                </p>
+                <p className="mt-0.5 text-lg font-black text-[#c41468]">
+                  {acompteEstime.toLocaleString('fr-FR')} FCFA
+                </p>
+                <p className="text-[10px] text-[#c41468]/60">
+                  {catSettings.pourcentage_acompte > 0
+                    ? `${catSettings.pourcentage_acompte}% du prix de la prestation`
+                    : 'Montant fixe configure'}
+                </p>
+              </div>
+            )}
             <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
@@ -461,9 +496,11 @@ function NouvelleReservationModal({ onClose, onSaved }: NouvelleReservationModal
                 )}
               </div>
             )}
-            <p className="mt-2 text-[11px] text-gray-400">
-              Le montant est calcule selon le parametre systeme (pourcentage ou montant fixe).
-            </p>
+            {(!acompteEstime || acompteEstime === 0) && (
+              <p className="mt-2 text-[11px] text-gray-400">
+                Selectionnez une coiffure pour voir le montant de l&apos;acompte.
+              </p>
+            )}
           </div>
 
           {/* Boutons */}

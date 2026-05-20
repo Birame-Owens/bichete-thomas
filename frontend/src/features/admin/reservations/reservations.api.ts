@@ -113,6 +113,24 @@ export async function deleteReservation(id: number) {
   await apiClient.delete(`/admin/reservations/${id}`)
 }
 
+export type AcompteSettings = {
+  pourcentage_acompte: number
+  montant_acompte_defaut: number
+}
+
+// Recupere les parametres d acompte depuis le catalogue public (cache Redis 5 min).
+// Evite un appel supplementaire vers l API admin et reste coherent avec
+// le calcul serveur qui lit les memes valeurs via SystemSettings.
+export async function getAcompteSettings(): Promise<AcompteSettings> {
+  const response = await apiClient.get<{
+    data: { settings: { pourcentage_acompte: number; montant_acompte_defaut: number } }
+  }>('/client/catalogue')
+  return {
+    pourcentage_acompte: response.data.data.settings.pourcentage_acompte ?? 0,
+    montant_acompte_defaut: response.data.data.settings.montant_acompte_defaut ?? 0,
+  }
+}
+
 export async function getReservationLookups(): Promise<ReservationLookups> {
   const [clients, coiffeuses, coiffures, codesPromo, reglesFidelite] = await Promise.all([
     apiClient.get<ApiCollection<Client>>('/admin/clients', {
