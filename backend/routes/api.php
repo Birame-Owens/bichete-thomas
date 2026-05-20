@@ -160,6 +160,7 @@ Route::middleware(['auth.token', 'role:gerante', 'log.admin'])
     ->name('gerante.')
     ->group(function (): void {
         Route::get('reservations', [GeranteReservationController::class, 'index'])->name('reservations.index');
+        Route::post('reservations', [GeranteReservationController::class, 'store'])->name('reservations.store');
         Route::get('reservations/{reservation}', [GeranteReservationController::class, 'show'])->name('reservations.show');
         Route::patch('reservations/{reservation}/statut', [GeranteReservationController::class, 'updateStatus'])->name('reservations.statut');
         Route::get('clients', [GeranteClientController::class, 'index'])->name('clients.index');
