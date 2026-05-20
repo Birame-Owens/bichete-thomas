@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Admin\DepenseController;
 use App\Http\Controllers\Api\Admin\EvenementAnalyticsController;
 use App\Http\Controllers\Api\Admin\GeranteController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
+use App\Http\Controllers\Api\Gerante\ClientController as GeranteClientController;
 use App\Http\Controllers\Api\Gerante\ReservationController as GeranteReservationController;
 use App\Http\Controllers\Api\Admin\ListeNoireClientController;
 use App\Http\Controllers\Api\Admin\LogSystemeController;
@@ -161,4 +162,8 @@ Route::middleware(['auth.token', 'role:gerante', 'log.admin'])
         Route::get('reservations', [GeranteReservationController::class, 'index'])->name('reservations.index');
         Route::get('reservations/{reservation}', [GeranteReservationController::class, 'show'])->name('reservations.show');
         Route::patch('reservations/{reservation}/statut', [GeranteReservationController::class, 'updateStatus'])->name('reservations.statut');
+        Route::get('clients', [GeranteClientController::class, 'index'])->name('clients.index');
+        Route::post('clients', [GeranteClientController::class, 'store'])->name('clients.store');
+        Route::get('clients/{client}', [GeranteClientController::class, 'show'])->name('clients.show');
+        Route::put('clients/{client}', [GeranteClientController::class, 'update'])->name('clients.update');
     });
