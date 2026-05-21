@@ -15,7 +15,7 @@ type PersonnelStats = {
 const modules = [
   {
     label: 'Gerantes',
-    path: '/admin/personnel/gerantes',
+    path: '/console-thomas/personnel/gerantes',
     description: 'Comptes responsables pouvant acceder aux espaces internes.',
     icon: ShieldCheck,
     statKey: 'gerantes',
@@ -23,7 +23,7 @@ const modules = [
   },
   {
     label: 'Coiffeuses',
-    path: '/admin/personnel/coiffeuses',
+    path: '/console-thomas/personnel/coiffeuses',
     description: 'Equipe operationnelle, commissions et disponibilite.',
     icon: Scissors,
     statKey: 'coiffeuses',
@@ -124,7 +124,7 @@ function PersonnelOverviewPage() {
                 Suivre la commission de chaque coiffeuse depuis sa fiche.
               </div>
             </div>
-            <NavLink to="/admin/personnel/coiffeuses" className={`mt-5 inline-flex items-center gap-2 ${primaryButtonClass}`}>
+            <NavLink to="/console-thomas/personnel/coiffeuses" className={`mt-5 inline-flex items-center gap-2 ${primaryButtonClass}`}>
               <Users className="h-4 w-4" />
               Voir l equipe
             </NavLink>

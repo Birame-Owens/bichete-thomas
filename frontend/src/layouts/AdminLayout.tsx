@@ -44,39 +44,39 @@ type Section = {
 }
 
 const sections: Section[] = [
-  { label: 'Tableau de bord', path: '/admin/dashboard', icon: Gauge },
-  { label: 'Reservations', path: '/admin/reservations', icon: CalendarDays },
-  { label: 'Clients', path: '/admin/clients', icon: Users },
+  { label: 'Tableau de bord', path: '/console-thomas/dashboard', icon: Gauge },
+  { label: 'Reservations', path: '/console-thomas/reservations', icon: CalendarDays },
+  { label: 'Clients', path: '/console-thomas/clients', icon: Users },
   {
     label: 'Catalogue',
-    path: '/admin/catalogue',
+    path: '/console-thomas/catalogue',
     icon: BookOpen,
     children: [
-      { label: 'Categories coiffures', path: '/admin/catalogue/categories-coiffures' },
-      { label: 'Coiffures', path: '/admin/catalogue/coiffures' },
-      { label: 'Options', path: '/admin/catalogue/options' },
+      { label: 'Categories coiffures', path: '/console-thomas/catalogue/categories-coiffures' },
+      { label: 'Coiffures', path: '/console-thomas/catalogue/coiffures' },
+      { label: 'Options', path: '/console-thomas/catalogue/options' },
     ],
   },
   {
     label: 'Personnel',
-    path: '/admin/personnel',
+    path: '/console-thomas/personnel',
     icon: ClipboardList,
     children: [
-      { label: 'Gerantes', path: '/admin/personnel/gerantes' },
-      { label: 'Coiffeuses', path: '/admin/personnel/coiffeuses' },
+      { label: 'Gerantes', path: '/console-thomas/personnel/gerantes' },
+      { label: 'Coiffeuses', path: '/console-thomas/personnel/coiffeuses' },
     ],
   },
-  { label: 'Paiements & Recus', path: '/admin/paiements', icon: Receipt },
-  { label: 'Caisse', path: '/admin/caisse', icon: Wallet, comingSoon: true },
-  { label: 'Depenses', path: '/admin/depenses', icon: CircleDollarSign },
-  { label: 'Commissions', path: '/admin/commissions', icon: Percent, comingSoon: true },
-  { label: 'Promotions & Fidelite', path: '/admin/promotions', icon: Gift },
-  { label: 'Avis clientes', path: '/admin/avis', icon: Star },
-  { label: 'Messages WhatsApp', path: '/admin/messages', icon: MessageCircle, comingSoon: true },
-  { label: 'Photos prestations', path: '/admin/photos', icon: Camera, comingSoon: true },
-  { label: 'Rapports & Statistiques', path: '/admin/rapports', icon: BarChart3 },
-  { label: 'Logs systeme', path: '/admin/logs', icon: ShoppingBag },
-  { label: 'Parametres', path: '/admin/parametres', icon: Settings },
+  { label: 'Paiements & Recus', path: '/console-thomas/paiements', icon: Receipt },
+  { label: 'Caisse', path: '/console-thomas/caisse', icon: Wallet, comingSoon: true },
+  { label: 'Depenses', path: '/console-thomas/depenses', icon: CircleDollarSign },
+  { label: 'Commissions', path: '/console-thomas/commissions', icon: Percent, comingSoon: true },
+  { label: 'Promotions & Fidelite', path: '/console-thomas/promotions', icon: Gift },
+  { label: 'Avis clientes', path: '/console-thomas/avis', icon: Star },
+  { label: 'Messages WhatsApp', path: '/console-thomas/messages', icon: MessageCircle, comingSoon: true },
+  { label: 'Photos prestations', path: '/console-thomas/photos', icon: Camera, comingSoon: true },
+  { label: 'Rapports & Statistiques', path: '/console-thomas/rapports', icon: BarChart3 },
+  { label: 'Logs systeme', path: '/console-thomas/logs', icon: ShoppingBag },
+  { label: 'Parametres', path: '/console-thomas/parametres', icon: Settings },
 ]
 
 function Brand() {
@@ -99,8 +99,8 @@ function AdminLayout({ children }: AdminLayoutProps) {
   const user = getUser()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    '/admin/catalogue': true,
-    '/admin/personnel': true,
+    '/console-thomas/catalogue': true,
+    '/console-thomas/personnel': true,
   })
   const [comingSoonToast, setComingSoonToast] = useState(false)
 

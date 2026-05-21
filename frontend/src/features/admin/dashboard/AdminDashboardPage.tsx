@@ -309,7 +309,7 @@ function QuickPayment({ available, message }: { available: boolean; message?: st
           </p>
           <button
             type="button"
-            onClick={() => navigate('/admin/paiements')}
+            onClick={() => navigate('/console-thomas/paiements')}
             className="w-full rounded-lg bg-[#e91e63] px-5 py-3 text-sm font-bold text-white"
           >
             Ouvrir les paiements

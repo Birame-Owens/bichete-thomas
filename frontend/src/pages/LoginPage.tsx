@@ -36,7 +36,7 @@ function LoginPage() {
       persistRememberMe(rememberMe)
 
       if (response.user.role === 'admin') {
-        navigate('/admin/dashboard')
+        navigate('/console-thomas/dashboard')
         return
       }
 

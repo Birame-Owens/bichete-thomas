@@ -3,10 +3,10 @@ import { NavLink } from 'react-router-dom'
 import AdminLayout from '../../../../layouts/AdminLayout'
 
 const tabs = [
-  { label: 'Vue catalogue', path: '/admin/catalogue' },
-  { label: 'Categories', path: '/admin/catalogue/categories-coiffures' },
-  { label: 'Coiffures', path: '/admin/catalogue/coiffures' },
-  { label: 'Options', path: '/admin/catalogue/options' },
+  { label: 'Vue catalogue', path: '/console-thomas/catalogue' },
+  { label: 'Categories', path: '/console-thomas/catalogue/categories-coiffures' },
+  { label: 'Coiffures', path: '/console-thomas/catalogue/coiffures' },
+  { label: 'Options', path: '/console-thomas/catalogue/options' },
 ]
 
 type CatalogueLayoutProps = {
@@ -35,7 +35,7 @@ function CatalogueLayout({ title, subtitle, children, action }: CatalogueLayoutP
           <NavLink
             key={tab.path}
             to={tab.path}
-            end={tab.path === '/admin/catalogue'}
+            end={tab.path === '/console-thomas/catalogue'}
             className={({ isActive }) =>
               [
                 'whitespace-nowrap rounded-lg px-4 py-2 text-sm font-bold transition',

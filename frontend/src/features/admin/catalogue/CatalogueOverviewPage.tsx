@@ -20,22 +20,22 @@ type CatalogueStats = {
 const modules = [
   {
     label: 'Categories',
-    path: '/admin/catalogue/categories-coiffures',
+    path: '/console-thomas/catalogue/categories-coiffures',
     description: 'Familles de prestations pour structurer le catalogue.',
   },
   {
     label: 'Coiffures',
-    path: '/admin/catalogue/coiffures',
+    path: '/console-thomas/catalogue/coiffures',
     description: 'Prestations principales visibles et reservables.',
   },
   {
     label: 'Variantes',
-    path: '/admin/catalogue/variantes',
+    path: '/console-thomas/catalogue/variantes',
     description: 'Prix, durees et formats rattaches aux coiffures.',
   },
   {
     label: 'Options',
-    path: '/admin/catalogue/options',
+    path: '/console-thomas/catalogue/options',
     description: 'Supplements et personnalisations du service.',
   },
 ]
@@ -115,7 +115,7 @@ function CatalogueOverviewPage() {
               <li className="rounded-lg bg-[#fff7fb] px-3 py-3">3. Ajouter les coiffures.</li>
               <li className="rounded-lg bg-[#fff7fb] px-3 py-3">4. Ajouter les variantes et prix.</li>
             </ol>
-            <NavLink to="/admin/catalogue/coiffures" className={`mt-5 inline-flex ${primaryButtonClass}`}>
+            <NavLink to="/console-thomas/catalogue/coiffures" className={`mt-5 inline-flex ${primaryButtonClass}`}>
               Ajouter une coiffure
             </NavLink>
           </Panel>
