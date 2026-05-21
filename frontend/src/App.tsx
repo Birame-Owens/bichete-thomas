@@ -81,25 +81,25 @@ function App() {
       <Route path="/categories/:categoryId" element={<ClientCategoryPage />} />
       <Route path="/avis/:token" element={<AvisPage />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-      <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
-      <Route path="/admin/clients" element={<AdminRoute><ClientsPage /></AdminRoute>} />
-      <Route path="/admin/reservations" element={<AdminRoute><ReservationsPage /></AdminRoute>} />
-      <Route path="/admin/paiements" element={<AdminRoute><PaymentsPage /></AdminRoute>} />
-      <Route path="/admin/depenses" element={<AdminRoute><ExpensesPage /></AdminRoute>} />
-      <Route path="/admin/rapports" element={<AdminRoute><ReportsPage /></AdminRoute>} />
-      <Route path="/admin/avis" element={<AdminRoute><ReviewsPage /></AdminRoute>} />
-      <Route path="/admin/catalogue" element={<AdminRoute><CatalogueOverviewPage /></AdminRoute>} />
-      <Route path="/admin/catalogue/categories-coiffures" element={<AdminRoute><CategoriesCoiffuresPage /></AdminRoute>} />
-      <Route path="/admin/catalogue/coiffures" element={<AdminRoute><CoiffuresPage /></AdminRoute>} />
-      <Route path="/admin/catalogue/variantes" element={<AdminRoute><VariantesCoiffuresPage /></AdminRoute>} />
-      <Route path="/admin/catalogue/options" element={<AdminRoute><OptionsCoiffuresPage /></AdminRoute>} />
-      <Route path="/admin/personnel" element={<AdminRoute><PersonnelOverviewPage /></AdminRoute>} />
-      <Route path="/admin/personnel/gerantes" element={<AdminRoute><GerantesPage /></AdminRoute>} />
-      <Route path="/admin/personnel/coiffeuses" element={<AdminRoute><CoiffeusesPage /></AdminRoute>} />
-      <Route path="/admin/promotions" element={<AdminRoute><PromotionsPage /></AdminRoute>} />
-      <Route path="/admin/logs" element={<AdminRoute><LogsPage /></AdminRoute>} />
-      <Route path="/admin/parametres" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+      <Route path="/console-thomas" element={<Navigate to="/console-thomas/dashboard" replace />} />
+      <Route path="/console-thomas/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
+      <Route path="/console-thomas/clients" element={<AdminRoute><ClientsPage /></AdminRoute>} />
+      <Route path="/console-thomas/reservations" element={<AdminRoute><ReservationsPage /></AdminRoute>} />
+      <Route path="/console-thomas/paiements" element={<AdminRoute><PaymentsPage /></AdminRoute>} />
+      <Route path="/console-thomas/depenses" element={<AdminRoute><ExpensesPage /></AdminRoute>} />
+      <Route path="/console-thomas/rapports" element={<AdminRoute><ReportsPage /></AdminRoute>} />
+      <Route path="/console-thomas/avis" element={<AdminRoute><ReviewsPage /></AdminRoute>} />
+      <Route path="/console-thomas/catalogue" element={<AdminRoute><CatalogueOverviewPage /></AdminRoute>} />
+      <Route path="/console-thomas/catalogue/categories-coiffures" element={<AdminRoute><CategoriesCoiffuresPage /></AdminRoute>} />
+      <Route path="/console-thomas/catalogue/coiffures" element={<AdminRoute><CoiffuresPage /></AdminRoute>} />
+      <Route path="/console-thomas/catalogue/variantes" element={<AdminRoute><VariantesCoiffuresPage /></AdminRoute>} />
+      <Route path="/console-thomas/catalogue/options" element={<AdminRoute><OptionsCoiffuresPage /></AdminRoute>} />
+      <Route path="/console-thomas/personnel" element={<AdminRoute><PersonnelOverviewPage /></AdminRoute>} />
+      <Route path="/console-thomas/personnel/gerantes" element={<AdminRoute><GerantesPage /></AdminRoute>} />
+      <Route path="/console-thomas/personnel/coiffeuses" element={<AdminRoute><CoiffeusesPage /></AdminRoute>} />
+      <Route path="/console-thomas/promotions" element={<AdminRoute><PromotionsPage /></AdminRoute>} />
+      <Route path="/console-thomas/logs" element={<AdminRoute><LogsPage /></AdminRoute>} />
+      <Route path="/console-thomas/parametres" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       <Route path="/manager" element={<Navigate to="/manager/reservations" replace />} />
       <Route path="/manager/dashboard" element={<Navigate to="/manager/reservations" replace />} />
       <Route

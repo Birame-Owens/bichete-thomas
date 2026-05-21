@@ -3,9 +3,9 @@ import { NavLink } from 'react-router-dom'
 import AdminLayout from '../../../../layouts/AdminLayout'
 
 const tabs = [
-  { label: 'Vue personnel', path: '/admin/personnel' },
-  { label: 'Gerantes', path: '/admin/personnel/gerantes' },
-  { label: 'Coiffeuses', path: '/admin/personnel/coiffeuses' },
+  { label: 'Vue personnel', path: '/console-thomas/personnel' },
+  { label: 'Gerantes', path: '/console-thomas/personnel/gerantes' },
+  { label: 'Coiffeuses', path: '/console-thomas/personnel/coiffeuses' },
 ]
 
 type PersonnelLayoutProps = {
@@ -34,7 +34,7 @@ function PersonnelLayout({ title, subtitle, children, action }: PersonnelLayoutP
           <NavLink
             key={tab.path}
             to={tab.path}
-            end={tab.path === '/admin/personnel'}
+            end={tab.path === '/console-thomas/personnel'}
             className={({ isActive }) =>
               [
                 'whitespace-nowrap rounded-lg px-4 py-2 text-sm font-bold transition',
