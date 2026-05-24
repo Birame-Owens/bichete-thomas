@@ -4,6 +4,7 @@ import {
   BarChart3,
   CalendarDays,
   CircleDollarSign,
+  FileDown,
   PieChart,
   RefreshCw,
   Scissors,
@@ -13,7 +14,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 import AdminLayout from '../../../layouts/AdminLayout'
-import { getReports } from './reports.api'
+import { exportJournal, getReports } from './reports.api'
 import type {
   ReportCountBreakdown,
   ReportMetric,
@@ -296,6 +297,21 @@ function ReportsPage() {
   const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [exportAnnee, setExportAnnee] = useState(new Date().getFullYear())
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  const handleExport = useCallback(async () => {
+    setExporting(true)
+    setExportError(null)
+    try {
+      await exportJournal(exportAnnee)
+    } catch {
+      setExportError('Impossible de generer le fichier Excel. Reessayez.')
+    } finally {
+      setExporting(false)
+    }
+  }, [exportAnnee])
 
   const loadReport = useCallback(async () => {
     setLoading(true)
@@ -360,6 +376,42 @@ function ReportsPage() {
           </button>
         </div>
       </div>
+
+      {/* Export Excel pour le Trésor */}
+      <section className="mb-5 rounded-xl border border-[#f1e7ee] bg-white p-4 shadow-[0_18px_36px_-32px_rgba(20,20,43,0.5)]">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-black text-gray-950">Export pour le Tresor</p>
+            <p className="mt-0.5 text-xs font-medium text-gray-400">
+              Telecharge le journal financier annuel (journal journalier + recapitulatif mensuel + detail depenses).
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={exportAnnee}
+              onChange={(e) => setExportAnnee(Number(e.target.value))}
+              className={inputClass}
+              aria-label="Annee a exporter"
+            >
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => void handleExport()}
+              disabled={exporting}
+              className={`${primaryButtonClass} inline-flex min-w-[180px] items-center justify-center gap-2 disabled:opacity-60`}
+            >
+              <FileDown className={`h-4 w-4 ${exporting ? 'animate-bounce' : ''}`} />
+              {exporting ? 'Generation...' : 'Exporter Excel'}
+            </button>
+          </div>
+        </div>
+        {exportError && (
+          <p className="mt-2 text-xs font-bold text-red-600">{exportError}</p>
+        )}
+      </section>
 
       {error && <div className="mb-4"><ErrorState label={error} /></div>}
 

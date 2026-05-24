@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Admin\CategorieDepenseController;
 use App\Http\Controllers\Api\Admin\ClientController;
 use App\Http\Controllers\Api\Admin\DepenseController;
 use App\Http\Controllers\Api\Admin\EvenementAnalyticsController;
+use App\Http\Controllers\Api\Admin\ExportJournalController;
 use App\Http\Controllers\Api\Admin\GeranteController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
 use App\Http\Controllers\Api\Gerante\ClientController as GeranteClientController;
@@ -95,6 +96,7 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
     ->group(function (): void {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
         Route::get('rapports-statistiques', RapportStatistiqueController::class)->name('rapports-statistiques');
+        Route::get('rapports/export-journal', ExportJournalController::class)->name('rapports.export-journal');
         Route::patch('avis-coiffures/{avisCoiffure}/approuver', [AvisCoiffureController::class, 'approve'])->name('avis-coiffures.approve');
         Route::patch('avis-coiffures/{avisCoiffure}/rejeter', [AvisCoiffureController::class, 'reject'])->name('avis-coiffures.reject');
         Route::apiResource('avis-coiffures', AvisCoiffureController::class)
