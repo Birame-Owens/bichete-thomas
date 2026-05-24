@@ -409,7 +409,8 @@ class ExportJournalController extends Controller
 
         $statusColor = $net >= 0 ? 'FF065f46' : 'FF7f1d1d';
         $statusBg    = $net >= 0 ? 'FFd1fae5' : 'FFfee2e2';
-        $sheet->getStyle("F{$row}")->getFont()->getColor()->setARGB($statusColor)->setBold(true)->setSize(9);
+        $sheet->getStyle("F{$row}")->getFont()->getColor()->setARGB($statusColor);
+        $sheet->getStyle("F{$row}")->getFont()->setBold(true)->setSize(9);
         $sheet->getStyle("F{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($statusBg);
         $sheet->getStyle("F{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
@@ -422,7 +423,8 @@ class ExportJournalController extends Controller
         $sheet->getStyle("A{$row}")->getFont()->setBold(true);
 
         $netColor = $net >= 0 ? self::COLOR_GREEN : 'FFEF4444';
-        $sheet->getStyle("D{$row}")->getFont()->getColor()->setARGB($netColor)->setBold(true);
+        $sheet->getStyle("D{$row}")->getFont()->getColor()->setARGB($netColor);
+        $sheet->getStyle("D{$row}")->getFont()->setBold(true);
         $sheet->getStyle("B{$row}")->getFont()->getColor()->setARGB(self::COLOR_ROSE);
         $sheet->getStyle("C{$row}")->getFont()->getColor()->setARGB(self::COLOR_AMBER);
     }
