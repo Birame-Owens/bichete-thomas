@@ -32,8 +32,11 @@ class ExportJournalController extends Controller
         ]);
 
         $annee  = $request->integer('annee', (int) now()->year);
-        $start  = CarbonImmutable::create($annee, 1, 1)->startOfDay();
-        $end    = CarbonImmutable::create($annee, 12, 31)->endOfDay();
+        $start    = CarbonImmutable::create($annee, 1, 1)->startOfDay();
+        $yearEnd  = CarbonImmutable::create($annee, 12, 31)->endOfDay();
+        // Pour l'année en cours, on s'arrête à aujourd'hui — les jours futurs
+        // n'ont pas de données et feraient stagner le solde cumulatif.
+        $end      = $yearEnd->greaterThan(now()) ? CarbonImmutable::today()->endOfDay() : $yearEnd;
 
         $journal = $this->buildJournal($start, $end);
         $recap   = $this->buildRecapMensuel($journal);
@@ -222,16 +225,16 @@ class ExportJournalController extends Controller
 
         // Titre
         $sheet->setCellValue('A1', "JOURNAL FINANCIER {$annee}");
-        $sheet->mergeCells('A1:F1');
-        $this->styleTitre($sheet, 'A1:F1');
+        $sheet->mergeCells('A1:E1');
+        $this->styleTitre($sheet, 'A1:E1');
 
         // En-têtes
-        $headers = ['Date', 'Entrees (FCFA)', 'Sorties (FCFA)', 'Solde net du jour', 'Solde cumulatif', 'Statut'];
+        $headers = ['Date', 'Entrees (FCFA)', 'Sorties (FCFA)', 'Solde net du jour', 'Solde cumulatif'];
         foreach ($headers as $i => $header) {
             $col = chr(65 + $i);
             $sheet->setCellValue("{$col}2", $header);
         }
-        $this->styleEnTete($sheet, 'A2:F2');
+        $this->styleEnTete($sheet, 'A2:E2');
 
         // Données
         $row = 3;
@@ -241,7 +244,6 @@ class ExportJournalController extends Controller
             $sheet->setCellValue("C{$row}", $entry['sorties']);
             $sheet->setCellValue("D{$row}", $entry['net']);
             $sheet->setCellValue("E{$row}", $entry['cumul']);
-            $sheet->setCellValue("F{$row}", $entry['net'] >= 0 ? 'Excedent' : 'Deficit');
 
             $this->styleLigneJournal($sheet, $row, $entry['net']);
             $row++;
@@ -250,12 +252,12 @@ class ExportJournalController extends Controller
         // Totaux
         $totalRow = $row;
         $lastData = $row - 1;
-        $sheet->setCellValue("A{$totalRow}", 'TOTAL ANNUEL');
+        $sheet->setCellValue("A{$totalRow}", 'TOTAL');
         $sheet->setCellValue("B{$totalRow}", "=SUM(B3:B{$lastData})");
         $sheet->setCellValue("C{$totalRow}", "=SUM(C3:C{$lastData})");
         $sheet->setCellValue("D{$totalRow}", "=SUM(D3:D{$lastData})");
         $sheet->setCellValue("E{$totalRow}", $journal[count($journal) - 1]['cumul'] ?? 0);
-        $this->styleTotaux($sheet, "A{$totalRow}:F{$totalRow}");
+        $this->styleTotaux($sheet, "A{$totalRow}:E{$totalRow}");
 
         // Format monétaire
         $moneyFormat = '#,##0 "FCFA"';
@@ -263,11 +265,10 @@ class ExportJournalController extends Controller
 
         // Largeurs
         $sheet->getColumnDimension('A')->setWidth(14);
-        $sheet->getColumnDimension('B')->setWidth(20);
-        $sheet->getColumnDimension('C')->setWidth(20);
+        $sheet->getColumnDimension('B')->setWidth(22);
+        $sheet->getColumnDimension('C')->setWidth(22);
         $sheet->getColumnDimension('D')->setWidth(22);
         $sheet->getColumnDimension('E')->setWidth(22);
-        $sheet->getColumnDimension('F')->setWidth(12);
         $sheet->freezePane('A3');
     }
 
@@ -399,19 +400,13 @@ class ExportJournalController extends Controller
     private function styleLigneJournal(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $row, float $net): void
     {
         $bg = $row % 2 === 0 ? self::COLOR_GRAY_BG : self::COLOR_WHITE;
-        $sheet->getStyle("A{$row}:F{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($bg);
-        $sheet->getStyle("A{$row}:F{$row}")->getFont()->setSize(10);
+        $sheet->getStyle("A{$row}:E{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($bg);
+        $sheet->getStyle("A{$row}:E{$row}")->getFont()->setSize(10);
         $sheet->getStyle("A{$row}")->getFont()->setBold(true);
 
         $netColor = $net >= 0 ? self::COLOR_GREEN : 'FFEF4444';
         $sheet->getStyle("D{$row}")->getFont()->getColor()->setARGB($netColor);
         $sheet->getStyle("E{$row}")->getFont()->setBold(true);
-
-        $statusColor = $net >= 0 ? 'FF065f46' : 'FF7f1d1d';
-        $statusBg    = $net >= 0 ? 'FFd1fae5' : 'FFfee2e2';
-        $sheet->getStyle("F{$row}")->getFont()->getColor()->setARGB($statusColor)->setBold(true)->setSize(9);
-        $sheet->getStyle("F{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($statusBg);
-        $sheet->getStyle("F{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
 
     private function styleLigneRecap(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $row, float $net): void
@@ -422,7 +417,8 @@ class ExportJournalController extends Controller
         $sheet->getStyle("A{$row}")->getFont()->setBold(true);
 
         $netColor = $net >= 0 ? self::COLOR_GREEN : 'FFEF4444';
-        $sheet->getStyle("D{$row}")->getFont()->getColor()->setARGB($netColor)->setBold(true);
+        $sheet->getStyle("D{$row}")->getFont()->getColor()->setARGB($netColor);
+        $sheet->getStyle("D{$row}")->getFont()->setBold(true);
         $sheet->getStyle("B{$row}")->getFont()->getColor()->setARGB(self::COLOR_ROSE);
         $sheet->getStyle("C{$row}")->getFont()->getColor()->setARGB(self::COLOR_AMBER);
     }
