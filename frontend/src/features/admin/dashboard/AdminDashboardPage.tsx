@@ -387,7 +387,7 @@ function AdminDashboardPage() {
       .then(setDashboard)
       .catch(() => {
         clearAuth()
-        navigate('/login', { replace: true })
+        navigate('/console-thomas', { replace: true })
       })
       .finally(() => setLoading(false))
   }, [navigate])
