@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
+    libzip-dev \
     && docker-php-ext-install \
     pdo \
     pdo_pgsql \
@@ -22,6 +23,7 @@ RUN apt-get update && apt-get install -y \
     bcmath \
     gd \
     xml \
+    zip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
