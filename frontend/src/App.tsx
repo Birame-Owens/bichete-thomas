@@ -80,8 +80,7 @@ function App() {
       <Route path="/categories" element={<ClientCategoryPage />} />
       <Route path="/categories/:categoryId" element={<ClientCategoryPage />} />
       <Route path="/avis/:token" element={<AvisPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/console-thomas" element={<Navigate to="/console-thomas/dashboard" replace />} />
+      <Route path="/console-thomas" element={<LoginPage />} />
       <Route path="/console-thomas/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
       <Route path="/console-thomas/clients" element={<AdminRoute><ClientsPage /></AdminRoute>} />
       <Route path="/console-thomas/reservations" element={<AdminRoute><ReservationsPage /></AdminRoute>} />

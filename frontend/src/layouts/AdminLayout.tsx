@@ -119,7 +119,7 @@ function AdminLayout({ children }: AdminLayoutProps) {
     }
     clearAuth()
     closeMobileMenu()
-    navigate('/login', { replace: true })
+    navigate('/console-thomas', { replace: true })
   }
 
   const renderNavigation = () => (

@@ -11,11 +11,11 @@ function RequireAuth({ children, role }: RequireAuthProps) {
   const user = getUser()
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/console-thomas" replace />
   }
 
   if (role && user.role !== role) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/console-thomas" replace />
   }
 
   return children

@@ -1,16 +1,25 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthLayout from '../layouts/AuthLayout'
 import HeroPanel from '../components/auth/HeroPanel'
 import LoginPanel from '../components/auth/LoginPanel'
 import { login } from '../services/authService'
 import {
+  getUser,
   setRememberMe as persistRememberMe,
   setUser,
 } from '../lib/authStorage'
 
 function LoginPage() {
   const navigate = useNavigate()
+
+  // Déjà connecté : évite d'afficher le formulaire inutilement
+  useEffect(() => {
+    const user = getUser()
+    if (user?.role === 'admin') navigate('/console-thomas/dashboard', { replace: true })
+    else if (user?.role === 'gerante') navigate('/manager/reservations', { replace: true })
+  }, [navigate])
+
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -45,7 +54,7 @@ function LoginPage() {
         return
       }
 
-      navigate('/login')
+      navigate('/')
     } catch {
       setError('Impossible de vous connecter. Verifiez vos identifiants.')
     } finally {
