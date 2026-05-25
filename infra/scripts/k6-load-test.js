@@ -165,9 +165,9 @@ export function navigation() {
 // L'important est de mesurer le temps de réponse de l'endpoint sous charge.
 
 const NUMEROS_TEST = [
-  '+221771111111',
-  '+221782222222',
-  '+221703333333',
+  '+221771397393',
+  '+221777231600',
+  '+221765923402',
   '+221774444444',
   '+221785555555',
 ]

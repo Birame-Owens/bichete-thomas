@@ -37,6 +37,8 @@ const LogsPage = lazy(() => import('./features/admin/logs-systeme/LogsPage'))
 const GeranteReservationsPage = lazy(() => import('./features/gerante/GeranteReservationsPage'))
 const GeranteClientsPage = lazy(() => import('./features/gerante/GeranteClientsPage'))
 const GerantePaiementsPage = lazy(() => import('./features/gerante/GerantePaiementsPage'))
+const GeranteSignalementsPage = lazy(() => import('./features/gerante/GeranteSignalementsPage'))
+const AdminSignalementsPage = lazy(() => import('./features/admin/signalements/AdminSignalementsPage'))
 
 function NotFound() {
   return (
@@ -99,6 +101,7 @@ function App() {
       <Route path="/console-thomas/promotions" element={<AdminRoute><PromotionsPage /></AdminRoute>} />
       <Route path="/console-thomas/logs" element={<AdminRoute><LogsPage /></AdminRoute>} />
       <Route path="/console-thomas/parametres" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+      <Route path="/console-thomas/signalements" element={<AdminRoute><AdminSignalementsPage /></AdminRoute>} />
       <Route path="/manager" element={<Navigate to="/manager/reservations" replace />} />
       <Route path="/manager/dashboard" element={<Navigate to="/manager/reservations" replace />} />
       <Route
@@ -127,6 +130,16 @@ function App() {
           <RequireAuth role="gerante">
             <Suspense fallback={<RouteSuspenseFallback />}>
               <GerantePaiementsPage />
+            </Suspense>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/manager/signalements"
+        element={
+          <RequireAuth role="gerante">
+            <Suspense fallback={<RouteSuspenseFallback />}>
+              <GeranteSignalementsPage />
             </Suspense>
           </RequireAuth>
         }

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { CalendarDays, CreditCard, LogOut, Menu, Users, X } from 'lucide-react'
+import { AlertTriangle, CalendarDays, CreditCard, LogOut, Menu, Users, X } from 'lucide-react'
 import { clearAuth, getUser } from '../lib/authStorage'
 import { logout as apiLogout } from '../services/authService'
 
@@ -93,6 +93,21 @@ function GeranteLayout({ children }: GeranteLayoutProps) {
         >
           <CreditCard className="h-4 w-4 shrink-0" />
           <span className="min-w-0 flex-1 truncate">Paiements</span>
+        </NavLink>
+        <NavLink
+          to="/manager/signalements"
+          onClick={closeMobileMenu}
+          className={({ isActive }) =>
+            [
+              'flex items-center gap-3 rounded-xl px-4 py-2 text-[13px] font-semibold transition',
+              isActive
+                ? 'bg-[#e91e63] text-white shadow-[0_14px_30px_-18px_rgba(233,30,99,0.9)]'
+                : 'text-white/85 hover:bg-white/8 hover:text-white',
+            ].join(' ')
+          }
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1 truncate">Signalements</span>
         </NavLink>
       </nav>
 

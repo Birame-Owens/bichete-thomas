@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
+  Bell,
   BookOpen,
   CalendarDays,
   Camera,
@@ -27,6 +28,8 @@ import {
 } from 'lucide-react'
 import { clearAuth, getUser } from '../lib/authStorage'
 import { logout as apiLogout } from '../services/authService'
+import { getNonLusCount, getAdminSignalements, marquerLu, marquerTraite } from '../features/admin/signalements/signalements.api'
+import type { Signalement } from '../features/admin/signalements/signalements.types'
 
 type AdminLayoutProps = {
   children: ReactNode
@@ -75,6 +78,7 @@ const sections: Section[] = [
   { label: 'Messages WhatsApp', path: '/console-thomas/messages', icon: MessageCircle, comingSoon: true },
   { label: 'Photos prestations', path: '/console-thomas/photos', icon: Camera, comingSoon: true },
   { label: 'Rapports & Statistiques', path: '/console-thomas/rapports', icon: BarChart3 },
+  { label: 'Signalements', path: '/console-thomas/signalements', icon: Bell },
   { label: 'Logs systeme', path: '/console-thomas/logs', icon: ShoppingBag },
   { label: 'Parametres', path: '/console-thomas/parametres', icon: Settings },
 ]
@@ -90,6 +94,130 @@ function Brand() {
         <p className="font-display text-[24px] leading-5 text-white">Thomas</p>
         <p className="text-[11px] text-white/65">Salon de Coiffure</p>
       </div>
+    </div>
+  )
+}
+
+function NotifBell() {
+  const [count, setCount]         = useState(0)
+  const [open, setOpen]           = useState(false)
+  const [items, setItems]         = useState<Signalement[]>([])
+  const [noteMap, setNoteMap]     = useState<Record<number, string>>({})
+  const ref                       = useRef<HTMLDivElement>(null)
+
+  const loadCount = useCallback(async () => {
+    try { setCount(await getNonLusCount()) } catch { /* silencieux */ }
+  }, [])
+
+  const loadItems = useCallback(async () => {
+    try { setItems(await getAdminSignalements({ traite: false })) } catch { /* silencieux */ }
+  }, [])
+
+  // Polling toutes les 30s
+  useEffect(() => {
+    void loadCount()
+    const id = window.setInterval(() => void loadCount(), 30_000)
+    return () => window.clearInterval(id)
+  }, [loadCount])
+
+  // Fermer si clic en dehors
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const toggle = () => {
+    setOpen((v) => {
+      if (!v) void loadItems()
+      return !v
+    })
+  }
+
+  const handleLu = async (s: Signalement) => {
+    if (s.lu_par_admin) return
+    const updated = await marquerLu(s.id)
+    setItems((prev) => prev.map((x) => (x.id === s.id ? updated : x)))
+    setCount((c) => Math.max(0, c - 1))
+  }
+
+  const handleTraite = async (s: Signalement) => {
+    const updated = await marquerTraite(s.id, noteMap[s.id] || undefined)
+    setItems((prev) => prev.filter((x) => x.id !== updated.id))
+    if (!s.lu_par_admin) setCount((c) => Math.max(0, c - 1))
+  }
+
+  const typeLabel = (t: string) => ({ produit: 'Produit', materiel: 'Materiel', autre: 'Autre' }[t] ?? t)
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={toggle}
+        className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-gray-100 bg-white text-gray-700 shadow-sm hover:bg-gray-50"
+        aria-label="Notifications"
+      >
+        <Bell className="h-4.5 w-4.5 h-[18px] w-[18px]" />
+        {count > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-4.5 h-[18px] w-[18px] items-center justify-center rounded-full bg-[#e91e63] text-[10px] font-black text-white">
+            {count > 9 ? '9+' : count}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-11 z-50 w-[340px] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl">
+          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+            <p className="text-sm font-black text-gray-950">Signalements non traites</p>
+            <NavLink to="/console-thomas/signalements" onClick={() => setOpen(false)} className="text-xs font-bold text-[#e91e63] hover:underline">
+              Tout voir
+            </NavLink>
+          </div>
+          <div className="max-h-[400px] overflow-y-auto">
+            {items.length === 0 ? (
+              <div className="px-4 py-8 text-center text-sm font-medium text-gray-400">Aucun signalement en attente.</div>
+            ) : (
+              items.map((s) => (
+                <div
+                  key={s.id}
+                  className={['border-b border-gray-50 p-4 hover:bg-gray-50/50 cursor-pointer', !s.lu_par_admin ? 'bg-[#fff8fb]' : ''].join(' ')}
+                  onClick={() => void handleLu(s)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        {!s.lu_par_admin && <span className="h-2 w-2 shrink-0 rounded-full bg-[#e91e63]" />}
+                        {s.urgence === 'urgente' && <span className="text-xs">🔴</span>}
+                        <p className="truncate text-sm font-black text-gray-900">{s.titre}</p>
+                      </div>
+                      <p className="mt-0.5 text-xs text-gray-400">{typeLabel(s.type)} · {s.gerante?.name}</p>
+                      {s.description && <p className="mt-1 line-clamp-2 text-xs text-gray-500">{s.description}</p>}
+                    </div>
+                  </div>
+                  <div className="mt-2 flex gap-2" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="text"
+                      placeholder="Note (optionnel)..."
+                      value={noteMap[s.id] ?? ''}
+                      onChange={(e) => setNoteMap((m) => ({ ...m, [s.id]: e.target.value }))}
+                      className="min-w-0 flex-1 rounded-lg border border-gray-200 px-2 py-1 text-xs outline-none focus:border-[#e91e63]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleTraite(s)}
+                      className="shrink-0 rounded-lg bg-emerald-500 px-2.5 py-1 text-xs font-black text-white hover:bg-emerald-600"
+                    >
+                      Traite
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -241,19 +369,27 @@ function AdminLayout({ children }: AdminLayoutProps) {
             <p className="text-[11px] font-semibold text-gray-500">Administration</p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setMobileMenuOpen(true)}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-100 bg-white text-gray-900 shadow-sm"
-          aria-label="Ouvrir le menu"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <NotifBell />
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-100 bg-white text-gray-900 shadow-sm"
+            aria-label="Ouvrir le menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </header>
 
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[252px] flex-col overflow-hidden bg-[#070711] px-3 py-3 text-white lg:flex">
         {renderNavigation()}
       </aside>
+
+      {/* Cloche desktop : coin supérieur droit */}
+      <div className="fixed right-4 top-4 z-20 hidden lg:block">
+        <NotifBell />
+      </div>
 
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">

@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\Admin\ClientController;
 use App\Http\Controllers\Api\Admin\DepenseController;
 use App\Http\Controllers\Api\Admin\EvenementAnalyticsController;
 use App\Http\Controllers\Api\Admin\ExportJournalController;
+use App\Http\Controllers\Api\Admin\SignalementController as AdminSignalementController;
+use App\Http\Controllers\Api\Gerante\SignalementController as GeranteSignalementController;
 use App\Http\Controllers\Api\Admin\GeranteController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
 use App\Http\Controllers\Api\Gerante\ClientController as GeranteClientController;
@@ -97,6 +99,10 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
         Route::get('dashboard', DashboardController::class)->name('dashboard');
         Route::get('rapports-statistiques', RapportStatistiqueController::class)->name('rapports-statistiques');
         Route::get('rapports/export-journal', ExportJournalController::class)->name('rapports.export-journal');
+        Route::get('signalements/non-lus-count', [AdminSignalementController::class, 'nonLusCount'])->name('signalements.non-lus-count');
+        Route::patch('signalements/{signalement}/marquer-lu', [AdminSignalementController::class, 'marquerLu'])->name('signalements.marquer-lu');
+        Route::patch('signalements/{signalement}/marquer-traite', [AdminSignalementController::class, 'marquerTraite'])->name('signalements.marquer-traite');
+        Route::apiResource('signalements', AdminSignalementController::class)->only(['index']);
         Route::patch('avis-coiffures/{avisCoiffure}/approuver', [AvisCoiffureController::class, 'approve'])->name('avis-coiffures.approve');
         Route::patch('avis-coiffures/{avisCoiffure}/rejeter', [AvisCoiffureController::class, 'reject'])->name('avis-coiffures.reject');
         Route::apiResource('avis-coiffures', AvisCoiffureController::class)
@@ -162,6 +168,8 @@ Route::middleware(['auth.token', 'role:gerante', 'log.admin'])
     ->prefix('gerante')
     ->name('gerante.')
     ->group(function (): void {
+        Route::get('signalements', [GeranteSignalementController::class, 'index'])->name('signalements.index');
+        Route::post('signalements', [GeranteSignalementController::class, 'store'])->name('signalements.store');
         Route::get('reservations', [GeranteReservationController::class, 'index'])->name('reservations.index');
         Route::post('reservations', [GeranteReservationController::class, 'store'])->name('reservations.store');
         Route::get('reservations/{reservation}', [GeranteReservationController::class, 'show'])->name('reservations.show');
