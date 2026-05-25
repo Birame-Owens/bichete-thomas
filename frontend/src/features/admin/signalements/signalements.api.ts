@@ -5,7 +5,7 @@ type PaginatedResponse<T> = { data: { data: T[]; total: number; current_page: nu
 
 export async function getAdminSignalements(params?: { traite?: boolean; urgence?: string }) {
   const response = await apiClient.get<PaginatedResponse<Signalement>>('/admin/signalements', { params })
-  return response.data.data
+  return response.data.data.data
 }
 
 export async function getNonLusCount() {

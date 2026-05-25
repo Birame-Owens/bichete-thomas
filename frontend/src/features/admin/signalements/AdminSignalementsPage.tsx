@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Clock, Filter, PackageSearch, RefreshCw } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, PackageSearch, RefreshCw } from 'lucide-react'
 import AdminLayout from '../../../layouts/AdminLayout'
 import { getAdminSignalements, marquerLu, marquerTraite } from './signalements.api'
 import type { Signalement } from './signalements.types'

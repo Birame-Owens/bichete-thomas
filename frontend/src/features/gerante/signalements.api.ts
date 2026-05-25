@@ -5,7 +5,7 @@ type PaginatedResponse<T> = { data: { data: T[]; total: number; current_page: nu
 
 export async function getGeranteSignalements() {
   const response = await apiClient.get<PaginatedResponse<Signalement>>('/gerante/signalements')
-  return response.data.data
+  return response.data.data.data
 }
 
 export async function createSignalement(form: SignalementForm) {
