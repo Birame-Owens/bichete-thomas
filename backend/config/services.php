@@ -60,7 +60,8 @@ return [
         'webhook_secret' => env('NABOOPAY_WEBHOOK_SECRET'),
         'success_url' => env('NABOOPAY_SUCCESS_URL'),
         'error_url' => env('NABOOPAY_ERROR_URL'),
-        'fees_customer_side' => env('NABOOPAY_FEES_CUSTOMER_SIDE', true),
+        // false = frais à la charge du marchand (propriétaire du site), pas du client
+        'fees_customer_side' => env('NABOOPAY_FEES_CUSTOMER_SIDE', false),
     ],
 
     'whatsapp' => [
