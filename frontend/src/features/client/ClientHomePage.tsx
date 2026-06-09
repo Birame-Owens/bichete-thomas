@@ -502,6 +502,19 @@ function ClientHomePage() {
     }
   }, [selectedCoiffure, bookingForm.date_reservation, settings])
 
+  // Bloque le defilement de la page de fond quand le modal de reservation est
+  // ouvert : evite le double-scroll (modal + page) genant sur telephone.
+  useEffect(() => {
+    if (!selectedCoiffure) {
+      return
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [selectedCoiffure])
+
   const categories = catalogue?.categories ?? emptyCategories
   const coiffures = catalogue?.coiffures ?? emptyCoiffures
   const promotions = catalogue?.promotions ?? emptyPromotions
@@ -1417,25 +1430,32 @@ function ClientHomePage() {
       </div>
 
       {selectedCoiffure ? (
-        <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-950/65 px-2 py-3 backdrop-blur-sm sm:px-5 sm:py-8">
-          <div className="mx-auto grid max-w-7xl gap-0 overflow-hidden bg-white shadow-2xl lg:grid-cols-[0.92fr_1.08fr]">
-            <section className="bg-[#fff7fb] p-4 sm:p-6 lg:sticky lg:top-0 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-black text-[#f31976]">{selectedCoiffure.categorie?.nom ?? 'Coiffure'}</p>
-                  <h2 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">{selectedCoiffure.nom}</h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={closeDetails}
-                className="grid h-11 w-11 shrink-0 place-items-center bg-white text-slate-950 shadow-sm"
-                  aria-label="Fermer"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+        <div className="bt-overlay-in fixed inset-0 z-40 flex items-end justify-center bg-slate-950/65 backdrop-blur-sm sm:items-center sm:p-6">
+          <div className="bt-sheet-in flex h-[94vh] w-full max-w-7xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:h-auto sm:max-h-[92vh] sm:rounded-3xl">
+            {/* En-tete collant : categorie + nom + fermeture toujours visibles,
+                meme quand la cliente fait defiler le formulaire sur telephone. */}
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3 sm:px-6 sm:py-4">
+              <div className="min-w-0">
+                <p className="truncate text-[11px] font-black uppercase tracking-[0.14em] text-[#f31976]">
+                  {selectedCoiffure.categorie?.nom ?? 'Coiffure'}
+                </p>
+                <h2 className="truncate text-lg font-black text-slate-950 sm:text-2xl">{selectedCoiffure.nom}</h2>
               </div>
+              <button
+                type="button"
+                onClick={closeDetails}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-950 transition hover:bg-slate-200 active:scale-95"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-              <div className="relative mt-5 block aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-100 text-left">
+            {/* Corps scrollable : image + infos a gauche, formulaire a droite */}
+            <div className="grid min-h-0 flex-1 gap-0 overflow-y-auto lg:grid-cols-[0.92fr_1.08fr]">
+              <section className="bg-[#fff7fb] p-4 sm:p-6">
+
+              <div className="relative block aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-100 text-left">
                 {/* Fond flou de la meme photo : remplit l espace vide laisse
                     par object-contain (photos portrait) sans rien recadrer. */}
                 <img
@@ -1794,15 +1814,18 @@ function ClientHomePage() {
                 </div>
               ) : null}
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 py-4 text-base font-black text-white shadow-lg transition disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CalendarCheck className="h-5 w-5" />}
-                Confirmer et payer l'acompte
-              </button>
+              <div className="sticky bottom-0 -mx-4 mt-5 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 py-4 text-base font-black text-white shadow-lg transition hover:bg-[#d6165e] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CalendarCheck className="h-5 w-5" />}
+                  Confirmer et payer l'acompte
+                </button>
+              </div>
             </form>
+            </div>
           </div>
         </div>
       ) : null}
