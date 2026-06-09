@@ -142,9 +142,9 @@ const mapsEmbedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(mapsSe
 // sont servis statiquement (aucun appel API). Modifier ce tableau suffit pour
 // changer les photos mises en avant sur la home.
 const salonGallery: Array<{ src: string; titre: string; sousTitre: string }> = [
-  { src: '/bichette1.jpg', titre: 'Notre univers', sousTitre: 'Une ambiance chaleureuse et soignee' },
-  { src: '/bichette2.jpg', titre: 'Le savoir-faire', sousTitre: 'Des poses precises, des finitions nettes' },
-  { src: '/bichette3.jpg', titre: 'Vos resultats', sousTitre: 'Des coiffures qui vous subliment' },
+  { src: '/b1.jpg', titre: 'Notre univers', sousTitre: 'Une ambiance chaleureuse et soignee' },
+  { src: '/b2.jpg', titre: 'Le savoir-faire', sousTitre: 'Des poses precises, des finitions nettes' },
+  { src: '/b3.jpg', titre: 'Vos resultats', sousTitre: 'Des coiffures qui vous subliment' },
 ]
 
 const emptyCategories: ClientCategory[] = []
