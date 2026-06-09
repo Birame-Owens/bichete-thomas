@@ -555,8 +555,10 @@ function ClientCategoryPage() {
                   </button>
                 </div>
 
-                <div className="relative mt-5 overflow-hidden bg-white">
-                  <img src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)} alt={selectedCoiffure.nom} className="aspect-[4/3] w-full bg-white object-contain" loading="lazy" />
+                <div className="relative mt-5 aspect-[4/3] overflow-hidden rounded-2xl bg-slate-100">
+                  {/* Fond flou de la meme photo : comble le vide d object-contain. */}
+                  <img src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-55 blur-2xl" />
+                  <img src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)} alt={selectedCoiffure.nom} className="relative h-full w-full object-contain" loading="lazy" />
                   {modalLoading ? (
                     <div className="absolute inset-0 grid place-items-center bg-white/70">
                       <Loader2 className="h-8 w-8 animate-spin text-[#f31976]" />

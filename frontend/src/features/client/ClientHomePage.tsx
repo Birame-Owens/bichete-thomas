@@ -54,6 +54,7 @@ import {
   todayInput,
 } from './client.helpers'
 import { CoiffureCard } from './components/CoiffureCard'
+import Reveal from './components/Reveal'
 import PromoPopup from './PromoPopup'
 import { useSeoPage } from '../../hooks/useSeoPage'
 import { usePhoneLookup } from './hooks/usePhoneLookup'
@@ -107,6 +108,7 @@ type ClientNavItem = {
 
 const clientNavItems: ClientNavItem[] = [
   { id: 'accueil', label: 'Accueil', icon: Home },
+  { id: 'galerie', label: 'Galerie', icon: ImageIcon },
   { id: 'apropos', label: 'A propos', icon: Users },
   { id: 'contact', label: 'Contact', icon: MessageCircle },
 ]
@@ -135,6 +137,15 @@ const tiktokUrl = 'https://www.tiktok.com/@bichette_thomas'
 const mapsSearchQuery = 'Bichette Thomas salon coiffure Dakar Senegal'
 const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsSearchQuery)}`
 const mapsEmbedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(mapsSearchQuery)}&z=15&output=embed`
+
+// Galerie d ambiance du salon. Les visuels vivent dans frontend/public et
+// sont servis statiquement (aucun appel API). Modifier ce tableau suffit pour
+// changer les photos mises en avant sur la home.
+const salonGallery: Array<{ src: string; titre: string; sousTitre: string }> = [
+  { src: '/bichette1.jpg', titre: 'Notre univers', sousTitre: 'Une ambiance chaleureuse et soignee' },
+  { src: '/bichette2.jpg', titre: 'Le savoir-faire', sousTitre: 'Des poses precises, des finitions nettes' },
+  { src: '/bichette3.jpg', titre: 'Vos resultats', sousTitre: 'Des coiffures qui vous subliment' },
+]
 
 const emptyCategories: ClientCategory[] = []
 const emptyCoiffures: ClientCoiffure[] = []
@@ -987,7 +998,7 @@ function ClientHomePage() {
               <img
                 src="/image mobile.jpg"
                 alt=""
-                className="h-full w-full object-cover object-[55%_center] opacity-90 md:hidden"
+                className="bt-kenburns h-full w-full object-cover object-[55%_center] opacity-90 md:hidden"
                 loading="lazy"
               />
               <div className="absolute inset-0 hidden bg-gradient-to-r from-black/60 via-[#f31976]/15 to-transparent md:block" />
@@ -995,35 +1006,37 @@ function ClientHomePage() {
             </div>
             <div className="relative flex min-h-[430px] items-end p-5 sm:min-h-[560px] sm:p-10 lg:min-h-[620px] lg:p-14">
               <div className="pb-4 md:hidden">
-                <p className="text-[9px] font-black uppercase tracking-[0.28em] text-white/80">
+                <p className="bt-animate-fade-up text-[9px] font-black uppercase tracking-[0.28em] text-white/80" style={{ animationDelay: '0.05s' }}>
                   Salon de coiffure à Dakar
                 </p>
-                <h1 className="font-display mt-3 text-3xl leading-tight text-white">
+                <h1 className="font-display bt-animate-fade-up mt-3 text-3xl leading-tight text-white" style={{ animationDelay: '0.18s' }}>
                   Bichette Thomas
                 </h1>
                 <button
                   type="button"
                   onClick={() => scrollToSection('catalogue')}
-                  className="mt-5 inline-flex min-h-11 items-center gap-2 bg-white px-5 text-xs font-black uppercase tracking-[0.18em] text-[#d80f63]"
+                  className="bt-animate-fade-up mt-5 inline-flex min-h-11 items-center gap-2 bg-white px-5 text-xs font-black uppercase tracking-[0.18em] text-[#d80f63] transition hover:scale-105 hover:bg-[#fff0f6] active:scale-95"
+                  style={{ animationDelay: '0.32s' }}
                 >
                   Choisir une coiffure
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
               <div className="hidden max-w-3xl pb-8 md:block">
-                <p className="inline-flex border border-white/40 px-3 py-1 text-[9px] font-black uppercase tracking-[0.28em] text-white/85 backdrop-blur sm:text-[10px]">
+                <p className="bt-animate-fade-up inline-flex border border-white/40 px-3 py-1 text-[9px] font-black uppercase tracking-[0.28em] text-white/85 backdrop-blur sm:text-[10px]" style={{ animationDelay: '0.05s' }}>
                   Salon de coiffure à Dakar
                 </p>
-                <h1 className="font-display mt-5 max-w-2xl text-4xl leading-none text-white sm:text-6xl lg:text-7xl">
+                <h1 className="font-display bt-animate-fade-up mt-5 max-w-2xl text-4xl leading-none text-white sm:text-6xl lg:text-7xl" style={{ animationDelay: '0.18s' }}>
                   Bichette Thomas
                 </h1>
-                <p className="mt-5 max-w-xl text-sm font-semibold leading-6 text-white/90 sm:text-base sm:leading-7">
+                <p className="bt-animate-fade-up mt-5 max-w-xl text-sm font-semibold leading-6 text-white/90 sm:text-base sm:leading-7" style={{ animationDelay: '0.3s' }}>
                   Coiffures protectrices, poses soignées et réservations simples, avec une touche rose signature et un service pensé pour votre rythme.
                 </p>
                 <button
                   type="button"
                   onClick={() => scrollToSection('catalogue')}
-                  className="mt-7 inline-flex min-h-12 items-center gap-2 bg-white px-6 text-xs font-black uppercase tracking-[0.2em] text-[#d80f63] shadow-sm"
+                  className="bt-animate-fade-up mt-7 inline-flex min-h-12 items-center gap-2 bg-white px-6 text-xs font-black uppercase tracking-[0.2em] text-[#d80f63] shadow-sm transition hover:scale-105 hover:bg-[#fff0f6] active:scale-95"
+                  style={{ animationDelay: '0.44s' }}
                 >
                   Choisir une coiffure
                   <ChevronRight className="h-4 w-4" />
@@ -1115,10 +1128,10 @@ function ClientHomePage() {
               <div className="space-y-16">
                 {popularCoiffures.length > 0 ? (
                   <div>
-                    <div className="text-center">
+                    <Reveal className="text-center">
                       <h2 className="text-4xl font-light uppercase tracking-[0.24em] text-slate-950">Populaires</h2>
                       <p className="mt-3 text-sm font-semibold italic text-slate-500">Les coiffures les plus demandées au salon</p>
-                    </div>
+                    </Reveal>
                     <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10 xl:grid-cols-6">
                       {popularCoiffures.map((coiffure) => (
                         <CoiffureCard
@@ -1136,10 +1149,10 @@ function ClientHomePage() {
 
                 {homeVisibleCoiffures.length > 0 ? (
                   <div>
-                    <div className="text-center">
+                    <Reveal className="text-center">
                       <h2 className="text-4xl font-light uppercase tracking-[0.24em] text-slate-950">A la une</h2>
                       <p className="mt-3 text-sm font-semibold italic text-slate-500">Sélection visible sur la page d'accueil</p>
-                    </div>
+                    </Reveal>
                     <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10 xl:grid-cols-6">
                       {homeVisibleCoiffures.map((coiffure) => (
                         <CoiffureCard
@@ -1157,10 +1170,10 @@ function ClientHomePage() {
 
                 {fallbackHomeCoiffures.length > 0 ? (
                   <div>
-                    <div className="text-center">
+                    <Reveal className="text-center">
                       <h2 className="text-4xl font-light uppercase tracking-[0.24em] text-slate-950">Selection</h2>
                       <p className="mt-3 text-sm font-semibold italic text-slate-500">Quelques coiffures du catalogue</p>
-                    </div>
+                    </Reveal>
                     <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10 xl:grid-cols-6">
                       {fallbackHomeCoiffures.map((coiffure) => (
                         <CoiffureCard
@@ -1205,10 +1218,10 @@ function ClientHomePage() {
           </section>
 
           <section id="apropos" className="grid gap-7 border-y border-[#f7d6e5] bg-white py-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-            <div className="min-h-[360px] overflow-hidden bg-[#fff0f6]">
-              <img src="/image mobile.jpg" alt="" className="h-full min-h-[360px] w-full object-cover object-[55%_center]" loading="lazy" />
-            </div>
-            <div className="px-1 lg:px-8">
+            <Reveal className="group min-h-[360px] overflow-hidden rounded-3xl bg-[#fff0f6]">
+              <img src="/image mobile.jpg" alt="" className="h-full min-h-[360px] w-full object-cover object-[55%_center] transition duration-[1100ms] ease-out group-hover:scale-110" loading="lazy" />
+            </Reveal>
+            <Reveal delay={120} className="px-1 lg:px-8">
               <p className="text-[10px] font-black uppercase tracking-[0.32em] text-[#f31976]">A propos de nous</p>
               <h2 className="font-display mt-4 text-4xl leading-tight text-slate-950 sm:text-5xl">
                 Un salon pensé pour sublimer chaque coiffure, du choix au rendez-vous.
@@ -1230,7 +1243,57 @@ function ClientHomePage() {
                   <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Par creneau</p>
                 </div>
               </div>
+            </Reveal>
+          </section>
+
+          <section id="galerie" className="py-12">
+            <Reveal className="text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.32em] text-[#f31976]">Le salon en images</p>
+              <h2 className="font-display mt-3 text-4xl leading-tight text-slate-950 sm:text-5xl">
+                Plongez dans l'univers Bichette Thomas
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
+                Ambiance, savoir-faire et resultats : quelques instants captures au salon.
+              </p>
+            </Reveal>
+
+            <div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {salonGallery.map((item, index) => (
+                <Reveal
+                  key={item.src}
+                  delay={index * 140}
+                  className={`group relative overflow-hidden rounded-3xl bg-[#fff0f6] shadow-sm ${
+                    index === 1 ? 'sm:col-span-2 lg:col-span-1' : ''
+                  }`}
+                >
+                  <img
+                    src={item.src}
+                    alt={item.titre}
+                    className="aspect-[4/5] w-full object-cover transition duration-[1100ms] ease-out group-hover:scale-110"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 translate-y-2 p-5 opacity-0 transition duration-500 group-hover:translate-y-0 group-hover:opacity-100">
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/80">{item.titre}</p>
+                    <p className="mt-1 text-lg font-black leading-snug text-white">{item.sousTitre}</p>
+                  </div>
+                  <span className="absolute left-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-[#f31976] shadow-sm">
+                    <Sparkles className="h-4 w-4" />
+                  </span>
+                </Reveal>
+              ))}
             </div>
+
+            <Reveal delay={120} className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={() => scrollToSection('catalogue')}
+                className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#f31976] px-7 text-xs font-black uppercase tracking-[0.2em] text-white shadow-lg transition hover:scale-105 hover:bg-[#d6165e] active:scale-95"
+              >
+                Reserver ma coiffure
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </Reveal>
           </section>
 
           <section id="reservations" className="mt-10 grid gap-5 xl:grid-cols-[1fr_360px]">
@@ -1242,8 +1305,8 @@ function ClientHomePage() {
                   const Icon = benefit.icon
 
                   return (
-                    <article key={benefit.label} className="bg-white p-5 text-center">
-                      <div className="mx-auto grid h-12 w-12 place-items-center bg-[#fff0f6] text-[#f31976]">
+                    <article key={benefit.label} className="group rounded-2xl bg-white p-5 text-center shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
+                      <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-[#fff0f6] text-[#f31976] transition duration-300 group-hover:scale-110 group-hover:bg-[#f31976] group-hover:text-white">
                         <Icon className="h-6 w-6" />
                       </div>
                       <p className="mt-3 text-sm font-black text-slate-950">{benefit.label}</p>
@@ -1372,11 +1435,19 @@ function ClientHomePage() {
                 </button>
               </div>
 
-              <div className="relative mt-5 block w-full overflow-hidden bg-white text-left">
+              <div className="relative mt-5 block aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-100 text-left">
+                {/* Fond flou de la meme photo : remplit l espace vide laisse
+                    par object-contain (photos portrait) sans rien recadrer. */}
+                <img
+                  src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)}
+                  alt=""
+                  aria-hidden
+                  className="absolute inset-0 h-full w-full scale-110 object-cover opacity-55 blur-2xl"
+                />
                 <img
                   src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)}
                   alt={selectedCoiffure.nom}
-                  className="aspect-[4/3] w-full bg-white object-contain"
+                  className="relative h-full w-full object-contain"
                   loading="lazy"
                 />
                 {modalLoading ? (
