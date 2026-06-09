@@ -208,18 +208,26 @@ class CoiffureController extends Controller
             $coiffure->images()->delete();
         }
 
-        foreach ($request->file('images') as $index => $image) {
+        // Nombre de photos deja presentes : en mode ajout (replace=false), les
+        // nouvelles photos se placent APRES (ordre incremental) et ne deviennent
+        // principales que s'il n'en existait aucune. Ainsi un simple ajout de
+        // photos ne change pas la vignette ni l'ordre des photos existantes.
+        $existingCount = $coiffure->images()->count();
+
+        foreach (array_values($request->file('images')) as $index => $image) {
             $url = $this->processAndStore($image, 'catalogue/coiffures', 1200, 900);
+            $position = $existingCount + $index;
+            $isPrincipale = $position === 0;
 
             ImageCoiffure::query()->create([
                 'coiffure_id' => $coiffure->id,
                 'url' => $url,
                 'alt' => $coiffure->nom,
-                'ordre' => $index + 1,
-                'principale' => $index === 0,
+                'ordre' => $position + 1,
+                'principale' => $isPrincipale,
             ]);
 
-            if ($index === 0) {
+            if ($isPrincipale) {
                 $coiffure->update(['image' => $url]);
             }
         }

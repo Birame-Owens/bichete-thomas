@@ -96,11 +96,11 @@ function coiffureFormData(form: CoiffureForm) {
       appendBoolean(formData, `variantes[${index}][actif]`, variante.actif)
     })
 
+  // On envoie uniquement le tableau images[] ; l'image principale (vignette)
+  // est derivee cote backend a partir de la 1re photo. Envoyer un champ "image"
+  // separe ecraserait la vignette existante lors d'un simple ajout de photos.
   form.images.forEach((image, index) => {
     formData.append(`images[${index}]`, image)
-    if (index === 0) {
-      formData.append('image', image)
-    }
   })
 
   return formData
