@@ -126,14 +126,38 @@ function CoiffuresPage() {
     return () => window.clearTimeout(timeoutId)
   }, [categoryFilter, loadPage, search, statusFilter])
 
-  // Apercu immediat des photos selectionnees : on (re)genere les URLs objet
-  // a chaque changement de form.images, et on les revoque au demontage pour
-  // eviter les fuites memoire. C'est ce qui garantit que la cliente voit
-  // tout de suite ses photos, sans avoir besoin d'enregistrer.
+  // Apercu immediat des photos selectionnees, AVANT enregistrement.
+  // On lit chaque fichier en data: URL (base64) plutot qu'en blob: car la
+  // Content-Security-Policy de production (img-src 'self' data: https:)
+  // bloque les URLs blob: — l'apercu restait alors vide tant qu'on n'avait
+  // pas enregistre. data: est autorise par la CSP, donc l'apercu marche
+  // partout (dev comme prod).
   useEffect(() => {
-    const urls = form.images.map((file) => URL.createObjectURL(file))
-    setImagePreviews(urls)
-    return () => urls.forEach((url) => URL.revokeObjectURL(url))
+    if (form.images.length === 0) {
+      setImagePreviews([])
+      return
+    }
+
+    let cancelled = false
+    Promise.all(
+      form.images.map(
+        (file) =>
+          new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
+            reader.onerror = () => resolve('')
+            reader.readAsDataURL(file)
+          }),
+      ),
+    ).then((results) => {
+      if (!cancelled) {
+        setImagePreviews(results)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [form.images])
 
   const resetForm = () => {
