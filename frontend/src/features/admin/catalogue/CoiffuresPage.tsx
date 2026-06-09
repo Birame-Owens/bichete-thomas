@@ -17,7 +17,6 @@ import {
 import CatalogueLayout from './components/CatalogueLayout'
 import { EmptyState, ErrorState, FormField, Modal, Pagination } from './components/CatalogueUi'
 import {
-  dangerButtonClass,
   inputClass,
   primaryButtonClass,
   secondaryButtonClass,
@@ -127,6 +126,16 @@ function CoiffuresPage() {
     return () => window.clearTimeout(timeoutId)
   }, [categoryFilter, loadPage, search, statusFilter])
 
+  // Apercu immediat des photos selectionnees : on (re)genere les URLs objet
+  // a chaque changement de form.images, et on les revoque au demontage pour
+  // eviter les fuites memoire. C'est ce qui garantit que la cliente voit
+  // tout de suite ses photos, sans avoir besoin d'enregistrer.
+  useEffect(() => {
+    const urls = form.images.map((file) => URL.createObjectURL(file))
+    setImagePreviews(urls)
+    return () => urls.forEach((url) => URL.revokeObjectURL(url))
+  }, [form.images])
+
   const resetForm = () => {
     setForm(emptyForm)
     setEditing(null)
@@ -191,11 +200,22 @@ function CoiffuresPage() {
     setModalOpen(true)
   }
 
+  // Accumule les nouvelles photos (au lieu de remplacer la selection) pour
+  // pouvoir charger des photos en plusieurs fois, dans la limite de 4 au total
+  // (photos deja en base + nouvelles a uploader).
   const handleImages = (files: FileList | null) => {
-    const maxNew = 4 - existingImages.length
-    const selected = Array.from(files ?? []).slice(0, maxNew)
-    setForm((current) => ({ ...current, images: selected }))
-    setImagePreviews(selected.map((file) => URL.createObjectURL(file)))
+    const incoming = Array.from(files ?? [])
+    setForm((current) => {
+      const room = Math.max(0, 4 - existingImages.length - current.images.length)
+      return { ...current, images: [...current.images, ...incoming.slice(0, room)] }
+    })
+  }
+
+  const removeNewImage = (index: number) => {
+    setForm((current) => ({
+      ...current,
+      images: current.images.filter((_, itemIndex) => itemIndex !== index),
+    }))
   }
 
   const handleDeleteExistingImage = async (id: number) => {
@@ -216,6 +236,29 @@ function CoiffuresPage() {
       option_ids: current.option_ids.includes(id)
         ? current.option_ids.filter((optionId) => optionId !== id)
         : [...current.option_ids, id],
+    }))
+  }
+
+  const addVariante = () => {
+    setForm((current) => ({
+      ...current,
+      variantes: [...current.variantes, { nom: '', prix: '', duree_minutes: '', actif: true }],
+    }))
+  }
+
+  const removeVariante = (index: number) => {
+    setForm((current) => ({
+      ...current,
+      variantes: current.variantes.filter((_, itemIndex) => itemIndex !== index),
+    }))
+  }
+
+  const updateVariante = (index: number, key: 'nom' | 'prix' | 'duree_minutes', value: string) => {
+    setForm((current) => ({
+      ...current,
+      variantes: current.variantes.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [key]: value } : item,
+      ),
     }))
   }
 
@@ -521,13 +564,18 @@ function CoiffuresPage() {
               </section>
 
               <section className="rounded-xl bg-gray-50 p-4">
-                <h3 className="mb-4 text-lg font-black text-gray-900">Images</h3>
+                <div className="mb-4 flex items-center justify-between gap-2">
+                  <h3 className="text-lg font-black text-gray-900">Images</h3>
+                  <span className="rounded-full bg-[#fff2f7] px-2.5 py-1 text-xs font-black text-[#c41468]">
+                    {existingImages.length + form.images.length} / 4 photos
+                  </span>
+                </div>
 
                 {/* Photos déjà enregistrées en base (mode édition uniquement) */}
                 {editing && existingImages.length > 0 && (
                   <div className="mb-4">
                     <p className="mb-2 text-xs font-bold text-gray-500">
-                      Photos actuelles — cliquez sur × pour supprimer
+                      Photos actuelles — cliquez sur × pour en supprimer
                     </p>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {existingImages.map((image) => (
@@ -535,7 +583,7 @@ function CoiffuresPage() {
                           <img
                             src={image.url}
                             alt={image.alt ?? ''}
-                            className="h-20 w-full rounded-lg object-cover object-[center_18%]"
+                            className="h-24 w-full rounded-lg object-cover object-[center_18%] sm:h-20"
                           />
                           {image.principale && (
                             <span className="absolute bottom-1 left-1 rounded bg-[#e91e63] px-2 py-0.5 text-[10px] font-black text-white">
@@ -546,12 +594,12 @@ function CoiffuresPage() {
                             type="button"
                             onClick={() => void handleDeleteExistingImage(image.id)}
                             disabled={deletingImageId === image.id}
-                            className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white transition hover:bg-red-600 disabled:opacity-50"
+                            className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white transition hover:bg-red-600 disabled:opacity-50"
                             title="Supprimer cette photo"
                           >
                             {deletingImageId === image.id
-                              ? <RefreshCw className="h-3 w-3 animate-spin" />
-                              : <X className="h-3 w-3" />
+                              ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                              : <X className="h-3.5 w-3.5" />
                             }
                           </button>
                         </div>
@@ -560,123 +608,139 @@ function CoiffuresPage() {
                   </div>
                 )}
 
-                {/* Zone d'ajout de nouvelles photos */}
-                {existingImages.length < 4 && (
-                  <>
-                    <div className="rounded-xl border-2 border-dashed border-gray-300 bg-white p-5 text-center transition hover:border-[#e91e63]">
-                      <Upload className="mx-auto mb-2 h-10 w-10 text-gray-400" />
-                      <label className="cursor-pointer text-sm font-black text-[#e91e63]">
-                        {editing
-                          ? `Ajouter des photos (${4 - existingImages.length} max)`
-                          : 'Charger 1 à 4 photos'}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={(event) => handleImages(event.target.files)}
-                          className="sr-only"
-                        />
-                      </label>
-                      <p className="mt-1 text-xs font-bold text-gray-400">
-                        PNG, JPG, WEBP. La première photo est principale.
-                      </p>
+                {/* Apercu immediat des nouvelles photos selectionnees (pas encore enregistrees) */}
+                {imagePreviews.length > 0 && (
+                  <div className="mb-4">
+                    <p className="mb-2 text-xs font-bold text-gray-500">
+                      Nouvelles photos à enregistrer — cliquez sur × pour en retirer
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {imagePreviews.map((preview, index) => (
+                        <div key={`${preview}-${index}`} className="relative">
+                          <img
+                            src={preview}
+                            alt={`Apercu ${index + 1}`}
+                            className="h-24 w-full rounded-lg object-cover object-[center_18%] sm:h-20"
+                          />
+                          {index === 0 && existingImages.length === 0 && (
+                            <span className="absolute bottom-1 left-1 rounded bg-[#e91e63] px-2 py-0.5 text-[10px] font-black text-white">
+                              principale
+                            </span>
+                          )}
+                          <span className="absolute bottom-1 right-1 rounded bg-emerald-500 px-2 py-0.5 text-[10px] font-black text-white">
+                            nouvelle
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeNewImage(index)}
+                            className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white transition hover:bg-red-600"
+                            title="Retirer cette photo"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    {imagePreviews.length > 0 && (
-                      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        {imagePreviews.map((preview, index) => (
-                          <div key={`${preview}-${index}`} className="relative">
-                            <img
-                              src={preview}
-                              alt={`Apercu ${index + 1}`}
-                              className="h-20 w-full rounded-lg object-cover object-[center_18%]"
-                            />
-                            {index === 0 && existingImages.length === 0 && (
-                              <span className="absolute bottom-1 left-1 rounded bg-[#e91e63] px-2 py-0.5 text-[10px] font-black text-white">
-                                principale
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
+                  </div>
+                )}
+
+                {/* Zone d'ajout de nouvelles photos */}
+                {existingImages.length + form.images.length < 4 ? (
+                  <div className="rounded-xl border-2 border-dashed border-gray-300 bg-white p-5 text-center transition hover:border-[#e91e63]">
+                    <Upload className="mx-auto mb-2 h-10 w-10 text-gray-400" />
+                    <label className="cursor-pointer text-sm font-black text-[#e91e63]">
+                      Ajouter des photos ({4 - existingImages.length - form.images.length} place(s) restante(s))
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(event) => {
+                          handleImages(event.target.files)
+                          // Reinitialise l'input pour pouvoir re-selectionner le meme fichier au besoin.
+                          event.target.value = ''
+                        }}
+                        className="sr-only"
+                      />
+                    </label>
+                    <p className="mt-1 text-xs font-bold text-gray-400">
+                      PNG, JPG, WEBP. La première photo est l'image principale.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-3 text-center text-xs font-bold text-gray-400">
+                    Maximum de 4 photos atteint. Retirez-en une pour en ajouter une autre.
+                  </p>
                 )}
               </section>
 
               <section className="rounded-xl bg-gray-50 p-4 lg:col-span-2">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <h3 className="text-lg font-black text-gray-900">Variantes et prix</h3>
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-black text-gray-900">Variantes et prix</h3>
+                    <p className="mt-1 text-xs font-medium text-gray-500">
+                      Une variante = une version de la coiffure (ex : Court, Long, Taille L) avec son propre prix et sa duree.
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    onClick={() =>
-                      setForm((current) => ({
-                        ...current,
-                        variantes: [...current.variantes, { nom: '', prix: '', duree_minutes: '', actif: true }],
-                      }))
-                    }
-                    className={secondaryButtonClass}
+                    onClick={addVariante}
+                    className={`${secondaryButtonClass} inline-flex w-full items-center justify-center gap-2 sm:w-auto`}
                   >
-                    Ajouter variante
+                    <Plus className="h-4 w-4" />
+                    Ajouter une variante
                   </button>
                 </div>
                 <div className="space-y-3">
                   {form.variantes.map((variante, index) => (
-                    <div key={index} className="grid gap-2 rounded-lg bg-white p-3 md:grid-cols-[1fr_140px_140px_auto]">
-                      <input
-                        className={inputClass}
-                        placeholder="Nom variante"
-                        value={variante.nom}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            variantes: current.variantes.map((item, itemIndex) =>
-                              itemIndex === index ? { ...item, nom: event.target.value } : item,
-                            ),
-                          }))
-                        }
-                      />
-                      <input
-                        className={inputClass}
-                        type="number"
-                        min="0"
-                        placeholder="Prix"
-                        value={variante.prix}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            variantes: current.variantes.map((item, itemIndex) =>
-                              itemIndex === index ? { ...item, prix: event.target.value } : item,
-                            ),
-                          }))
-                        }
-                      />
-                      <input
-                        className={inputClass}
-                        type="number"
-                        min="1"
-                        placeholder="Duree"
-                        value={variante.duree_minutes}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            variantes: current.variantes.map((item, itemIndex) =>
-                              itemIndex === index ? { ...item, duree_minutes: event.target.value } : item,
-                            ),
-                          }))
-                        }
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setForm((current) => ({
-                            ...current,
-                            variantes: current.variantes.filter((_, itemIndex) => itemIndex !== index),
-                          }))
-                        }
-                        className={dangerButtonClass}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+                    <div key={index} className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <span className="text-xs font-black uppercase tracking-[0.12em] text-gray-500">
+                          Variante {index + 1}
+                        </span>
+                        {form.variantes.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeVariante(index)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-red-100 bg-red-50 px-2.5 py-1 text-xs font-black text-red-700 transition hover:bg-red-100"
+                            aria-label={`Supprimer la variante ${index + 1}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                            Retirer
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-[1fr_150px_150px]">
+                        <FormField label="Nom de la variante">
+                          <input
+                            className={inputClass}
+                            placeholder="Ex : Court, Long, Taille L"
+                            value={variante.nom}
+                            onChange={(event) => updateVariante(index, 'nom', event.target.value)}
+                          />
+                        </FormField>
+                        <FormField label="Prix (FCFA)">
+                          <input
+                            className={inputClass}
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            placeholder="15000"
+                            value={variante.prix}
+                            onChange={(event) => updateVariante(index, 'prix', event.target.value)}
+                          />
+                        </FormField>
+                        <FormField label="Duree (minutes)">
+                          <input
+                            className={inputClass}
+                            type="number"
+                            inputMode="numeric"
+                            min="1"
+                            placeholder="120"
+                            value={variante.duree_minutes}
+                            onChange={(event) => updateVariante(index, 'duree_minutes', event.target.value)}
+                          />
+                        </FormField>
+                      </div>
                     </div>
                   ))}
                 </div>
