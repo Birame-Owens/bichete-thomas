@@ -1269,7 +1269,7 @@ function ClientHomePage() {
                   <img
                     src={item.src}
                     alt={item.titre}
-                    className="aspect-[4/5] w-full object-cover transition duration-[1100ms] ease-out group-hover:scale-110"
+                    className="aspect-[3/4] w-full object-cover object-top transition duration-[1100ms] ease-out group-hover:scale-110"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
