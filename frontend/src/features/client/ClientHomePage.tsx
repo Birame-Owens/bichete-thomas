@@ -149,7 +149,7 @@ const salonGallery: Array<{ src: string; titre: string; sousTitre: string }> = [
 ]
 
 // Etapes de l'assistant de reservation (wizard du modal coiffure).
-const bookingSteps = ['Prestation', 'Date', 'Creneau', 'Paiement'] as const
+const bookingSteps = ['Prestation', 'Date & heure', 'Paiement'] as const
 
 const emptyCategories: ClientCategory[] = []
 const emptyCoiffures: ClientCoiffure[] = []
@@ -627,9 +627,8 @@ function ClientHomePage() {
         ? bookingForm.date_reservation !== ''
           && !isClosedDate(bookingForm.date_reservation, settings)
           && !(availability?.jour_ferme ?? false)
-        : bookingStep === 2
-          ? bookingForm.heure_debut !== ''
-          : true
+          && bookingForm.heure_debut !== ''
+        : true
 
   const goNextBookingStep = () => {
     setSubmitState(null)
@@ -1517,7 +1516,7 @@ function ClientHomePage() {
 
       {selectedCoiffure ? (
         <div className="bt-overlay-in fixed inset-0 z-40 flex items-end justify-center bg-slate-950/65 backdrop-blur-sm sm:items-center sm:p-6">
-          <div className="bt-sheet-in flex h-[94vh] w-full max-w-7xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:h-auto sm:max-h-[92vh] sm:rounded-3xl">
+          <div className="bt-sheet-in flex h-[100dvh] w-full max-w-7xl flex-col overflow-hidden rounded-none bg-white shadow-2xl sm:h-auto sm:max-h-[92vh] sm:rounded-3xl">
             {/* En-tete collant : categorie + nom + fermeture toujours visibles,
                 meme quand la cliente fait defiler le formulaire sur telephone. */}
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3 sm:px-6 sm:py-4">
@@ -1692,7 +1691,7 @@ function ClientHomePage() {
               </div>
               ) : null}
 
-              {bookingStep === 3 ? (
+              {bookingStep === 2 ? (
               <div className="mt-5 grid grid-cols-2 gap-3">
                 {/*
                  * Telephone en PREMIER champ : le hook usePhoneLookup va
@@ -1795,14 +1794,14 @@ function ClientHomePage() {
                   </p>
                 ) : (
                   <p className="text-xs font-semibold text-slate-500">
-                    Selectionnez le jour, puis passez au choix de l'heure.
+                    Choisissez le jour, puis l'heure ci-dessous.
                   </p>
                 )}
               </div>
               ) : null}
 
-              {bookingStep === 2 ? (
-              <div>
+              {bookingStep === 1 ? (
+              <div className="mt-5">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-[11px] font-black uppercase text-slate-500">Choisissez votre heure</span>
                     {availabilityLoading ? <Loader2 className="h-4 w-4 animate-spin text-[#f31976]" /> : null}
@@ -1830,7 +1829,7 @@ function ClientHomePage() {
                 </div>
               ) : null}
 
-              {bookingStep === 3 ? (
+              {bookingStep === 2 ? (
               <div>
               <div className="mt-6">
                 <p className="text-sm font-black text-slate-950">Paiement de l acompte</p>
