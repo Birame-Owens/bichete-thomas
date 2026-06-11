@@ -244,6 +244,10 @@ function ClientHomePage() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   // Etape courante de l'assistant de reservation (0 = Prestation ... 3 = Paiement).
   const [bookingStep, setBookingStep] = useState(0)
+  // Navbar : ombre/elevation des qu'on a defile, et section actuellement lue
+  // (scroll-spy) pour souligner le lien correspondant.
+  const [navScrolled, setNavScrolled] = useState(false)
+  const [activeSection, setActiveSection] = useState('accueil')
 
   // Prefill non-destructif nom/prenom quand le backend retrouve un client par tel
   // (Phase 5 etape 1). On NE PAS ECRASER ce que la cliente a deja tape : si elle
@@ -522,6 +526,44 @@ function ClientHomePage() {
       document.body.style.overflow = previousOverflow
     }
   }, [selectedCoiffure])
+
+  // Navbar : ombre/elevation des qu'on quitte le tout-en-haut de la page.
+  useEffect(() => {
+    const onScroll = () => setNavScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Scroll-spy : souligne le lien de la section actuellement au centre de
+  // l'ecran. rootMargin cree une fine bande au milieu du viewport ; la section
+  // qui la traverse devient active. Re-arme apres chargement du catalogue
+  // (les sections existent alors avec leur hauteur definitive).
+  useEffect(() => {
+    const ids = clientNavItems.map((item) => item.id)
+    const elements = ids
+      .map((id) => document.getElementById(id))
+      .filter((element): element is HTMLElement => element !== null)
+
+    if (elements.length === 0 || typeof IntersectionObserver === 'undefined') {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
+        if (visible[0]) {
+          setActiveSection(visible[0].target.id)
+        }
+      },
+      { rootMargin: '-45% 0px -50% 0px', threshold: [0, 0.25, 0.5, 1] },
+    )
+
+    elements.forEach((element) => observer.observe(element))
+    return () => observer.disconnect()
+  }, [loading])
 
   // Navigation clavier de la lightbox galerie (Echap, fleches gauche/droite).
   useEffect(() => {
@@ -956,14 +998,21 @@ function ClientHomePage() {
         </div>
       )}
 
-      <header id="accueil" className="fixed top-0 left-0 right-0 z-30 border-b border-[#f7d6e5] bg-white/95 backdrop-blur">
+      <header
+        id="accueil"
+        className={`bt-navbar-in fixed top-0 left-0 right-0 z-30 backdrop-blur transition-all duration-300 ${
+          navScrolled
+            ? 'border-b border-[#f7d6e5] bg-white/95 shadow-[0_12px_30px_-22px_rgba(20,20,43,0.6)]'
+            : 'border-b border-transparent bg-white/80'
+        }`}
+      >
         <div className="mx-auto w-full max-w-[1440px] px-3 py-2 sm:px-5 lg:px-8">
           <div className="flex items-center gap-2 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-3">
-            <a href="/" className="flex shrink-0 items-center gap-3">
+            <a href="/" className="group flex shrink-0 items-center gap-3">
               <img
                 src="/logo-bichette.jpg"
                 alt="Bichette Thomas"
-                className="h-11 w-11 shrink-0 rounded-2xl object-cover object-center sm:h-12 sm:w-12"
+                className="h-11 w-11 shrink-0 rounded-2xl object-cover object-center transition-transform duration-300 group-hover:scale-105 sm:h-12 sm:w-12"
               />
               <div className="hidden min-w-0 sm:block">
                 <p className="font-display text-xl leading-5 text-slate-950 sm:text-2xl">
@@ -990,16 +1039,26 @@ function ClientHomePage() {
               <nav className="hidden min-w-0 flex-1 gap-1 overflow-x-auto sm:flex lg:flex-none lg:gap-2">
               {clientNavItems.map((item) => {
                 const Icon = item.icon
+                const active = activeSection === item.id
 
                 return (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => scrollToSection(item.id)}
-                    className="inline-flex h-10 shrink-0 items-center gap-2 px-2.5 text-[10px] font-black uppercase tracking-[0.13em] text-slate-600 transition hover:bg-[#fff0f6] hover:text-[#f31976] sm:px-3 sm:text-xs"
+                    className={`group relative inline-flex h-10 shrink-0 items-center gap-2 px-2.5 text-[10px] font-black uppercase tracking-[0.13em] transition-colors duration-300 hover:text-[#f31976] sm:px-3 sm:text-xs ${
+                      active ? 'text-[#f31976]' : 'text-slate-600'
+                    }`}
                   >
                     <Icon className="h-4 w-4" />
                     {item.label}
+                    {/* Soulignement rose qui se deploie de gauche a droite
+                        (au survol, ou en continu sur la section active). */}
+                    <span
+                      className={`pointer-events-none absolute inset-x-2.5 bottom-1 h-0.5 origin-left rounded-full bg-[#f31976] transition-transform duration-300 ease-out group-hover:scale-x-100 sm:inset-x-3 ${
+                        active ? 'scale-x-100' : 'scale-x-0'
+                      }`}
+                    />
                   </button>
                 )
               })}
@@ -1007,14 +1066,14 @@ function ClientHomePage() {
               <button
                 type="button"
                 onClick={() => clientSession ? handleLogout() : setPageNotice({ type: 'error', message: 'Espace client pas encore disponible.' })}
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] shadow-sm sm:hidden"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] shadow-sm transition hover:scale-105 active:scale-95 sm:hidden"
                 aria-label="Profil client"
               >
                 <User className="h-5 w-5" />
               </button>
               <button
                 type="button"
-                className="hidden h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-800 shadow-sm sm:grid"
+                className="hidden h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-800 shadow-sm transition hover:scale-105 hover:text-[#f31976] active:scale-95 sm:grid"
                 aria-label="Notifications"
               >
                 <Bell className="h-5 w-5" />
@@ -1024,7 +1083,7 @@ function ClientHomePage() {
                   type="button"
                   onClick={handleLogout}
                   title="Se deconnecter"
-                  className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#fff0f6] px-3 text-sm font-black text-[#f31976]"
+                  className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#fff0f6] px-3 text-sm font-black text-[#f31976] transition hover:scale-105 active:scale-95"
                 >
                   <User className="h-4 w-4" />
                   <span className="hidden sm:inline">{clientSession.prenom}</span>
@@ -1034,7 +1093,7 @@ function ClientHomePage() {
                 <button
                   type="button"
                   onClick={() => setPageNotice({ type: 'error', message: 'Espace client pas encore disponible.' })}
-                  className="hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] sm:grid"
+                  className="hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#f31976] transition hover:scale-105 active:scale-95 sm:grid"
                   aria-label="Profil client"
                 >
                   <User className="h-5 w-5" />
