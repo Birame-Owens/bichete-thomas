@@ -299,6 +299,22 @@ textarea {
   animation: bt-zoom-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Assistant de reservation : transition douce d'une etape a l'autre. */
+@keyframes bt-step-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.bt-step-in {
+  animation: bt-step-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bt-animate-fade-up,
   .bt-animate-fade-in,
@@ -311,7 +327,8 @@ textarea {
   .bt-scroll-hint,
   .bt-whatsapp-pulse,
   .bt-success-pop,
-  .bt-zoom-in {
+  .bt-zoom-in,
+  .bt-step-in {
     animation: none;
   }
 
