@@ -205,6 +205,100 @@ textarea {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Animations "premium" : douces, feminines, presque invisibles (inspiration
+ * beaute/luxe). On privilegie des courbes lentes et des amplitudes faibles.
+ * ------------------------------------------------------------------------- */
+
+/* Bouton du hero : leger rebond une seule fois a l'apparition. */
+@keyframes bt-soft-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.bt-soft-pop {
+  animation: bt-soft-pop 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Indicateur de defilement : petit va-et-vient vertical tres discret. */
+@keyframes bt-scroll-hint {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(7px);
+    opacity: 1;
+  }
+}
+
+.bt-scroll-hint {
+  animation: bt-scroll-hint 2.4s ease-in-out infinite;
+}
+
+/* Bouton WhatsApp flottant : halo qui pulse doucement, par intermittence
+ * (l'essentiel du cycle est immobile pour eviter l'effet "site amateur"). */
+@keyframes bt-whatsapp-pulse {
+  0%,
+  82%,
+  100% {
+    box-shadow: 0 10px 30px -8px rgba(16, 185, 129, 0.55), 0 0 0 0 rgba(16, 185, 129, 0.5);
+  }
+  91% {
+    box-shadow: 0 10px 30px -8px rgba(16, 185, 129, 0.55), 0 0 0 12px rgba(16, 185, 129, 0);
+  }
+}
+
+.bt-whatsapp-pulse {
+  animation: bt-whatsapp-pulse 5s ease-in-out infinite;
+}
+
+/* Icone de succes (confirmation de reservation) : apparition en zoom doux. */
+@keyframes bt-success-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.bt-success-pop {
+  animation: bt-success-pop 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Lightbox galerie : voile + image. */
+@keyframes bt-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.bt-zoom-in {
+  animation: bt-zoom-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bt-animate-fade-up,
   .bt-animate-fade-in,
@@ -212,7 +306,12 @@ textarea {
   .bt-kenburns,
   .bt-shimmer,
   .bt-overlay-in,
-  .bt-sheet-in {
+  .bt-sheet-in,
+  .bt-soft-pop,
+  .bt-scroll-hint,
+  .bt-whatsapp-pulse,
+  .bt-success-pop,
+  .bt-zoom-in {
     animation: none;
   }
 
