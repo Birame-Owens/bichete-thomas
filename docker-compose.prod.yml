@@ -10,6 +10,9 @@ services:
       APP_DEBUG: "false"
       APP_URL: ${APP_URL:-https://bichettethomas.site}
       APP_KEY: ${APP_KEY}
+      SENTRY_LARAVEL_DSN: ${SENTRY_LARAVEL_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
       APP_LOCALE: fr
       APP_FALLBACK_LOCALE: fr
       LOG_CHANNEL: stack
@@ -84,6 +87,9 @@ services:
       APP_DEBUG: "false"
       APP_URL: ${APP_URL:-https://bichettethomas.site}
       APP_KEY: ${APP_KEY}
+      SENTRY_LARAVEL_DSN: ${SENTRY_LARAVEL_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
@@ -133,6 +139,9 @@ services:
       APP_DEBUG: "false"
       APP_URL: ${APP_URL:-https://bichettethomas.site}
       APP_KEY: ${APP_KEY}
+      SENTRY_LARAVEL_DSN: ${SENTRY_LARAVEL_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
@@ -176,6 +185,8 @@ services:
       dockerfile: infra/docker/nginx/Dockerfile.prod
       args:
         VITE_API_BASE_URL: /api
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_TRACES: ${VITE_SENTRY_TRACES:-0}
     restart: unless-stopped
     expose:
       - "80"

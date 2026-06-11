@@ -40,5 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Sentry : remonte les exceptions non gerees vers le dashboard.
+        // No-op tant que SENTRY_LARAVEL_DSN n'est pas defini (dev local).
+        \Sentry\Laravel\Integration::handles($exceptions);
     })->create();
