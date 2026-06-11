@@ -31,12 +31,15 @@ function CoiffureCardBase({
   onOpenDetails,
 }: CoiffureCardProps) {
   return (
-    <article className="group cursor-pointer bg-transparent" onClick={() => onOpenDetails(coiffure)}>
-      <div className="relative aspect-[4/5] overflow-hidden bg-[#fff0f6]">
+    <article
+      className="group cursor-pointer bg-transparent transition-transform duration-500 ease-out hover:-translate-y-1.5"
+      onClick={() => onOpenDetails(coiffure)}
+    >
+      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-[#fff0f6] shadow-sm transition-shadow duration-500 group-hover:shadow-[0_26px_46px_-24px_rgba(243,25,118,0.55)]">
         <img
           src={coiffureImage(coiffure)}
           alt={coiffure.nom}
-          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+          className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-110"
           loading="lazy"
         />
         <button

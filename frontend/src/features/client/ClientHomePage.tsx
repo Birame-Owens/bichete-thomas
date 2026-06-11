@@ -4,6 +4,8 @@ import {
   CalendarCheck,
   Check,
   CheckCircle,
+  ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Clock,
   CreditCard,
@@ -236,6 +238,8 @@ function ClientHomePage() {
   const [selectedGalleryImage, setSelectedGalleryImage] = useState<string | null>(null)
   const [paymentConfirmation, setPaymentConfirmation] = useState<ClientPaymentWithRelations | null>(null)
   const [paymentConfirming, setPaymentConfirming] = useState(false)
+  // Index de la photo galerie ouverte en grand (lightbox). null = fermee.
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   // Prefill non-destructif nom/prenom quand le backend retrouve un client par tel
   // (Phase 5 etape 1). On NE PAS ECRASER ce que la cliente a deja tape : si elle
@@ -515,6 +519,26 @@ function ClientHomePage() {
     }
   }, [selectedCoiffure])
 
+  // Navigation clavier de la lightbox galerie (Echap, fleches gauche/droite).
+  useEffect(() => {
+    if (lightboxIndex === null) {
+      return
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setLightboxIndex(null)
+      } else if (event.key === 'ArrowRight') {
+        setLightboxIndex((current) => (current === null ? current : (current + 1) % salonGallery.length))
+      } else if (event.key === 'ArrowLeft') {
+        setLightboxIndex((current) =>
+          current === null ? current : (current - 1 + salonGallery.length) % salonGallery.length,
+        )
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightboxIndex])
+
   const categories = catalogue?.categories ?? emptyCategories
   const coiffures = catalogue?.coiffures ?? emptyCoiffures
   const promotions = catalogue?.promotions ?? emptyPromotions
@@ -791,16 +815,16 @@ function ClientHomePage() {
 
       {/* Écran de confirmation "trust payment" affiché après retour PSP */}
       {paymentConfirmation !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl">
+        <div className="bt-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="bt-sheet-in w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl">
 
             <div className="flex justify-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#fff0f7]">
+              <div className="bt-success-pop flex h-20 w-20 items-center justify-center rounded-full bg-[#fff0f7]">
                 <CheckCircle className="h-10 w-10 text-[#f31976]" />
               </div>
             </div>
 
-            <p className="mt-5 text-center text-[11px] font-black uppercase tracking-[0.15em] text-[#f31976]">
+            <p className="bt-animate-fade-up mt-5 text-center text-[11px] font-black uppercase tracking-[0.15em] text-[#f31976]" style={{ animationDelay: '0.15s' }}>
               Paiement confirmé
             </p>
             <h2 className="mt-1 text-center font-display text-2xl font-black text-slate-950">
@@ -1028,8 +1052,8 @@ function ClientHomePage() {
                 <button
                   type="button"
                   onClick={() => scrollToSection('catalogue')}
-                  className="bt-animate-fade-up mt-5 inline-flex min-h-11 items-center gap-2 bg-white px-5 text-xs font-black uppercase tracking-[0.18em] text-[#d80f63] transition hover:scale-105 hover:bg-[#fff0f6] active:scale-95"
-                  style={{ animationDelay: '0.32s' }}
+                  className="bt-soft-pop mt-5 inline-flex min-h-11 items-center gap-2 bg-white px-5 text-xs font-black uppercase tracking-[0.18em] text-[#d80f63] transition hover:scale-105 hover:bg-[#fff0f6] active:scale-95"
+                  style={{ animationDelay: '0.5s' }}
                 >
                   Choisir une coiffure
                   <ChevronRight className="h-4 w-4" />
@@ -1048,13 +1072,26 @@ function ClientHomePage() {
                 <button
                   type="button"
                   onClick={() => scrollToSection('catalogue')}
-                  className="bt-animate-fade-up mt-7 inline-flex min-h-12 items-center gap-2 bg-white px-6 text-xs font-black uppercase tracking-[0.2em] text-[#d80f63] shadow-sm transition hover:scale-105 hover:bg-[#fff0f6] active:scale-95"
-                  style={{ animationDelay: '0.44s' }}
+                  className="bt-soft-pop mt-7 inline-flex min-h-12 items-center gap-2 bg-white px-6 text-xs font-black uppercase tracking-[0.2em] text-[#d80f63] shadow-sm transition hover:scale-105 hover:bg-[#fff0f6] active:scale-95"
+                  style={{ animationDelay: '0.6s' }}
                 >
                   Choisir une coiffure
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
+
+              {/* Indicateur de defilement discret : invite a descendre. */}
+              <button
+                type="button"
+                onClick={() => scrollToSection('categories')}
+                aria-label="Faire defiler vers le bas"
+                className="absolute bottom-4 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-1 text-white/80 transition hover:text-white sm:flex"
+              >
+                <span className="text-[9px] font-black uppercase tracking-[0.3em]">Decouvrir</span>
+                <span className="grid h-9 w-9 place-items-center rounded-full border border-white/40">
+                  <ChevronDown className="bt-scroll-hint h-4 w-4" />
+                </span>
+              </button>
             </div>
       </section>
 
@@ -1146,15 +1183,16 @@ function ClientHomePage() {
                       <p className="mt-3 text-sm font-semibold italic text-slate-500">Les coiffures les plus demandées au salon</p>
                     </Reveal>
                     <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10 xl:grid-cols-6">
-                      {popularCoiffures.map((coiffure) => (
-                        <CoiffureCard
-                          key={coiffure.id}
-                          coiffure={coiffure}
-                          isFavorite={favoriteIds.includes(coiffure.id)}
-                          devise={devise}
-                          onToggleFavorite={toggleFavorite}
-                          onOpenDetails={openDetails}
-                        />
+                      {popularCoiffures.map((coiffure, index) => (
+                        <Reveal key={coiffure.id} delay={Math.min(index * 80, 400)}>
+                          <CoiffureCard
+                            coiffure={coiffure}
+                            isFavorite={favoriteIds.includes(coiffure.id)}
+                            devise={devise}
+                            onToggleFavorite={toggleFavorite}
+                            onOpenDetails={openDetails}
+                          />
+                        </Reveal>
                       ))}
                     </div>
                   </div>
@@ -1167,15 +1205,16 @@ function ClientHomePage() {
                       <p className="mt-3 text-sm font-semibold italic text-slate-500">Sélection visible sur la page d'accueil</p>
                     </Reveal>
                     <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10 xl:grid-cols-6">
-                      {homeVisibleCoiffures.map((coiffure) => (
-                        <CoiffureCard
-                          key={coiffure.id}
-                          coiffure={coiffure}
-                          isFavorite={favoriteIds.includes(coiffure.id)}
-                          devise={devise}
-                          onToggleFavorite={toggleFavorite}
-                          onOpenDetails={openDetails}
-                        />
+                      {homeVisibleCoiffures.map((coiffure, index) => (
+                        <Reveal key={coiffure.id} delay={Math.min(index * 80, 400)}>
+                          <CoiffureCard
+                            coiffure={coiffure}
+                            isFavorite={favoriteIds.includes(coiffure.id)}
+                            devise={devise}
+                            onToggleFavorite={toggleFavorite}
+                            onOpenDetails={openDetails}
+                          />
+                        </Reveal>
                       ))}
                     </div>
                   </div>
@@ -1188,15 +1227,16 @@ function ClientHomePage() {
                       <p className="mt-3 text-sm font-semibold italic text-slate-500">Quelques coiffures du catalogue</p>
                     </Reveal>
                     <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10 xl:grid-cols-6">
-                      {fallbackHomeCoiffures.map((coiffure) => (
-                        <CoiffureCard
-                          key={coiffure.id}
-                          coiffure={coiffure}
-                          isFavorite={favoriteIds.includes(coiffure.id)}
-                          devise={devise}
-                          onToggleFavorite={toggleFavorite}
-                          onOpenDetails={openDetails}
-                        />
+                      {fallbackHomeCoiffures.map((coiffure, index) => (
+                        <Reveal key={coiffure.id} delay={Math.min(index * 80, 400)}>
+                          <CoiffureCard
+                            coiffure={coiffure}
+                            isFavorite={favoriteIds.includes(coiffure.id)}
+                            devise={devise}
+                            onToggleFavorite={toggleFavorite}
+                            onOpenDetails={openDetails}
+                          />
+                        </Reveal>
                       ))}
                     </div>
                   </div>
@@ -1293,6 +1333,12 @@ function ClientHomePage() {
                   <span className="absolute left-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-[#f31976] shadow-sm">
                     <Sparkles className="h-4 w-4" />
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setLightboxIndex(index)}
+                    aria-label={`Agrandir la photo : ${item.titre}`}
+                    className="absolute inset-0 z-10 cursor-zoom-in"
+                  />
                 </Reveal>
               ))}
             </div>
@@ -1957,6 +2003,76 @@ function ClientHomePage() {
           </div>
           Ajoutez des coiffures actives avec variantes et photos dans l admin pour remplir cette page.
         </div>
+      ) : null}
+
+      {/* Lightbox galerie : vue agrandie + navigation fluide entre les photos. */}
+      {lightboxIndex !== null ? (
+        <div
+          className="bt-overlay-in fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+          onClick={() => setLightboxIndex(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxIndex(null)}
+            aria-label="Fermer"
+            className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              setLightboxIndex((current) =>
+                current === null ? current : (current - 1 + salonGallery.length) % salonGallery.length,
+              )
+            }}
+            aria-label="Photo precedente"
+            className="absolute left-3 grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25 sm:left-6"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+          <figure className="flex max-h-[88vh] max-w-3xl flex-col items-center" onClick={(event) => event.stopPropagation()}>
+            <img
+              key={lightboxIndex}
+              src={salonGallery[lightboxIndex].src}
+              alt={salonGallery[lightboxIndex].titre}
+              className="bt-zoom-in max-h-[80vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
+            />
+            <figcaption className="mt-4 text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/70">
+                {salonGallery[lightboxIndex].titre}
+              </p>
+              <p className="mt-1 text-sm font-bold text-white">{salonGallery[lightboxIndex].sousTitre}</p>
+            </figcaption>
+          </figure>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              setLightboxIndex((current) => (current === null ? current : (current + 1) % salonGallery.length))
+            }}
+            aria-label="Photo suivante"
+            className="absolute right-3 grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25 sm:right-6"
+          >
+            <ChevronRight className="h-6 w-6" />
+          </button>
+        </div>
+      ) : null}
+
+      {/* Bouton WhatsApp flottant : discret, halo qui pulse par intermittence. */}
+      {settings?.telephone_whatsapp ? (
+        <a
+          href={`https://wa.me/${settings.telephone_whatsapp.replace(/\D/g, '')}`}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Nous contacter sur WhatsApp"
+          className="bt-whatsapp-pulse fixed bottom-5 right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[#25D366] text-white transition hover:scale-105 active:scale-95 sm:bottom-6 sm:right-6"
+        >
+          <MessageCircle className="h-7 w-7" />
+        </a>
       ) : null}
 
     </div>

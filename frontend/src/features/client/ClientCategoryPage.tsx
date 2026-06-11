@@ -8,6 +8,7 @@ import { usePhoneLookup } from './hooks/usePhoneLookup'
 import { useSeoPage } from '../../hooks/useSeoPage'
 import { coiffureImage, formatCurrency, formatDuration, formatShortDate, isClosedDate, todayInput } from './client.helpers'
 import { CoiffureCard } from './components/CoiffureCard'
+import Reveal from './components/Reveal'
 import type { ClientAvailability, ClientCatalogue, ClientCoiffure, ClientPaymentMethod, ClientPaymentWithRelations } from './client.types'
 
 const emptyFavorites: number[] = []
@@ -273,16 +274,16 @@ function ClientCategoryPage() {
       )}
 
       {paymentConfirmation !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl">
+        <div className="bt-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="bt-sheet-in w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl">
 
             <div className="flex justify-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#fff0f7]">
+              <div className="bt-success-pop flex h-20 w-20 items-center justify-center rounded-full bg-[#fff0f7]">
                 <CheckCircle className="h-10 w-10 text-[#f31976]" />
               </div>
             </div>
 
-            <p className="mt-5 text-center text-[11px] font-black uppercase tracking-[0.15em] text-[#f31976]">
+            <p className="bt-animate-fade-up mt-5 text-center text-[11px] font-black uppercase tracking-[0.15em] text-[#f31976]" style={{ animationDelay: '0.15s' }}>
               Paiement confirmé
             </p>
             <h2 className="mt-1 text-center font-display text-2xl font-black text-slate-950">
@@ -521,15 +522,16 @@ function ClientCategoryPage() {
               </div>
             ) : coiffures.length > 0 ? (
               <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                {coiffures.map((coiffure) => (
-                  <CoiffureCard
-                    key={coiffure.id}
-                    coiffure={coiffure}
-                    isFavorite={emptyFavorites.includes(coiffure.id)}
-                    devise={devise}
-                    onToggleFavorite={() => {}}
-                    onOpenDetails={openDetails}
-                  />
+                {coiffures.map((coiffure, index) => (
+                  <Reveal key={coiffure.id} delay={Math.min((index % 12) * 70, 420)}>
+                    <CoiffureCard
+                      coiffure={coiffure}
+                      isFavorite={emptyFavorites.includes(coiffure.id)}
+                      devise={devise}
+                      onToggleFavorite={() => {}}
+                      onOpenDetails={openDetails}
+                    />
+                  </Reveal>
                 ))}
               </div>
             ) : (
@@ -796,6 +798,19 @@ function ClientCategoryPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {/* Bouton WhatsApp flottant : discret, halo qui pulse par intermittence. */}
+      {settings?.telephone_whatsapp ? (
+        <a
+          href={`https://wa.me/${settings.telephone_whatsapp.replace(/\D/g, '')}`}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Nous contacter sur WhatsApp"
+          className="bt-whatsapp-pulse fixed bottom-5 right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[#25D366] text-white transition hover:scale-105 active:scale-95 sm:bottom-6 sm:right-6"
+        >
+          <MessageCircle className="h-7 w-7" />
+        </a>
       ) : null}
     </div>
   )
