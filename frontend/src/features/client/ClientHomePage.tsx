@@ -7,7 +7,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Clock,
   CreditCard,
   Gift,
   Home,
@@ -149,6 +148,9 @@ const salonGallery: Array<{ src: string; titre: string; sousTitre: string }> = [
   { src: '/b3.jpg', titre: 'Vos resultats', sousTitre: 'Des coiffures qui vous subliment' },
 ]
 
+// Etapes de l'assistant de reservation (wizard du modal coiffure).
+const bookingSteps = ['Prestation', 'Date', 'Creneau', 'Paiement'] as const
+
 const emptyCategories: ClientCategory[] = []
 const emptyCoiffures: ClientCoiffure[] = []
 const emptyPromotions: ClientPromotion[] = []
@@ -240,6 +242,8 @@ function ClientHomePage() {
   const [paymentConfirming, setPaymentConfirming] = useState(false)
   // Index de la photo galerie ouverte en grand (lightbox). null = fermee.
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  // Etape courante de l'assistant de reservation (0 = Prestation ... 3 = Paiement).
+  const [bookingStep, setBookingStep] = useState(0)
 
   // Prefill non-destructif nom/prenom quand le backend retrouve un client par tel
   // (Phase 5 etape 1). On NE PAS ECRASER ce que la cliente a deja tape : si elle
@@ -612,6 +616,31 @@ function ClientHomePage() {
   const deposit = depositAmount(total, settings)
   const selectedPaymentMethod = paymentMethods.find((method) => method.value === bookingForm.paymentMethod)
 
+  // --- Assistant de reservation (wizard) ---------------------------------
+  const lastBookingStep = bookingSteps.length - 1
+
+  // Conditions pour passer a l'etape suivante (validation progressive).
+  const canContinueBooking =
+    bookingStep === 0
+      ? bookingForm.varianteId !== ''
+      : bookingStep === 1
+        ? bookingForm.date_reservation !== ''
+          && !isClosedDate(bookingForm.date_reservation, settings)
+          && !(availability?.jour_ferme ?? false)
+        : bookingStep === 2
+          ? bookingForm.heure_debut !== ''
+          : true
+
+  const goNextBookingStep = () => {
+    setSubmitState(null)
+    setBookingStep((current) => Math.min(current + 1, lastBookingStep))
+  }
+
+  const goPrevBookingStep = () => {
+    setSubmitState(null)
+    setBookingStep((current) => Math.max(current - 1, 0))
+  }
+
   function updateBookingField<K extends keyof BookingForm>(key: K, value: BookingForm[K]) {
     setBookingForm((current) => ({
       ...current,
@@ -684,6 +713,7 @@ function ClientHomePage() {
     setSubmittedReservation(null)
     setAvailability(null)
     setAvailabilityLoading(false)
+    setBookingStep(0)
   }
 
   async function handleLogout() {
@@ -701,6 +731,7 @@ function ClientHomePage() {
     setSelectedCoiffure(coiffure)
     setSelectedGalleryImage(coiffureImage(coiffure))
     setBookingForm(createBookingForm(coiffure))
+    setBookingStep(0)
     setSubmitState(null)
     setSubmittedReservation(null)
     setAvailability(null)
@@ -725,6 +756,15 @@ function ClientHomePage() {
 
   async function handleReservationSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    // Securite : tant qu'on n'est pas a la derniere etape, "Entree" fait
+    // avancer l'assistant (si l'etape est valide) au lieu de soumettre.
+    if (bookingStep < lastBookingStep) {
+      if (canContinueBooking) {
+        goNextBookingStep()
+      }
+      return
+    }
 
     if (!selectedCoiffure || !selectedVariant) {
       setSubmitState({ type: 'error', message: 'Choisissez une coiffure et une variante.' })
@@ -1558,19 +1598,35 @@ function ClientHomePage() {
 
             </section>
 
-            <form onSubmit={handleReservationSubmit} className="p-4 sm:p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-black text-[#f31976]">Finaliser la demande</p>
-                  <h3 className="mt-1 text-2xl font-black text-slate-950">Votre réservation</h3>
+            <form onSubmit={handleReservationSubmit} className="flex min-h-full flex-col p-4 sm:p-6">
+              {/* En-tete + barre de progression de l'assistant de reservation */}
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black text-[#f31976]">Reservation</p>
+                    <h3 className="mt-0.5 text-xl font-black text-slate-950 sm:text-2xl">
+                      Etape {bookingStep + 1} · {bookingSteps[bookingStep]}
+                    </h3>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-[#fff0f6] px-3 py-1 text-xs font-black text-[#d80f63]">
+                    {bookingStep + 1}/{bookingSteps.length}
+                  </span>
                 </div>
-                <div className="hidden items-center gap-2 rounded-2xl bg-[#fff0f6] px-4 py-3 text-sm font-black text-[#d80f63] sm:flex">
-                  <Clock className="h-4 w-4" />
-                  {settings?.limite_reservations_par_creneau ?? 3} par heure
+                <div className="mt-3 flex gap-1.5">
+                  {bookingSteps.map((label, index) => (
+                    <span
+                      key={label}
+                      className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${index <= bookingStep ? 'bg-[#f31976]' : 'bg-slate-200'}`}
+                    />
+                  ))}
                 </div>
               </div>
 
-              <div className="mt-6">
+              <div key={bookingStep} className="bt-step-in mt-5 flex-1">
+
+              {bookingStep === 0 ? (
+              <div className="space-y-6">
+              <div>
                 <p className="text-sm font-black text-slate-950">Variante</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   {selectedCoiffure.variantes.map((variant) => (
@@ -1633,7 +1689,10 @@ function ClientHomePage() {
                   </div>
                 </div>
               ) : null}
+              </div>
+              ) : null}
 
+              {bookingStep === 3 ? (
               <div className="mt-5 grid grid-cols-2 gap-3">
                 {/*
                  * Telephone en PREMIER champ : le hook usePhoneLookup va
@@ -1700,11 +1759,22 @@ function ClientHomePage() {
                     className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
+                <label className="col-span-2 block">
+                  <span className="text-[11px] font-black uppercase text-slate-500">Code promo (optionnel)</span>
+                  <input
+                    value={bookingForm.code_promo}
+                    onChange={(event) => updateBookingField('code_promo', event.target.value)}
+                    placeholder={promotions[0]?.code ?? 'Code'}
+                    className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold uppercase outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                  />
+                </label>
               </div>
+              ) : null}
 
-              <div className="mt-5 grid grid-cols-2 gap-3">
+              {bookingStep === 1 ? (
+              <div className="space-y-4">
                 <label className="block">
-                  <span className="text-[11px] font-black uppercase text-slate-500">Date</span>
+                  <span className="text-[11px] font-black uppercase text-slate-500">Date du rendez-vous</span>
                   <input
                     type="date"
                     min={todayInput()}
@@ -1716,22 +1786,25 @@ function ClientHomePage() {
                       updateBookingField('date_reservation', event.target.value)
                     }}
                     required
-                    className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
+                    className="mt-1.5 h-12 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
                   />
                 </label>
-                <label className="block">
-                  <span className="text-[11px] font-black uppercase text-slate-500">Code promo</span>
-                  <input
-                    value={bookingForm.code_promo}
-                    onChange={(event) => updateBookingField('code_promo', event.target.value)}
-                    placeholder={promotions[0]?.code ?? 'Code'}
-                    className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold uppercase outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10"
-                  />
-                </label>
+                {bookingForm.date_reservation !== '' && isClosedDate(bookingForm.date_reservation, settings) ? (
+                  <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-bold text-amber-700">
+                    Le salon est ferme ce jour-la. Choisissez une autre date.
+                  </p>
+                ) : (
+                  <p className="text-xs font-semibold text-slate-500">
+                    Selectionnez le jour, puis passez au choix de l'heure.
+                  </p>
+                )}
+              </div>
+              ) : null}
 
-                <div className="col-span-2">
+              {bookingStep === 2 ? (
+              <div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-black uppercase text-slate-500">Horaires</span>
+                    <span className="text-[11px] font-black uppercase text-slate-500">Choisissez votre heure</span>
                     {availabilityLoading ? <Loader2 className="h-4 w-4 animate-spin text-[#f31976]" /> : null}
                   </div>
                   <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -1755,8 +1828,10 @@ function ClientHomePage() {
                   {availability?.jour_ferme ? <p className="mt-2 text-xs font-bold text-amber-600">Le salon est ferme ce jour-la.</p> : null}
                   {availability?.jour_complet ? <p className="mt-2 text-xs font-bold text-amber-600">Cette journee est complete.</p> : null}
                 </div>
-              </div>
+              ) : null}
 
+              {bookingStep === 3 ? (
+              <div>
               <div className="mt-6">
                 <p className="text-sm font-black text-slate-950">Paiement de l acompte</p>
                 <div className="mt-3 grid grid-cols-3 gap-2">
@@ -1859,16 +1934,43 @@ function ClientHomePage() {
                   ) : null}
                 </div>
               ) : null}
+              </div>
+              ) : null}
 
-              <div className="sticky bottom-0 -mx-4 mt-5 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 py-4 text-base font-black text-white shadow-lg transition hover:bg-[#d6165e] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CalendarCheck className="h-5 w-5" />}
-                  Confirmer et payer l'acompte
-                </button>
+              </div>
+
+              {/* Navigation de l'assistant (collante en bas) */}
+              <div className="sticky bottom-0 -mx-4 mt-5 flex gap-3 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+                {bookingStep > 0 ? (
+                  <button
+                    type="button"
+                    onClick={goPrevBookingStep}
+                    className="inline-flex min-h-14 items-center justify-center gap-1 rounded-2xl border border-slate-200 px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                    Retour
+                  </button>
+                ) : null}
+                {bookingStep < lastBookingStep ? (
+                  <button
+                    type="button"
+                    onClick={goNextBookingStep}
+                    disabled={!canContinueBooking}
+                    className="flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 text-base font-black text-white shadow-lg transition hover:bg-[#d6165e] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Continuer
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 text-base font-black text-white shadow-lg transition hover:bg-[#d6165e] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CalendarCheck className="h-5 w-5" />}
+                    Confirmer et payer l'acompte
+                  </button>
+                )}
               </div>
             </form>
             </div>
