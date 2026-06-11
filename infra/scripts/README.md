@@ -196,3 +196,57 @@ docker volume rm test_restore_images
 
 En plus de `openssl` et `aws` CLI : **`docker`** doit etre accessible par
 l utilisateur qui execute le script (groupe `docker`, ou `DOCKER_BIN="sudo docker"`).
+
+---
+
+## Lanceur unique : `run-backups.sh` (recommande pour le cron)
+
+Au lieu de planifier deux scripts, **`run-backups.sh`** enchaine les deux
+sauvegardes (images + base) en lisant un seul fichier d'environnement.
+
+Particularite DB : le dump tourne **a l'interieur du conteneur Postgres**
+(`docker exec ... pg_dump`), donc :
+- pas besoin d'installer `postgresql-client` sur l'hote ;
+- pas besoin de mettre les identifiants DB dans `backup.env` (ils sont lus
+  depuis l'env du conteneur) ;
+- le `pg_dump` joint bien la base (il tourne dans le reseau Docker).
+
+### Fichier `/etc/bichete/backup.env` (version minimale)
+
+```env
+# Secret de chiffrement (genere : openssl rand -base64 32). A garder hors-ligne.
+BACKUP_PASSPHRASE=ta_cle_generee
+
+# Backblaze B2 (S3-compatible)
+S3_BUCKET=bichette-backups
+S3_ENDPOINT=https://s3.eu-central-003.backblazeb2.com
+AWS_ACCESS_KEY_ID=ton_keyID
+AWS_SECRET_ACCESS_KEY=ton_applicationKey
+
+# Volume Docker des images (docker volume ls | grep app_storage)
+IMAGES_VOLUME=bichette-thomas_app_storage
+
+# Optionnel : si l'auto-detection du conteneur postgres echoue
+# PG_CONTAINER=bichette-thomas-postgres-1
+```
+
+> Les prefixes S3 par defaut sont `prod/images` et `prod/postgres`
+> (surchargeables via `S3_PREFIX_IMAGES` / `S3_PREFIX_DB`).
+
+### Lancement manuel
+
+```bash
+bash /opt/bichete/infra/scripts/run-backups.sh
+# (charge tout seul /etc/bichete/backup.env)
+```
+
+### Cron (une seule ligne)
+
+```cron
+# /etc/cron.d/bichete-backup
+# Tous les jours a 03h00 UTC. Logs dans /var/log/bichete-backup.log.
+0 3 * * * root /opt/bichete/infra/scripts/run-backups.sh >> /var/log/bichete-backup.log 2>&1
+```
+
+> `run-backups.sh` charge lui-meme `/etc/bichete/backup.env` ; pas besoin de
+> `source` dans la ligne cron. Pour un autre emplacement : `BACKUP_ENV_FILE=...`.
