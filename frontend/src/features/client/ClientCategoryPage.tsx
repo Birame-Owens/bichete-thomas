@@ -557,7 +557,7 @@ function ClientCategoryPage() {
 
       {selectedCoiffure ? (
         <div className="bt-overlay-in fixed inset-0 z-50 flex items-end justify-center bg-slate-950/65 backdrop-blur-sm sm:items-center sm:p-6">
-          <div className="bt-sheet-in flex h-[94vh] w-full max-w-7xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:h-auto sm:max-h-[92vh] sm:rounded-3xl">
+          <div className="bt-sheet-in flex h-[100dvh] w-full max-w-7xl flex-col overflow-hidden rounded-none bg-white shadow-2xl sm:h-auto sm:max-h-[92vh] sm:rounded-3xl">
             {/* En-tete collant : categorie + nom + fermeture toujours visibles. */}
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3 sm:px-6 sm:py-4">
               <div className="min-w-0">
