@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
+import { initSentry } from './lib/sentry'
+
+// Capture des erreurs front (no-op si aucun VITE_SENTRY_DSN n'est defini).
+initSentry()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

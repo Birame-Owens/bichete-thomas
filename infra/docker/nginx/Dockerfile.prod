@@ -8,6 +8,11 @@ RUN npm ci
 COPY frontend ./
 ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+# DSN Sentry front (optionnel) : inline par Vite au build. Vide => Sentry inactif.
+ARG VITE_SENTRY_DSN=
+ENV VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
+ARG VITE_SENTRY_TRACES=0
+ENV VITE_SENTRY_TRACES=${VITE_SENTRY_TRACES}
 RUN npm run build
 
 FROM nginx:alpine

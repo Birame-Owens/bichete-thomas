@@ -12,7 +12,8 @@
         "laravel/tinker": "^3.0",
         "phpoffice/phpspreadsheet": "^5.7",
         "predis/predis": "^3.4",
-        "propaganistas/laravel-phone": "^6.0"
+        "propaganistas/laravel-phone": "^6.0",
+        "sentry/sentry-laravel": "^4.26"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -80,6 +81,9 @@
         "optimize-autoloader": true,
         "preferred-install": "dist",
         "sort-packages": true,
+        "platform": {
+            "php": "8.3.31"
+        },
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
