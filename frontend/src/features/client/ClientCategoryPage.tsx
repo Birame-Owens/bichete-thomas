@@ -1,20 +1,15 @@
-import { Bell, CalendarCheck, Check, CheckCircle, ChevronLeft, ChevronRight, CreditCard, Home, Loader2, MapPin, MessageCircle, Phone, Scissors, Search, User, Users, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import PhoneInput from 'react-phone-number-input'
-import 'react-phone-number-input/style.css'
+import { Bell, Check, CheckCircle, Home, Loader2, MapPin, MessageCircle, Phone, Scissors, Search, User, Users } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { confirmNaboopayReturn, createClientReservation, getClientAvailability, getClientCatalogue, getClientCoiffureDetails } from './client.api'
-import { usePhoneLookup } from './hooks/usePhoneLookup'
+import { confirmNaboopayReturn, getClientCatalogue } from './client.api'
 import { useSeoPage } from '../../hooks/useSeoPage'
-import { coiffureImage, formatCurrency, formatDuration, formatShortDate, isClosedDate, todayInput } from './client.helpers'
+import { formatCurrency, formatShortDate } from './client.helpers'
 import { CoiffureCard } from './components/CoiffureCard'
 import Reveal from './components/Reveal'
-import type { ClientAvailability, ClientCatalogue, ClientCoiffure, ClientPaymentMethod, ClientPaymentWithRelations } from './client.types'
+import ReservationModal from './components/ReservationModal'
+import type { ClientCatalogue, ClientCoiffure, ClientPaymentWithRelations } from './client.types'
 
 const emptyFavorites: number[] = []
-
-// Etapes de l'assistant de reservation (wizard du modal coiffure).
-const categoryBookingSteps = ['Prestation', 'Date & heure', 'Paiement'] as const
 
 function ClientCategoryPage() {
   const { categoryId } = useParams()
@@ -26,35 +21,9 @@ function ClientCategoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedCoiffure, setSelectedCoiffure] = useState<ClientCoiffure | null>(null)
-  const [selectedGalleryImage, setSelectedGalleryImage] = useState<string | null>(null)
-  const [modalLoading, setModalLoading] = useState(false)
-  const [categoryStep, setCategoryStep] = useState(0)
-  const [variantId, setVariantId] = useState('')
-  const [dateReservation, setDateReservation] = useState(todayInput())
-  const [heureDebut, setHeureDebut] = useState('')
-  const [availability, setAvailability] = useState<ClientAvailability | null>(null)
-  const [availabilityLoading, setAvailabilityLoading] = useState(false)
-  const [clientForm, setClientForm] = useState({ prenom: '', nom: '', telephone: '', email: '' })
-  const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>('wave')
   const [submitMessage, setSubmitMessage] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
   const [paymentConfirmation, setPaymentConfirmation] = useState<ClientPaymentWithRelations | null>(null)
   const [paymentConfirming, setPaymentConfirming] = useState(false)
-
-  const phoneLookup = usePhoneLookup(clientForm.telephone)
-
-  const updateClientField = useCallback(<K extends keyof typeof clientForm>(key: K, value: typeof clientForm[K]) => {
-    setClientForm((current) => ({ ...current, [key]: value }))
-  }, [])
-
-  useEffect(() => {
-    if (phoneLookup.state !== 'found' || phoneLookup.data === null) return
-    setClientForm((current) => ({
-      ...current,
-      prenom: current.prenom.trim() === '' ? phoneLookup.data?.prenom ?? '' : current.prenom,
-      nom: current.nom.trim() === '' ? phoneLookup.data?.nom ?? '' : current.nom,
-    }))
-  }, [phoneLookup.state, phoneLookup.data])
 
   const settings = catalogue?.settings
 
@@ -143,160 +112,10 @@ function ClientCategoryPage() {
     )
   }, [catalogue?.coiffures, parsedCategoryId, search])
 
-  const detailGalleryImages = selectedCoiffure
-    ? selectedCoiffure.images.length > 0
-      ? selectedCoiffure.images
-      : [{ id: 0, url: coiffureImage(selectedCoiffure), alt: selectedCoiffure.nom, principale: true }]
-    : []
-
-  const selectedVariant = selectedCoiffure?.variantes.find((variant) => String(variant.id) === variantId)
-
-  // --- Assistant de reservation (wizard) ---------------------------------
-  const categoryLastStep = categoryBookingSteps.length - 1
-
-  const canContinueCategory =
-    categoryStep === 0
-      ? variantId !== ''
-      : categoryStep === 1
-        ? dateReservation !== ''
-          && !isClosedDate(dateReservation, settings)
-          && !(availability?.jour_ferme ?? false)
-          && heureDebut !== ''
-        : true
-
-  const goNextCategoryStep = () => {
-    setSubmitMessage(null)
-    setCategoryStep((current) => Math.min(current + 1, categoryLastStep))
-  }
-
-  const goPrevCategoryStep = () => {
-    setSubmitMessage(null)
-    setCategoryStep((current) => Math.max(current - 1, 0))
-  }
-
-  useEffect(() => {
-    if (!selectedCoiffure || dateReservation === '') {
-      return
-    }
-
-    if (isClosedDate(dateReservation, catalogue?.settings)) {
-      setAvailability(null)
-      setHeureDebut('')
-      return
-    }
-
-    let ignore = false
-    setAvailabilityLoading(true)
-
-    getClientAvailability(dateReservation, 60)
-      .then((data) => {
-        if (ignore) return
-        setAvailability(data)
-        const firstAvailable = data.creneaux.find((slot) => slot.disponible)
-        setHeureDebut((current) => data.creneaux.some((slot) => slot.heure === current && slot.disponible) ? current : firstAvailable?.heure ?? '')
-      })
-      .catch(() => {
-        if (!ignore) setAvailability(null)
-      })
-      .finally(() => {
-        if (!ignore) setAvailabilityLoading(false)
-      })
-
-    return () => {
-      ignore = true
-    }
-  }, [catalogue?.settings, dateReservation, selectedCoiffure])
-
-  // Bloque le defilement de la page de fond quand le modal est ouvert.
-  useEffect(() => {
-    if (!selectedCoiffure) {
-      return
-    }
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
-  }, [selectedCoiffure])
-
-  async function openDetails(coiffure: ClientCoiffure) {
+  // Ouvre le modal de reservation. Le composant ReservationModal recupere
+  // lui-meme les details complets de la coiffure.
+  function openDetails(coiffure: ClientCoiffure) {
     setSelectedCoiffure(coiffure)
-    setSelectedGalleryImage(coiffureImage(coiffure))
-    setVariantId(coiffure.variantes[0]?.id ? String(coiffure.variantes[0].id) : '')
-    setCategoryStep(0)
-    setSubmitMessage(null)
-    setModalLoading(true)
-
-    try {
-      const details = await getClientCoiffureDetails(coiffure.id)
-      setSelectedCoiffure(details)
-      setSelectedGalleryImage(coiffureImage(details))
-      setVariantId(details.variantes[0]?.id ? String(details.variantes[0].id) : '')
-    } finally {
-      setModalLoading(false)
-    }
-  }
-
-  async function submitReservation(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    // Tant qu'on n'est pas a la derniere etape, "Entree" fait avancer
-    // l'assistant (si l'etape est valide) au lieu de soumettre.
-    if (categoryStep < categoryLastStep) {
-      if (canContinueCategory) {
-        goNextCategoryStep()
-      }
-      return
-    }
-
-    if (!selectedCoiffure || !selectedVariant || heureDebut === '') {
-      setSubmitMessage('Choisissez une variante et un horaire disponible.')
-      return
-    }
-
-    setSubmitting(true)
-    setSubmitMessage(null)
-    try {
-      const response = await createClientReservation({
-        client: {
-          prenom: clientForm.prenom.trim(),
-          nom: clientForm.nom.trim(),
-          telephone: clientForm.telephone.trim(),
-          email: clientForm.email.trim() === '' ? null : clientForm.email.trim(),
-        },
-        coiffure_id: selectedCoiffure.id,
-        variante_coiffure_id: selectedVariant.id,
-        option_ids: [],
-        date_reservation: dateReservation,
-        heure_debut: heureDebut,
-        code_promo: null,
-        notes: null,
-        mode_paiement: paymentMethod,
-        idempotency_key: [
-          'client-category-reservation',
-          selectedCoiffure.id,
-          selectedVariant.id,
-          clientForm.telephone.trim(),
-          dateReservation,
-          heureDebut,
-          paymentMethod,
-        ].join('|'),
-        reference_paiement: null,
-        success_url: `${window.location.origin}${window.location.pathname}?paiement=naboopay_success`,
-        cancel_url: `${window.location.origin}${window.location.pathname}?paiement=naboopay_cancel`,
-      })
-
-      if (response.requires_redirect && response.checkout_url) {
-        window.location.href = response.checkout_url
-        return
-      }
-
-      setSubmitMessage(response.message ?? 'Reservation envoyee.')
-    } catch {
-      setSubmitMessage('Reservation impossible pour le moment.')
-    } finally {
-      setSubmitting(false)
-    }
   }
 
   return (
@@ -328,10 +147,10 @@ function ClientCategoryPage() {
               Merci{' '}
               {paymentConfirmation.client?.prenom
                 ?? paymentConfirmation.reservation?.client?.prenom
-                ?? clientForm.prenom}{' '}
+                ?? ''}{' '}
               {paymentConfirmation.client?.nom
                 ?? paymentConfirmation.reservation?.client?.nom
-                ?? clientForm.nom}
+                ?? ''}
             </h2>
 
             <div className="mt-5 rounded-2xl bg-[#fff8fb] p-4 text-center">
@@ -594,311 +413,13 @@ function ClientCategoryPage() {
       </div>
 
       {selectedCoiffure ? (
-        <div className="bt-overlay-in fixed inset-0 z-50 flex items-end justify-center bg-slate-950/65 backdrop-blur-sm sm:items-center sm:p-6">
-          <div className="bt-sheet-in flex h-[100dvh] w-full max-w-7xl flex-col overflow-hidden rounded-none bg-white shadow-2xl sm:h-auto sm:max-h-[92vh] sm:rounded-3xl">
-            {/* En-tete collant : categorie + nom + fermeture toujours visibles. */}
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3 sm:px-6 sm:py-4">
-              <div className="min-w-0">
-                <p className="truncate text-[11px] font-black uppercase tracking-[0.14em] text-[#f31976]">
-                  {selectedCoiffure.categorie?.nom ?? 'Coiffure'}
-                </p>
-                <h2 className="truncate text-lg font-black text-slate-950 sm:text-2xl">{selectedCoiffure.nom}</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedCoiffure(null)}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-950 transition hover:bg-slate-200 active:scale-95"
-                aria-label="Fermer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Corps scrollable : image + infos a gauche, formulaire a droite. */}
-            <div className="grid min-h-0 flex-1 gap-0 overflow-y-auto lg:grid-cols-[0.92fr_1.08fr]">
-              <section className="bg-[#fff7fb] p-4 sm:p-6">
-
-                <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-100">
-                  {/* Fond flou de la meme photo : comble le vide d object-contain. */}
-                  <img src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-55 blur-2xl" />
-                  <img src={selectedGalleryImage ?? coiffureImage(selectedCoiffure)} alt={selectedCoiffure.nom} className="relative h-full w-full object-contain" loading="lazy" />
-                  {modalLoading ? (
-                    <div className="absolute inset-0 grid place-items-center bg-white/70">
-                      <Loader2 className="h-8 w-8 animate-spin text-[#f31976]" />
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
-                  {detailGalleryImages.map((image) => (
-                    <button
-                      key={`${image.id}-${image.url}`}
-                      type="button"
-                      onClick={() => setSelectedGalleryImage(image.url)}
-                      className={`aspect-square overflow-hidden bg-white ring-offset-2 transition ${(selectedGalleryImage ?? coiffureImage(selectedCoiffure)) === image.url ? 'ring-2 ring-[#f31976]' : 'hover:ring-2 hover:ring-[#f31976]/30'}`}
-                    >
-                      <img src={image.url} alt={image.alt ?? ''} className="h-full w-full object-cover object-[center_18%]" loading="lazy" />
-                    </button>
-                  ))}
-                </div>
-
-                <p className="mt-5 text-sm font-semibold leading-7 text-slate-600">
-                  {selectedCoiffure.description ?? 'Une prestation soignée, adaptée à votre style et au temps disponible au salon.'}
-                </p>
-
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <div className="bg-white p-4">
-                    <p className="text-xs font-black uppercase text-slate-400">Prix</p>
-                    <p className="mt-1 text-lg font-black text-slate-950">{formatCurrency(selectedCoiffure.prix_min, devise)}</p>
-                  </div>
-                  <div className="bg-white p-4">
-                    <p className="text-xs font-black uppercase text-slate-400">Duree</p>
-                    <p className="mt-1 text-lg font-black text-slate-950">{formatDuration(selectedCoiffure.duree_min_minutes)}</p>
-                  </div>
-                </div>
-              </section>
-
-              <form onSubmit={submitReservation} className="flex min-h-full flex-col p-4 sm:p-6">
-                {/* En-tete + barre de progression de l'assistant de reservation */}
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-black text-[#f31976]">Reservation</p>
-                      <h3 className="mt-0.5 text-xl font-black text-slate-950 sm:text-2xl">
-                        Etape {categoryStep + 1} · {categoryBookingSteps[categoryStep]}
-                      </h3>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-[#fff0f6] px-3 py-1 text-xs font-black text-[#d80f63]">
-                      {categoryStep + 1}/{categoryBookingSteps.length}
-                    </span>
-                  </div>
-                  <div className="mt-3 flex gap-1.5">
-                    {categoryBookingSteps.map((label, index) => (
-                      <span
-                        key={label}
-                        className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${index <= categoryStep ? 'bg-[#f31976]' : 'bg-slate-200'}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div key={categoryStep} className="bt-step-in mt-5 flex-1">
-
-                  {/* ETAPE 1 — Prestation : variante */}
-                  {categoryStep === 0 ? (
-                    <div>
-                      <p className="text-sm font-black text-slate-950">Variante</p>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        {selectedCoiffure.variantes.map((variant) => (
-                          <label key={variant.id} className={`block cursor-pointer select-none rounded-3xl border p-4 text-left transition ${variantId === String(variant.id) ? 'border-[#f31976] bg-[#fff0f6]' : 'border-slate-200 bg-white'}`}>
-                            <input
-                              type="radio"
-                              name="variant"
-                              value={variant.id}
-                              checked={variantId === String(variant.id)}
-                              onChange={() => setVariantId(String(variant.id))}
-                              className="sr-only"
-                            />
-                            <p className="text-sm font-black text-slate-950">{variant.nom}</p>
-                            <p className="mt-2 flex items-center justify-between gap-2 text-sm font-bold text-slate-500">
-                              {formatDuration(variant.duree_minutes)}
-                              <span className="text-[#f31976]">{formatCurrency(variant.prix, devise)}</span>
-                            </p>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* ETAPE 2 — Date & heure */}
-                  {categoryStep === 1 ? (
-                    <div className="space-y-4">
-                      <label className="block">
-                        <span className="text-[11px] font-black uppercase text-slate-500">Date du rendez-vous</span>
-                        <input
-                          type="date"
-                          min={todayInput()}
-                          value={dateReservation}
-                          onChange={(event) => setDateReservation(event.target.value)}
-                          required
-                          className="mt-1.5 h-12 w-full rounded-2xl border border-slate-200 px-3 text-base font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm"
-                        />
-                      </label>
-                      {dateReservation !== '' && isClosedDate(dateReservation, settings) ? (
-                        <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-bold text-amber-700">
-                          Le salon est ferme ce jour-la. Choisissez une autre date.
-                        </p>
-                      ) : null}
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="text-[11px] font-black uppercase text-slate-500">Choisissez votre heure</span>
-                          {availabilityLoading ? <Loader2 className="h-4 w-4 animate-spin text-[#f31976]" /> : null}
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                          {(availability?.creneaux ?? []).map((slot) => (
-                            <button
-                              key={slot.heure}
-                              type="button"
-                              disabled={!slot.disponible}
-                              onClick={() => setHeureDebut(slot.heure)}
-                              className={`min-h-11 rounded-2xl border px-2 text-sm font-black disabled:opacity-40 ${heureDebut === slot.heure ? 'border-[#f31976] bg-[#f31976] text-white' : 'border-slate-200 bg-white text-slate-800'}`}
-                            >
-                              {slot.heure}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* ETAPE 3 — Coordonnees & paiement */}
-                  {categoryStep === 2 ? (
-                    <div className="space-y-5">
-                      <div className="grid grid-cols-2 gap-3">
-                        <label className="col-span-2 block">
-                          <span className="flex items-center gap-2 text-[11px] font-black uppercase text-slate-500">
-                            Telephone WhatsApp
-                            {phoneLookup.state === 'loading' ? (
-                              <Loader2 className="h-3 w-3 animate-spin text-[#f31976]" aria-hidden />
-                            ) : null}
-                            {phoneLookup.state === 'found' && phoneLookup.data?.prenom ? (
-                              <span className="flex items-center gap-1 rounded-full bg-[#fff0f6] px-2 py-0.5 text-[10px] font-black normal-case text-[#f31976]">
-                                <Check className="h-3 w-3" aria-hidden />
-                                Bonjour {phoneLookup.data.prenom} !
-                              </span>
-                            ) : null}
-                          </span>
-                          <PhoneInput
-                            international
-                            defaultCountry="SN"
-                            value={clientForm.telephone || undefined}
-                            onChange={(value) => updateClientField('telephone', value ?? '')}
-                            placeholder="77 123 45 67"
-                            required
-                            numberInputProps={{
-                              className: 'h-11 w-full rounded-2xl border border-slate-200 px-3 text-base font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm',
-                            }}
-                            className="mt-1.5 flex items-center gap-2"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="text-[11px] font-black uppercase text-slate-500">Prenom</span>
-                          <input
-                            value={clientForm.prenom}
-                            onChange={(event) => setClientForm((current) => ({ ...current, prenom: event.target.value }))}
-                            required
-                            className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-base font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="text-[11px] font-black uppercase text-slate-500">Nom</span>
-                          <input
-                            value={clientForm.nom}
-                            onChange={(event) => setClientForm((current) => ({ ...current, nom: event.target.value }))}
-                            required
-                            className="mt-1.5 h-11 w-full rounded-2xl border border-slate-200 px-3 text-base font-bold outline-none focus:border-[#f31976] focus:ring-4 focus:ring-[#f31976]/10 sm:text-sm"
-                          />
-                        </label>
-                      </div>
-
-                      <div>
-                        <p className="text-sm font-black text-slate-950">Paiement de l'acompte</p>
-                        <div className="mt-3 grid grid-cols-3 gap-2">
-                          {([
-                            { value: 'wave' as ClientPaymentMethod, label: 'Wave', detail: 'Paiement sécurisé via NabooPay', logo: '/wave logo.webp' },
-                            { value: 'orange_money' as ClientPaymentMethod, label: 'Orange Money', detail: 'Paiement sécurisé via NabooPay', logo: '/om logo.webp' },
-                            { value: 'carte_bancaire' as ClientPaymentMethod, label: 'Carte bancaire', detail: 'Paiement sécurisé via NabooPay', logo: null },
-                          ]).map((method) => {
-                            const checked = paymentMethod === method.value
-                            const configured =
-                              method.value === 'carte_bancaire'
-                                ? settings?.paiements_en_ligne?.carte_bancaire !== false
-                                : settings?.paiements_en_ligne?.[method.value as 'wave' | 'orange_money'] !== false
-                            return (
-                              <label
-                                key={method.value}
-                                className={`block min-h-[94px] select-none rounded-2xl border px-2 py-3 text-center transition ${
-                                  !configured
-                                    ? 'cursor-not-allowed opacity-40'
-                                    : checked
-                                      ? 'cursor-pointer border-[#f31976] bg-[#fff0f6]'
-                                      : 'cursor-pointer border-slate-200 bg-white'
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name="mode_paiement"
-                                  value={method.value}
-                                  checked={checked}
-                                  disabled={!configured}
-                                  onChange={() => setPaymentMethod(method.value)}
-                                  className="sr-only"
-                                />
-                                <span className="flex flex-col items-center justify-center gap-1.5 text-xs font-black text-slate-950 sm:flex-row sm:text-sm">
-                                  {method.logo ? (
-                                    <img src={method.logo} alt="" className="h-7 w-7 rounded-full object-contain" />
-                                  ) : (
-                                    <CreditCard className="h-5 w-5 text-[#f31976]" />
-                                  )}
-                                  <span>
-                                    <span className="sm:hidden">
-                                      {method.value === 'orange_money' ? 'Orange' : method.value === 'carte_bancaire' ? 'Carte' : method.label}
-                                    </span>
-                                    <span className="hidden sm:inline">{method.label}</span>
-                                  </span>
-                                </span>
-                                <span className="mt-2 hidden text-xs font-bold text-slate-500 sm:block">
-                                  {configured ? method.detail : 'Non disponible'}
-                                </span>
-                              </label>
-                            )
-                          })}
-                        </div>
-                      </div>
-
-                      {submitMessage ? <p className="bg-[#fff0f6] px-4 py-3 text-sm font-bold text-[#b01258]">{submitMessage}</p> : null}
-                    </div>
-                  ) : null}
-
-                </div>
-
-                {/* Navigation de l'assistant (collante en bas) */}
-                <div className="sticky bottom-0 -mx-4 mt-5 flex gap-3 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-                  {categoryStep > 0 ? (
-                    <button
-                      type="button"
-                      onClick={goPrevCategoryStep}
-                      className="inline-flex min-h-12 items-center justify-center gap-1 rounded-2xl border border-slate-200 px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-                    >
-                      <ChevronLeft className="h-5 w-5" />
-                      Retour
-                    </button>
-                  ) : null}
-                  {categoryStep < categoryLastStep ? (
-                    <button
-                      type="button"
-                      onClick={goNextCategoryStep}
-                      disabled={!canContinueCategory}
-                      className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 text-sm font-black uppercase tracking-[0.16em] text-white shadow-lg transition hover:bg-[#d6165e] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Continuer
-                      <ChevronRight className="h-5 w-5" />
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#f31976] px-5 py-4 text-xs font-black uppercase tracking-[0.16em] text-white shadow-lg transition hover:bg-[#d6165e] active:scale-[0.99] disabled:opacity-60"
-                    >
-                      {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CalendarCheck className="h-5 w-5" />}
-                      Reserver cette coiffure
-                    </button>
-                  )}
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+        <ReservationModal
+          coiffure={selectedCoiffure}
+          settings={settings}
+          devise={devise}
+          promotions={catalogue?.promotions ?? []}
+          onClose={() => setSelectedCoiffure(null)}
+        />
       ) : null}
 
       {/* Bouton WhatsApp flottant : discret, halo qui pulse par intermittence. */}
