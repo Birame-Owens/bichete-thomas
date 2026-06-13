@@ -93,6 +93,7 @@ class CatalogueController extends Controller
             'gallery' => $this->galleryPhotos(),
             'settings' => [
                 'devise' => SystemSettings::get('devise', 'FCFA'),
+                'image_accueil' => SystemSettings::get('image_accueil'),
                 'telephone_whatsapp' => SystemSettings::get('telephone_whatsapp', '221778153939'),
                 'heure_ouverture' => SystemSettings::get('heure_ouverture', '09:00'),
                 'heure_fermeture' => SystemSettings::get('heure_fermeture', '19:00'),

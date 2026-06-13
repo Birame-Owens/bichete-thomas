@@ -42,3 +42,21 @@ export async function updateGaleriePhoto(
 export async function deleteGaleriePhoto(id: number) {
   await apiClient.delete(`/admin/galerie-photos/${id}`)
 }
+
+// --- Image de garde (hero) de la page d'accueil ---------------------------
+
+export async function getImageAccueil(): Promise<string | null> {
+  const response = await apiClient.get<{ url: string | null }>('/admin/parametres/image-accueil')
+  return apiAssetUrl(response.data.url)
+}
+
+export async function uploadImageAccueil(image: File): Promise<string | null> {
+  const formData = new FormData()
+  formData.append('image', image)
+  const response = await apiClient.post<{ url: string | null }>('/admin/parametres/image-accueil', formData)
+  return apiAssetUrl(response.data.url)
+}
+
+export async function removeImageAccueil(): Promise<void> {
+  await apiClient.delete('/admin/parametres/image-accueil')
+}

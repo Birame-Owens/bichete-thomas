@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\Admin\SignalementController as AdminSignalementCont
 use App\Http\Controllers\Api\Gerante\SignalementController as GeranteSignalementController;
 use App\Http\Controllers\Api\Admin\GaleriePhotoController;
 use App\Http\Controllers\Api\Admin\GeranteController;
+use App\Http\Controllers\Api\Admin\ImageAccueilController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
 use App\Http\Controllers\Api\Gerante\ClientController as GeranteClientController;
 use App\Http\Controllers\Api\Gerante\PaiementController as GerantePaiementController;
@@ -125,6 +126,9 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
             ->parameters(['coiffeuses' => 'coiffeuse']);
         Route::apiResource('gerantes', GeranteController::class)
             ->parameters(['gerantes' => 'gerante']);
+        Route::get('parametres/image-accueil', [ImageAccueilController::class, 'show'])->name('parametres.image-accueil.show');
+        Route::post('parametres/image-accueil', [ImageAccueilController::class, 'update'])->name('parametres.image-accueil.update');
+        Route::delete('parametres/image-accueil', [ImageAccueilController::class, 'destroy'])->name('parametres.image-accueil.destroy');
         Route::apiResource('parametres-systeme', ParametreSystemeController::class)
             ->parameters(['parametres-systeme' => 'parametreSysteme']);
         Route::apiResource('regles-fidelite', RegleFideliteController::class)

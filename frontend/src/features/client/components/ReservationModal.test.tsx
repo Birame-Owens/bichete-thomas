@@ -51,6 +51,7 @@ function makeCoiffure(): ClientCoiffure {
 function makeSettings(): ClientSettings {
   return {
     devise: 'FCFA',
+    image_accueil: null,
     telephone_whatsapp: '+221770000000',
     heure_ouverture: '09:00',
     heure_fermeture: '19:00',

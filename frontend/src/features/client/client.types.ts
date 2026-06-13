@@ -110,6 +110,7 @@ export type ClientPromotion = {
 
 export type ClientSettings = {
   devise: 'FCFA' | string
+  image_accueil: string | null
   telephone_whatsapp: string | null
   heure_ouverture: string
   heure_fermeture: string

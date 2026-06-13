@@ -62,6 +62,10 @@ function normalizeCatalogue(catalogue: ClientCatalogue): ClientCatalogue {
       ...photo,
       url: apiAssetUrl(photo.url) ?? photo.url,
     })),
+    settings: {
+      ...catalogue.settings,
+      image_accueil: apiAssetUrl(catalogue.settings.image_accueil),
+    },
   }
 }
 
