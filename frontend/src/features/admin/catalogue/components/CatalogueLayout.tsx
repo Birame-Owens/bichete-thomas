@@ -7,6 +7,7 @@ const tabs = [
   { label: 'Categories', path: '/console-thomas/catalogue/categories-coiffures' },
   { label: 'Coiffures', path: '/console-thomas/catalogue/coiffures' },
   { label: 'Options', path: '/console-thomas/catalogue/options' },
+  { label: 'Galerie', path: '/console-thomas/catalogue/galerie' },
 ]
 
 type CatalogueLayoutProps = {

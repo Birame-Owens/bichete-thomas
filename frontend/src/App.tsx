@@ -27,6 +27,7 @@ const CatalogueOverviewPage = lazy(() => import('./features/admin/catalogue/Cata
 const CategoriesCoiffuresPage = lazy(() => import('./features/admin/catalogue/CategoriesCoiffuresPage'))
 const CoiffuresPage = lazy(() => import('./features/admin/catalogue/CoiffuresPage'))
 const OptionsCoiffuresPage = lazy(() => import('./features/admin/catalogue/OptionsCoiffuresPage'))
+const GaleriePage = lazy(() => import('./features/admin/galerie/GaleriePage'))
 const VariantesCoiffuresPage = lazy(() => import('./features/admin/catalogue/VariantesCoiffuresPage'))
 const PersonnelOverviewPage = lazy(() => import('./features/admin/personnel/PersonnelOverviewPage'))
 const GerantesPage = lazy(() => import('./features/admin/personnel/GerantesPage'))
@@ -95,6 +96,7 @@ function App() {
       <Route path="/console-thomas/catalogue/coiffures" element={<AdminRoute><CoiffuresPage /></AdminRoute>} />
       <Route path="/console-thomas/catalogue/variantes" element={<AdminRoute><VariantesCoiffuresPage /></AdminRoute>} />
       <Route path="/console-thomas/catalogue/options" element={<AdminRoute><OptionsCoiffuresPage /></AdminRoute>} />
+      <Route path="/console-thomas/catalogue/galerie" element={<AdminRoute><GaleriePage /></AdminRoute>} />
       <Route path="/console-thomas/personnel" element={<AdminRoute><PersonnelOverviewPage /></AdminRoute>} />
       <Route path="/console-thomas/personnel/gerantes" element={<AdminRoute><GerantesPage /></AdminRoute>} />
       <Route path="/console-thomas/personnel/coiffeuses" element={<AdminRoute><CoiffeusesPage /></AdminRoute>} />

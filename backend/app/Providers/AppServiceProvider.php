@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\CategorieCoiffure;
 use App\Models\CodePromo;
 use App\Models\Coiffure;
+use App\Models\GaleriePhoto;
 use App\Observers\CatalogueObserver;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -38,5 +39,6 @@ class AppServiceProvider extends ServiceProvider
         Coiffure::observe(CatalogueObserver::class);
         CategorieCoiffure::observe(CatalogueObserver::class);
         CodePromo::observe(CatalogueObserver::class);
+        GaleriePhoto::observe(CatalogueObserver::class);
     }
 }

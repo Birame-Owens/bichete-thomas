@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Admin\EvenementAnalyticsController;
 use App\Http\Controllers\Api\Admin\ExportJournalController;
 use App\Http\Controllers\Api\Admin\SignalementController as AdminSignalementController;
 use App\Http\Controllers\Api\Gerante\SignalementController as GeranteSignalementController;
+use App\Http\Controllers\Api\Admin\GaleriePhotoController;
 use App\Http\Controllers\Api\Admin\GeranteController;
 use App\Http\Controllers\Api\Admin\ImageCoiffureController;
 use App\Http\Controllers\Api\Gerante\ClientController as GeranteClientController;
@@ -117,6 +118,9 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
             ->parameters(['options-coiffures' => 'optionCoiffure']);
         Route::apiResource('images-coiffures', ImageCoiffureController::class)
             ->parameters(['images-coiffures' => 'imageCoiffure']);
+        Route::apiResource('galerie-photos', GaleriePhotoController::class)
+            ->only(['index', 'store', 'update', 'destroy'])
+            ->parameters(['galerie-photos' => 'galeriePhoto']);
         Route::apiResource('coiffeuses', CoiffeuseController::class)
             ->parameters(['coiffeuses' => 'coiffeuse']);
         Route::apiResource('gerantes', GeranteController::class)

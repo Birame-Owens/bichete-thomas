@@ -58,6 +58,10 @@ function normalizeCatalogue(catalogue: ClientCatalogue): ClientCatalogue {
     ...catalogue,
     categories: catalogue.categories.map(normalizeCategory),
     coiffures: catalogue.coiffures.map(normalizeCoiffure),
+    gallery: (catalogue.gallery ?? []).map((photo) => ({
+      ...photo,
+      url: apiAssetUrl(photo.url) ?? photo.url,
+    })),
   }
 }
 

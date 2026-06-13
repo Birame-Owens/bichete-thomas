@@ -58,6 +58,7 @@ const sections: Section[] = [
       { label: 'Categories coiffures', path: '/console-thomas/catalogue/categories-coiffures' },
       { label: 'Coiffures', path: '/console-thomas/catalogue/coiffures' },
       { label: 'Options', path: '/console-thomas/catalogue/options' },
+      { label: 'Galerie accueil', path: '/console-thomas/catalogue/galerie' },
     ],
   },
   {
