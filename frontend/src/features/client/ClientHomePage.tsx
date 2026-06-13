@@ -781,12 +781,23 @@ function ClientHomePage() {
       <section className="relative overflow-hidden bg-[#f31976] text-white">
             <div className="absolute inset-0">
               {settings?.image_accueil ? (
-                // Image de garde definie par l'admin : prioritaire sur la video.
-                <img
-                  src={settings.image_accueil}
-                  alt=""
-                  className="bt-kenburns h-full w-full object-cover object-center opacity-95"
-                />
+                // Image de garde de l'admin : on affiche la photo ENTIERE
+                // (object-contain, rien de coupe) et on comble le format large
+                // du hero par un fond flou de la meme image. Le 1er plan reste
+                // statique pour ne jamais rogner le visage / les cheveux.
+                <>
+                  <img
+                    src={settings.image_accueil}
+                    alt=""
+                    aria-hidden
+                    className="bt-kenburns absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl"
+                  />
+                  <img
+                    src={settings.image_accueil}
+                    alt=""
+                    className="relative h-full w-full object-contain"
+                  />
+                </>
               ) : (
                 <>
                   <video
