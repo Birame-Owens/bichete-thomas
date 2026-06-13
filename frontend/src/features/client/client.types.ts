@@ -125,10 +125,18 @@ export type ClientSettings = {
   }
 }
 
+export type ClientGalleryPhoto = {
+  id: number
+  url: string
+  titre: string | null
+  sous_titre: string | null
+}
+
 export type ClientCatalogue = {
   categories: ClientCategory[]
   coiffures: ClientCoiffure[]
   promotions: ClientPromotion[]
+  gallery: ClientGalleryPhoto[]
   settings: ClientSettings
 }
 

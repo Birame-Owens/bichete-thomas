@@ -8,6 +8,7 @@ use App\Models\CategorieCoiffure;
 use App\Models\Client;
 use App\Models\CodePromo;
 use App\Models\Coiffure;
+use App\Models\GaleriePhoto;
 use App\Models\Reservation;
 use App\Services\ClientResolver;
 use App\Support\PhoneNumber;
@@ -89,6 +90,7 @@ class CatalogueController extends Controller
             'categories' => $categories->values()->all(),
             'coiffures' => $coiffures->values()->all(),
             'promotions' => $this->activePromotions(),
+            'gallery' => $this->galleryPhotos(),
             'settings' => [
                 'devise' => SystemSettings::get('devise', 'FCFA'),
                 'telephone_whatsapp' => SystemSettings::get('telephone_whatsapp', '221778153939'),
@@ -413,6 +415,29 @@ class CatalogueController extends Controller
         }
 
         return $parts[0] . ' ' . mb_strtoupper(mb_substr($parts[1], 0, 1)) . '.';
+    }
+
+    /**
+     * Photos de la galerie d'accueil (actives uniquement), triees par ordre.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function galleryPhotos(): array
+    {
+        return GaleriePhoto::query()
+            ->where('actif', true)
+            ->orderBy('ordre')
+            ->orderBy('id')
+            ->limit(10)
+            ->get()
+            ->map(fn (GaleriePhoto $photo): array => [
+                'id' => $photo->id,
+                'url' => $photo->url,
+                'titre' => $photo->titre,
+                'sous_titre' => $photo->sous_titre,
+            ])
+            ->values()
+            ->all();
     }
 
     /**

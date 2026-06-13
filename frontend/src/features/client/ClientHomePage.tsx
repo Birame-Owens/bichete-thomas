@@ -389,25 +389,36 @@ function ClientHomePage() {
     return () => observer.disconnect()
   }, [loading])
 
+  // Galerie : photos de la base (gerees par l'admin). Si aucune n'est encore
+  // uploadee, on retombe sur les 3 visuels statiques pour ne pas laisser la
+  // section vide.
+  const galleryItems = useMemo(() => {
+    const fromDb = (catalogue?.gallery ?? []).map((photo) => ({
+      src: photo.url,
+      titre: photo.titre ?? 'Bichette Thomas',
+      sousTitre: photo.sous_titre ?? '',
+    }))
+    return fromDb.length > 0 ? fromDb : salonGallery
+  }, [catalogue?.gallery])
+
   // Navigation clavier de la lightbox galerie (Echap, fleches gauche/droite).
   useEffect(() => {
     if (lightboxIndex === null) {
       return
     }
+    const count = galleryItems.length
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setLightboxIndex(null)
       } else if (event.key === 'ArrowRight') {
-        setLightboxIndex((current) => (current === null ? current : (current + 1) % salonGallery.length))
+        setLightboxIndex((current) => (current === null ? current : (current + 1) % count))
       } else if (event.key === 'ArrowLeft') {
-        setLightboxIndex((current) =>
-          current === null ? current : (current - 1 + salonGallery.length) % salonGallery.length,
-        )
+        setLightboxIndex((current) => (current === null ? current : (current - 1 + count) % count))
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [lightboxIndex])
+  }, [lightboxIndex, galleryItems])
 
   const categories = catalogue?.categories ?? emptyCategories
   const coiffures = catalogue?.coiffures ?? emptyCoiffures
@@ -1056,27 +1067,27 @@ function ClientHomePage() {
               </p>
             </Reveal>
 
-            <div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {salonGallery.map((item, index) => (
+            {/* Mosaique masonry (colonnes CSS) : hauteurs variables = rendu
+                dynamique facon mur de photos. Jusqu'a 10 visuels geres en admin. */}
+            <div className="mt-9 columns-2 gap-4 sm:columns-3 lg:columns-4">
+              {galleryItems.map((item, index) => (
                 <Reveal
-                  key={item.src}
-                  delay={index * 140}
-                  className={`group relative overflow-hidden rounded-3xl bg-[#fff0f6] shadow-sm ${
-                    index === 1 ? 'sm:col-span-2 lg:col-span-1' : ''
-                  }`}
+                  key={`${item.src}-${index}`}
+                  delay={Math.min(index * 90, 540)}
+                  className="group relative mb-4 block break-inside-avoid overflow-hidden rounded-3xl bg-[#fff0f6] shadow-sm transition-shadow duration-500 hover:shadow-[0_26px_46px_-24px_rgba(243,25,118,0.55)]"
                 >
                   <img
                     src={item.src}
                     alt={item.titre}
-                    className="aspect-[3/4] w-full object-cover object-top transition duration-[1100ms] ease-out group-hover:scale-110"
+                    className="w-full transition duration-[1100ms] ease-out group-hover:scale-110"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/5 to-transparent opacity-90 transition duration-500 group-hover:opacity-100" />
                   <div className="absolute inset-x-0 bottom-0 translate-y-2 p-5 opacity-0 transition duration-500 group-hover:translate-y-0 group-hover:opacity-100">
                     <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/80">{item.titre}</p>
-                    <p className="mt-1 text-lg font-black leading-snug text-white">{item.sousTitre}</p>
+                    {item.sousTitre ? <p className="mt-1 text-lg font-black leading-snug text-white">{item.sousTitre}</p> : null}
                   </div>
-                  <span className="absolute left-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-[#f31976] shadow-sm">
+                  <span className="absolute left-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-[#f31976] shadow-sm transition duration-500 group-hover:scale-110 group-hover:rotate-12">
                     <Sparkles className="h-4 w-4" />
                   </span>
                   <button
@@ -1382,7 +1393,7 @@ function ClientHomePage() {
             onClick={(event) => {
               event.stopPropagation()
               setLightboxIndex((current) =>
-                current === null ? current : (current - 1 + salonGallery.length) % salonGallery.length,
+                current === null ? current : (current - 1 + galleryItems.length) % galleryItems.length,
               )
             }}
             aria-label="Photo precedente"
@@ -1393,22 +1404,24 @@ function ClientHomePage() {
           <figure className="flex max-h-[88vh] max-w-3xl flex-col items-center" onClick={(event) => event.stopPropagation()}>
             <img
               key={lightboxIndex}
-              src={salonGallery[lightboxIndex].src}
-              alt={salonGallery[lightboxIndex].titre}
+              src={galleryItems[lightboxIndex].src}
+              alt={galleryItems[lightboxIndex].titre}
               className="bt-zoom-in max-h-[80vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
             />
             <figcaption className="mt-4 text-center">
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/70">
-                {salonGallery[lightboxIndex].titre}
+                {galleryItems[lightboxIndex].titre}
               </p>
-              <p className="mt-1 text-sm font-bold text-white">{salonGallery[lightboxIndex].sousTitre}</p>
+              {galleryItems[lightboxIndex].sousTitre ? (
+                <p className="mt-1 text-sm font-bold text-white">{galleryItems[lightboxIndex].sousTitre}</p>
+              ) : null}
             </figcaption>
           </figure>
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation()
-              setLightboxIndex((current) => (current === null ? current : (current + 1) % salonGallery.length))
+              setLightboxIndex((current) => (current === null ? current : (current + 1) % galleryItems.length))
             }}
             aria-label="Photo suivante"
             className="absolute right-3 grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25 sm:right-6"
