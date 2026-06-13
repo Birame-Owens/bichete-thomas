@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
-import { Eye, EyeOff, Loader2, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { Eye, EyeOff, Image as ImageIcon, Loader2, RefreshCw, Trash2, Upload } from 'lucide-react'
 import CatalogueLayout from '../catalogue/components/CatalogueLayout'
 import { EmptyState, ErrorState } from '../catalogue/components/CatalogueUi'
-import { inputClass, primaryButtonClass } from '../catalogue/components/catalogueUiTokens'
-import { createGaleriePhoto, deleteGaleriePhoto, getGaleriePhotos, updateGaleriePhoto } from './galerie.api'
+import { inputClass, primaryButtonClass, secondaryButtonClass } from '../catalogue/components/catalogueUiTokens'
+import {
+  createGaleriePhoto,
+  deleteGaleriePhoto,
+  getGaleriePhotos,
+  getImageAccueil,
+  removeImageAccueil,
+  updateGaleriePhoto,
+  uploadImageAccueil,
+} from './galerie.api'
 import type { GaleriePhoto } from './galerie.types'
 
 type Draft = { titre: string; sous_titre: string }
@@ -17,6 +25,8 @@ function GaleriePage() {
   const [savingId, setSavingId] = useState<number | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [drafts, setDrafts] = useState<Record<number, Draft>>({})
+  const [heroImage, setHeroImage] = useState<string | null>(null)
+  const [heroBusy, setHeroBusy] = useState(false)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -34,7 +44,45 @@ function GaleriePage() {
     load()
   }, [load])
 
+  useEffect(() => {
+    getImageAccueil()
+      .then(setHeroImage)
+      .catch(() => {})
+  }, [])
+
   const remaining = Math.max(0, max - photos.length)
+
+  async function handleHeroUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) {
+      return
+    }
+    setHeroBusy(true)
+    setError(null)
+    try {
+      setHeroImage(await uploadImageAccueil(file))
+    } catch {
+      setError("Echec de l'upload de l'image de garde. Formats image, 8 Mo max.")
+    } finally {
+      setHeroBusy(false)
+    }
+  }
+
+  async function handleHeroRemove() {
+    if (!window.confirm("Reinitialiser l'image de garde (revenir au visuel par defaut) ?")) {
+      return
+    }
+    setHeroBusy(true)
+    try {
+      await removeImageAccueil()
+      setHeroImage(null)
+    } catch {
+      setError("Reinitialisation impossible.")
+    } finally {
+      setHeroBusy(false)
+    }
+  }
 
   const draftOf = (photo: GaleriePhoto): Draft =>
     drafts[photo.id] ?? { titre: photo.titre ?? '', sous_titre: photo.sous_titre ?? '' }
@@ -130,6 +178,41 @@ function GaleriePage() {
         </label>
       }
     >
+      {/* Image de garde (hero) de la page d'accueil. */}
+      <section className="mb-5 rounded-xl border border-gray-100 bg-white p-4 shadow-[0_18px_36px_-32px_rgba(20,20,43,0.5)]">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-lg bg-[#fff2f7] sm:w-72">
+            {heroImage ? (
+              <img src={heroImage} alt="Image de garde" className="h-full w-full object-cover" />
+            ) : (
+              <div className="grid h-full place-items-center text-[#e91e63]/45">
+                <ImageIcon className="h-10 w-10" />
+              </div>
+            )}
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-black text-gray-900">Image de garde (accueil)</h3>
+            <p className="mt-1 text-sm font-medium text-gray-500">
+              La grande image en haut de la page d'accueil. {heroImage ? 'Vous pouvez la changer a tout moment.' : 'Par defaut : le visuel/video fourni.'}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <label
+                className={`${primaryButtonClass} inline-flex cursor-pointer items-center gap-2 ${heroBusy ? 'cursor-not-allowed opacity-60' : ''}`}
+              >
+                {heroBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {heroImage ? "Changer l'image" : "Definir l'image"}
+                <input type="file" accept="image/*" disabled={heroBusy} onChange={handleHeroUpload} className="sr-only" />
+              </label>
+              {heroImage ? (
+                <button type="button" onClick={() => void handleHeroRemove()} disabled={heroBusy} className={secondaryButtonClass}>
+                  Reinitialiser
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-[0_18px_36px_-32px_rgba(20,20,43,0.5)]">
         <p className="text-sm font-bold text-gray-500">
           Les photos sont optimisees (WebP) et chargees a la demande : aucun impact notable sur les performances.
