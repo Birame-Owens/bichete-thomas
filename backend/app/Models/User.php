@@ -14,20 +14,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 
-#[Fillable(['role_id', 'name', 'email', 'password', 'actif', 'email_verified_at'])]
+#[Fillable(['role', 'name', 'email', 'password', 'statut', 'email_verified_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
-
-    /**
-     * @return BelongsTo<Role, $this>
-     */
-    public function role(): BelongsTo
-    {
-        return $this->belongsTo(Role::class);
-    }
 
     /**
      * @return HasOne<Client, $this>
@@ -72,7 +64,7 @@ class User extends Authenticatable
 
     public function hasRole(string ...$roles): bool
     {
-        return $this->role !== null && in_array($this->role->nom, $roles, true);
+        return in_array($this->role, $roles, true);
     }
 
     /**
@@ -85,7 +77,6 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'actif' => 'boolean',
         ];
     }
 }

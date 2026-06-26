@@ -40,7 +40,7 @@ class AuthenticateApiToken
         }
 
         $accessToken = PersonalAccessToken::query()
-            ->with('user.role')
+            ->with('user')
             ->where('token', hash('sha256', $plainTextToken))
             ->first();
 
@@ -63,7 +63,7 @@ class AuthenticateApiToken
             ], 401);
         }
 
-        if (! $accessToken->user->actif) {
+        if ($accessToken->user->statut !== 'actif') {
             return response()->json([
                 'message' => 'Compte desactive.',
             ], 403);

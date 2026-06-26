@@ -23,7 +23,6 @@ class AuthController extends Controller
         $credentials = $request->validated();
 
         $user = User::query()
-            ->with('role')
             ->where('email', $credentials['email'])
             ->first();
 
@@ -33,7 +32,7 @@ class AuthController extends Controller
             ], 401);
         }
 
-        if (! $user->actif) {
+        if ($user->statut !== 'actif') {
             return response()->json([
                 'message' => 'Compte desactive.',
             ], 403);
