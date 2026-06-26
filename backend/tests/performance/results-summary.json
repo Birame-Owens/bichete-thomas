@@ -1,0 +1,638 @@
+{
+  "metrics": {
+    "http_req_blocked": {
+      "contains": "time",
+      "values": {
+        "p(90)": 0,
+        "p(95)": 0,
+        "avg": 0.522417049733332,
+        "min": 0,
+        "med": 0,
+        "max": 7915.3185
+      },
+      "type": "trend"
+    },
+    "http_req_sending": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 12.0173,
+        "p(90)": 0.6401,
+        "p(95)": 0.7581,
+        "avg": 0.1949971398949835,
+        "min": 0,
+        "med": 0
+      }
+    },
+    "checks": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 0.9957240269453357,
+        "passes": 386090,
+        "fails": 1658
+      }
+    },
+    "data_sent": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 17352469,
+        "rate": 16007.693660853543
+      }
+    },
+    "ndeya_product_ms": {
+      "contains": "time",
+      "values": {
+        "min": 123.9273,
+        "med": 171.1022,
+        "max": 12280.5009,
+        "p(90)": 269.45468,
+        "p(95)": 319.74521,
+        "avg": 207.66786188112664
+      },
+      "thresholds": {
+        "p(95)<2000": {
+          "ok": true
+        }
+      },
+      "type": "trend"
+    },
+    "http_req_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 269.4134,
+        "p(95)": 315.5327900000001,
+        "avg": 196.96269537328405,
+        "min": 0,
+        "med": 168.7178,
+        "max": 12280.5009
+      },
+      "thresholds": {
+        "p(95)<2000": {
+          "ok": true
+        },
+        "p(99)<4000": {
+          "ok": true
+        }
+      }
+    },
+    "http_reqs": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 193874,
+        "rate": 178.84922317419614
+      }
+    },
+    "http_req_waiting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "med": 166.95485,
+        "max": 11982.4646,
+        "p(90)": 266.09437,
+        "p(95)": 311.69666000000007,
+        "avg": 194.4501628516487,
+        "min": 0
+      }
+    },
+    "vus": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 1,
+        "min": 1,
+        "max": 200
+      }
+    },
+    "ndeya_home_ms": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(95)": 315.16003500000005,
+        "avg": 202.36869970261523,
+        "min": 124.8034,
+        "med": 171.76835,
+        "max": 12250.3352,
+        "p(90)": 268.67705
+      },
+      "thresholds": {
+        "p(95)<1500": {
+          "ok": true
+        }
+      }
+    },
+    "iteration_duration": {
+      "values": {
+        "avg": 5275.224514208158,
+        "min": 1491.9666,
+        "med": 5675.0934,
+        "max": 18838.6902,
+        "p(90)": 6827.88984,
+        "p(95)": 7083.90285
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "ndeya_errors": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "rate": 1.529508918281034,
+        "count": 1658
+      }
+    },
+    "http_req_tls_handshaking": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 0.24703543951226054,
+        "min": 0,
+        "med": 0,
+        "max": 7152.6553,
+        "p(90)": 0,
+        "p(95)": 0
+      }
+    },
+    "ndeya_search_ms": {
+      "thresholds": {
+        "p(95)<1800": {
+          "ok": true
+        }
+      },
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 200.4292890557142,
+        "min": 124.1302,
+        "med": 171.7297,
+        "max": 5258.9429,
+        "p(90)": 267.1033,
+        "p(95)": 315.4843999999999
+      }
+    },
+    "ndeya_active_vus": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": -1,
+        "min": -1,
+        "max": 1
+      }
+    },
+    "http_req_receiving": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 8093.3707,
+        "p(90)": 4.6256,
+        "p(95)": 8.249305000000001,
+        "avg": 2.3175353817427853,
+        "min": 0,
+        "med": 0
+      }
+    },
+    "group_duration": {
+      "contains": "time",
+      "values": {
+        "p(90)": 897.71055,
+        "p(95)": 1014.733375,
+        "avg": 659.9865256487092,
+        "min": 255.4893,
+        "med": 657.31585,
+        "max": 15745.283
+      },
+      "type": "trend"
+    },
+    "ndeya_ok_rate": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 0.9914480538906713,
+        "passes": 192216,
+        "fails": 1658
+      },
+      "thresholds": {
+        "rate>0.99": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_connecting": {
+      "values": {
+        "p(90)": 0,
+        "p(95)": 0,
+        "avg": 0.2732023680328461,
+        "min": 0,
+        "med": 0,
+        "max": 7442.5865
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "http_req_failed": {
+      "values": {
+        "rate": 0.008134148983360326,
+        "passes": 1577,
+        "fails": 192297
+      },
+      "thresholds": {
+        "rate<0.01": {
+          "ok": true
+        }
+      },
+      "type": "rate",
+      "contains": "default"
+    },
+    "ndeya_cache_hit": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 0.8015618391326326,
+        "passes": 155402,
+        "fails": 38472
+      }
+    },
+    "vus_max": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "max": 200,
+        "value": 200,
+        "min": 200
+      }
+    },
+    "ndeya_cart_ms": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 5053.9085,
+        "p(90)": 364.7697000000001,
+        "p(95)": 420.76017999999993,
+        "avg": 254.61346276684705,
+        "min": 145.2667,
+        "med": 214.497
+      },
+      "thresholds": {
+        "p(95)<1000": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_duration{expected_response:true}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(95)": 313.5042,
+        "avg": 196.11660712231546,
+        "min": 121.2462,
+        "med": 168.3954,
+        "max": 12280.5009,
+        "p(90)": 268.53938
+      }
+    },
+    "data_received": {
+      "contains": "data",
+      "values": {
+        "rate": 409841.2992699445,
+        "count": 444271273
+      },
+      "type": "counter"
+    },
+    "iterations": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "rate": 29.73686367960744,
+        "count": 32235
+      }
+    }
+  },
+  "root_group": {
+    "groups": [
+      {
+        "checks": [
+          {
+            "name": "api_home — 2xx",
+            "path": "::home::api_home — 2xx",
+            "id": "eafdd5256e9459d10989c0cad27877e1",
+            "passes": 17822,
+            "fails": 0
+          },
+          {
+            "name": "api_home — <5s",
+            "path": "::home::api_home — <5s",
+            "id": "fb40575f63b94db2a1e5f80e8988c9be",
+            "passes": 17810,
+            "fails": 12
+          },
+          {
+            "path": "::home::api_config — 2xx",
+            "id": "0dd23edfe12368091e3f20bdf9e16324",
+            "passes": 17822,
+            "fails": 0,
+            "name": "api_config — 2xx"
+          },
+          {
+            "id": "b348ed8fedf55b4c5f21dd7c3c07c6c4",
+            "passes": 17816,
+            "fails": 6,
+            "name": "api_config — <5s",
+            "path": "::home::api_config — <5s"
+          },
+          {
+            "passes": 17822,
+            "fails": 0,
+            "name": "api_featured — 2xx",
+            "path": "::home::api_featured — 2xx",
+            "id": "1e756ef0b0235891abde141665df1696"
+          },
+          {
+            "name": "api_featured — <5s",
+            "path": "::home::api_featured — <5s",
+            "id": "d5ecf39d9744226f307229fcf8b72b8e",
+            "passes": 17819,
+            "fails": 3
+          },
+          {
+            "fails": 0,
+            "name": "api_categories — 2xx",
+            "path": "::home::api_categories — 2xx",
+            "id": "8de6a5ab410fb8b27afa1d2f5a447d85",
+            "passes": 17822
+          },
+          {
+            "id": "95df1f4a0dce1959f28345b82f3546b2",
+            "passes": 17816,
+            "fails": 6,
+            "name": "api_categories — <5s",
+            "path": "::home::api_categories — <5s"
+          }
+        ],
+        "name": "home",
+        "path": "::home",
+        "id": "f55eb66156c7d05104505c362878691e",
+        "groups": []
+      },
+      {
+        "groups": [],
+        "checks": [
+            {
+              "name": "api_products_p1 — 2xx",
+              "path": "::catalogue::api_products_p1 — 2xx",
+              "id": "02aa6ec9f4931e55e0213d820ec32554",
+              "passes": 17822,
+              "fails": 0
+            },
+            {
+              "fails": 18,
+              "name": "api_products_p1 — <5s",
+              "path": "::catalogue::api_products_p1 — <5s",
+              "id": "624323ae6917a4858648240e5306c2f7",
+              "passes": 17804
+            },
+            {
+              "passes": 17822,
+              "fails": 0,
+              "name": "api_new_arrivals — 2xx",
+              "path": "::catalogue::api_new_arrivals — 2xx",
+              "id": "634c6dc316e53a84e24ba22e1b70ffc2"
+            },
+            {
+              "name": "api_new_arrivals — <5s",
+              "path": "::catalogue::api_new_arrivals — <5s",
+              "id": "7e7f85a66124bb52f67d81f38fa37251",
+              "passes": 17817,
+              "fails": 5
+            },
+            {
+              "fails": 0,
+              "name": "api_shop_stats — 2xx",
+              "path": "::catalogue::api_shop_stats — 2xx",
+              "id": "c984e1417b15861797263a5aa02dbe9d",
+              "passes": 17822
+            },
+            {
+              "fails": 3,
+              "name": "api_shop_stats — <5s",
+              "path": "::catalogue::api_shop_stats — <5s",
+              "id": "978854c4a7d1a86b1cea418cdb41e25d",
+              "passes": 17819
+            },
+            {
+              "name": "api_promotions — 2xx",
+              "path": "::catalogue::api_promotions — 2xx",
+              "id": "3ef8cc059279e0e4fccf4babf604a66e",
+              "passes": 17822,
+              "fails": 0
+            },
+            {
+              "fails": 2,
+              "name": "api_promotions — <5s",
+              "path": "::catalogue::api_promotions — <5s",
+              "id": "6060b75e36b4dc0aae66b0a20cdab47c",
+              "passes": 17820
+            }
+          ],
+        "name": "catalogue",
+        "path": "::catalogue",
+        "id": "1395ebaa477f4d011c1eb1a339631a70"
+      },
+      {
+        "checks": [
+          {
+            "name": "api_search — 2xx",
+            "path": "::recherche::api_search — 2xx",
+            "id": "34085c60bf65bb7f7ffdaddfe156d162",
+            "passes": 8059,
+            "fails": 0
+          },
+          {
+            "name": "api_search — <5s",
+            "path": "::recherche::api_search — <5s",
+            "id": "5b46c2b21d8f1616f5abef7789439a60",
+            "passes": 8056,
+            "fails": 3
+          },
+          {
+            "path": "::recherche::api_search_sugg — 2xx",
+            "id": "c4178d015a0ee513ea6bbb552fa95417",
+            "passes": 8059,
+            "fails": 0,
+            "name": "api_search_sugg — 2xx"
+          },
+          {
+            "name": "api_search_sugg — <5s",
+            "path": "::recherche::api_search_sugg — <5s",
+            "id": "34724b7df55ff7718348b264c73a300a",
+            "passes": 8057,
+            "fails": 2
+          }
+        ],
+        "name": "recherche",
+        "path": "::recherche",
+        "id": "6a82a779fbb2734d77ef98f22a7b1368",
+        "groups": []
+      },
+      {
+        "name": "fiche produit",
+        "path": "::fiche produit",
+        "id": "6d77e0535019ecd0b887bc37b668e626",
+        "groups": [],
+        "checks": [
+            {
+              "id": "f71d5fca84dfb95226c98bf389562b69",
+              "passes": 8059,
+              "fails": 0,
+              "name": "api_product_page — 2xx",
+              "path": "::fiche produit::api_product_page — 2xx"
+            },
+            {
+              "name": "api_product_page — <5s",
+              "path": "::fiche produit::api_product_page — <5s",
+              "id": "44543a5c90546585b5e07e40668e3aa8",
+              "passes": 8048,
+              "fails": 11
+            },
+            {
+              "name": "api_product_images — 2xx",
+              "path": "::fiche produit::api_product_images — 2xx",
+              "id": "9b4b28247ac6bfc86bc113bd65df2c15",
+              "passes": 8059,
+              "fails": 0
+            },
+            {
+              "path": "::fiche produit::api_product_images — <5s",
+              "id": "f05d4f3f2946e0eebca186524f05b8e6",
+              "passes": 8057,
+              "fails": 2,
+              "name": "api_product_images — <5s"
+            }
+          ]
+      },
+      {
+        "name": "panier",
+        "path": "::panier",
+        "id": "ffa241204c501c15f793e2280813b41a",
+        "groups": [],
+        "checks": [
+            {
+              "fails": 0,
+              "name": "api_cart_get — 2xx",
+              "path": "::panier::api_cart_get — 2xx",
+              "id": "0baac8200796dd49f472e7613172a86e",
+              "passes": 4778
+            },
+            {
+              "path": "::panier::api_cart_get — <5s",
+              "id": "0f97b55259d17d8006bdd11bd27f26f1",
+              "passes": 4777,
+              "fails": 1,
+              "name": "api_cart_get — <5s"
+            },
+            {
+              "name": "api_cart_count — 2xx",
+              "path": "::panier::api_cart_count — 2xx",
+              "id": "23a3b5896a8033519d6ca526a88f2908",
+              "passes": 4778,
+              "fails": 0
+            },
+            {
+              "path": "::panier::api_cart_count — <5s",
+              "id": "f8023fbaf143f59908abcfa690e67a67",
+              "passes": 4774,
+              "fails": 4,
+              "name": "api_cart_count — <5s"
+            },
+            {
+              "passes": 4778,
+              "fails": 0,
+              "name": "api_wishlist_count — 2xx",
+              "path": "::panier::api_wishlist_count — 2xx",
+              "id": "c9e5bd3cccb106721bc8553e48e4fbe0"
+            },
+            {
+              "name": "api_wishlist_count — <5s",
+              "path": "::panier::api_wishlist_count — <5s",
+              "id": "bde44cd654d339f7c80b26fa8db35000",
+              "passes": 4775,
+              "fails": 3
+            }
+          ]
+      },
+      {
+        "name": "catégorie",
+        "path": "::catégorie",
+        "id": "31e75ee88a85992cb52d032387089dcb",
+        "groups": [],
+        "checks": [
+            {
+              "passes": 1575,
+              "fails": 1,
+              "name": "api_cat_products — 2xx",
+              "path": "::catégorie::api_cat_products — 2xx",
+              "id": "ec32a0e5483026cb080b01a4545bcdd9"
+            },
+            {
+              "name": "api_cat_products — <5s",
+              "path": "::catégorie::api_cat_products — <5s",
+              "id": "272385b39f56334fde535d9f32cb497d",
+              "passes": 1576,
+              "fails": 0
+            },
+            {
+              "name": "api_cat_show — 2xx",
+              "path": "::catégorie::api_cat_show — 2xx",
+              "id": "4a7df1c3d80a94845baad2d39e5a76a8",
+              "passes": 1576,
+              "fails": 0
+            },
+            {
+              "name": "api_cat_show — <5s",
+              "path": "::catégorie::api_cat_show — <5s",
+              "id": "6f7ab261e57cd5256512227eebda8452",
+              "passes": 1576,
+              "fails": 0
+            },
+            {
+              "name": "api_products_cat — 2xx",
+              "path": "::catégorie::api_products_cat — 2xx",
+              "id": "ff622239ceb0f0f036251d9c184d2c2f",
+              "passes": 0,
+              "fails": 1576
+            },
+            {
+              "name": "api_products_cat — <5s",
+              "path": "::catégorie::api_products_cat — <5s",
+              "id": "6f115ddd5c01310caf6ae00fcb37ae1f",
+              "passes": 1576,
+              "fails": 0
+            }
+          ]
+      }
+    ],
+    "checks": [],
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "options": {
+    "summaryTrendStats": [
+      "avg",
+      "min",
+      "med",
+      "max",
+      "p(90)",
+      "p(95)"
+    ],
+    "summaryTimeUnit": "",
+    "noColor": false
+  },
+  "state": {
+    "testRunDurationMs": 1084008.0631,
+    "isStdOutTTY": true,
+    "isStdErrTTY": true
+  }
+}

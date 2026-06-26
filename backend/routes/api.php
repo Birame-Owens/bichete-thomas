@@ -33,6 +33,12 @@ use App\Http\Controllers\Api\Admin\RapportStatistiqueController;
 use App\Http\Controllers\Api\Admin\ReservationController;
 use App\Http\Controllers\Api\Admin\RegleFideliteController;
 use App\Http\Controllers\Api\Admin\VarianteCoiffureController;
+use App\Http\Controllers\Api\Admin\ProduitController;
+use App\Http\Controllers\Api\Admin\CommandeController;
+use App\Http\Controllers\Api\Admin\CategoryController;
+use App\Http\Controllers\Api\Admin\DeliveryZoneController;
+use App\Http\Controllers\Api\Admin\ShopSettingController;
+use App\Http\Controllers\Api\Admin\ShippingSettingsController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Client\AvisController as ClientAvisController;
@@ -167,6 +173,34 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
         Route::apiResource('evenements-analytics', EvenementAnalyticsController::class)
             ->only(['index', 'show'])
             ->parameters(['evenements-analytics' => 'evenementAnalytics']);
+
+        // Ecommerce — Module indépendant du salon de coiffure (v2)
+        Route::prefix('ecommerce')->group(function (): void {
+            // Catégories produits
+            Route::apiResource('categories', CategoryController::class);
+
+            // Produits
+            Route::apiResource('produits', ProduitController::class);
+            Route::post('produits/{produit}/toggle-status', [ProduitController::class, 'toggleStatus'])->name('produits.toggle-status');
+            Route::post('produits/{produit}/duplicate', [ProduitController::class, 'duplicate'])->name('produits.duplicate');
+            Route::delete('produits/{produit}/images/{image}', [ProduitController::class, 'deleteImage'])->name('produits.images.destroy');
+            Route::put('produits/{produit}/images/order', [ProduitController::class, 'updateImagesOrder'])->name('produits.images.order');
+
+            // Commandes
+            Route::apiResource('commandes', CommandeController::class);
+            Route::patch('commandes/{commande}/statut', [CommandeController::class, 'updateStatus'])->name('commandes.statut');
+            Route::post('commandes/{commande}/payer', [CommandeController::class, 'markAsPaid'])->name('commandes.payer');
+            Route::get('stats/commandes', [CommandeController::class, 'getStatistics'])->name('commandes.stats');
+
+            // Zones de livraison
+            Route::apiResource('delivery-zones', DeliveryZoneController::class);
+
+            // Paramètres boutique
+            Route::get('shop-settings', [ShopSettingController::class, 'index'])->name('shop-settings.index');
+            Route::put('shop-settings', [ShopSettingController::class, 'update'])->name('shop-settings.update');
+            Route::get('shipping', [ShippingSettingsController::class, 'index'])->name('shipping.index');
+            Route::put('shipping', [ShippingSettingsController::class, 'update'])->name('shipping.update');
+        });
     });
 
 // Espace gérante : accès restreint au suivi des réservations du jour.

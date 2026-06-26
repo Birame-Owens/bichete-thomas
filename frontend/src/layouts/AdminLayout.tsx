@@ -20,6 +20,7 @@ import {
   Receipt,
   Settings,
   ShoppingBag,
+  ShoppingCart,
   Star,
   Users,
   Wallet,
@@ -75,6 +76,17 @@ const sections: Section[] = [
   { label: 'Depenses', path: '/console-thomas/depenses', icon: CircleDollarSign },
   { label: 'Commissions', path: '/console-thomas/commissions', icon: Percent, comingSoon: true },
   { label: 'Promotions & Fidelite', path: '/console-thomas/promotions', icon: Gift },
+  {
+    label: 'Ecommerce',
+    path: '/console-thomas/ecommerce',
+    icon: ShoppingCart,
+    children: [
+      { label: 'Vue generale', path: '/console-thomas/ecommerce' },
+      { label: 'Produits', path: '/console-thomas/ecommerce/produits' },
+      { label: 'Categories', path: '/console-thomas/ecommerce/categories' },
+      { label: 'Commandes', path: '/console-thomas/ecommerce/commandes' },
+    ],
+  },
   { label: 'Avis clientes', path: '/console-thomas/avis', icon: Star },
   { label: 'Messages WhatsApp', path: '/console-thomas/messages', icon: MessageCircle, comingSoon: true },
   { label: 'Photos prestations', path: '/console-thomas/photos', icon: Camera, comingSoon: true },
@@ -230,6 +242,7 @@ function AdminLayout({ children }: AdminLayoutProps) {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     '/console-thomas/catalogue': true,
     '/console-thomas/personnel': true,
+    '/console-thomas/ecommerce': true,
   })
   const [comingSoonToast, setComingSoonToast] = useState(false)
 

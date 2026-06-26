@@ -1,0 +1,157 @@
+<?php
+
+namespace App\Http\Requests\Client;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Contracts\Validation\Validator;
+
+class HomeRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
+    {
+        return true; // Accès public pour les routes client
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     */
+    public function rules(): array
+    {
+        $action = $this->route()->getActionMethod();
+        
+        return match($action) {
+            'subscribeNewsletter' => [
+                'email' => 'required|email|max:255',
+                'nom' => 'nullable|string|max:100',
+                'prenom' => 'nullable|string|max:100',
+                'accepte_conditions' => 'accepted'
+            ],
+            'quickSearch' => [
+                'q' => 'required|string|min:2|max:100'
+            ],
+            'featuredProducts', 'newArrivals', 'productsOnSale' => [
+                'limit' => 'nullable|integer|min:1|max:20'
+            ],
+            'testimonials' => [
+                'limit' => 'nullable|integer|min:1|max:10'
+            ],
+            default => []
+        };
+    }
+
+    /**
+     * Get custom messages for validator errors.
+     */
+    public function messages(): array
+    {
+        return [
+            'email.required' => 'L\'adresse email est obligatoire.',
+            'email.email' => 'Veuillez saisir une adresse email valide.',
+            'email.max' => 'L\'adresse email ne peut pas dépasser 255 caractères.',
+            'nom.max' => 'Le nom ne peut pas dépasser 100 caractères.',
+            'prenom.max' => 'Le prénom ne peut pas dépasser 100 caractères.',
+            'accepte_conditions.accepted' => 'Vous devez accepter les conditions d\'utilisation.',
+            'q.required' => 'Le terme de recherche est obligatoire.',
+            'q.min' => 'Le terme de recherche doit contenir au moins 2 caractères.',
+            'q.max' => 'Le terme de recherche ne peut pas dépasser 100 caractères.',
+            'limit.integer' => 'La limite doit être un nombre entier.',
+            'limit.min' => 'La limite doit être d\'au moins 1.',
+            'limit.max' => 'La limite ne peut pas dépasser :max éléments.'
+        ];
+    }
+
+    /**
+     * Get custom attributes for validator errors.
+     */
+    public function attributes(): array
+    {
+        return [
+            'q' => 'terme de recherche',
+            'limit' => 'limite',
+            'email' => 'adresse email',
+            'nom' => 'nom',
+            'prenom' => 'prénom'
+        ];
+    }
+
+    /**
+     * Handle a failed validation attempt.
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        throw new HttpResponseException(
+            response()->json([
+                'success' => false,
+                'message' => 'Erreurs de validation',
+                'errors' => $validator->errors()
+            ], 422)
+        );
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Nettoyer et préparer les données avant validation
+        if ($this->has('q')) {
+            $this->merge([
+                'q' => trim($this->input('q'))
+            ]);
+        }
+
+        if ($this->has('email')) {
+            $this->merge([
+                'email' => strtolower(trim($this->input('email')))
+            ]);
+        }
+
+        if ($this->has('nom')) {
+            $this->merge([
+                'nom' => ucfirst(strtolower(trim($this->input('nom'))))
+            ]);
+        }
+
+        if ($this->has('prenom')) {
+            $this->merge([
+                'prenom' => ucfirst(strtolower(trim($this->input('prenom'))))
+            ]);
+        }
+
+        // Limiter les valeurs de limit
+        if ($this->has('limit')) {
+            $limit = (int) $this->input('limit');
+            $this->merge([
+                'limit' => max(1, min($limit, 20)) // Entre 1 et 20
+            ]);
+        }
+    }
+
+    /**
+     * Get validated data with defaults
+     */
+    public function validatedWithDefaults(): array
+    {
+        $validated = $this->validated();
+        $action = $this->route()->getActionMethod();
+        
+        // Ajouter des valeurs par défaut selon l'action
+        switch ($action) {
+            case 'featuredProducts':
+            case 'newArrivals':
+            case 'productsOnSale':
+                $validated['limit'] = $validated['limit'] ?? 8;
+                break;
+                
+            case 'testimonials':
+                $validated['limit'] = $validated['limit'] ?? 6;
+                break;
+        }
+        
+        return $validated;
+    }
+}
