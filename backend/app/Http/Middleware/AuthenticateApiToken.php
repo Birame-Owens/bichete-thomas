@@ -63,7 +63,7 @@ class AuthenticateApiToken
             ], 401);
         }
 
-        if (! $accessToken->user->actif) {
+        if ($accessToken->user->statut !== 'actif') {
             return response()->json([
                 'message' => 'Compte desactive.',
             ], 403);

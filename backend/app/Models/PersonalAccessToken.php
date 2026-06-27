@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['tokenable_type', 'tokenable_id', 'name', 'token', 'last_used_at', 'expires_at'])]
 class PersonalAccessToken extends Model
@@ -13,11 +13,11 @@ class PersonalAccessToken extends Model
     use HasFactory;
 
     /**
-     * @return MorphTo<User, $this>
+     * @return BelongsTo<User, $this>
      */
-    public function user(): MorphTo
+    public function user(): BelongsTo
     {
-        return $this->morphTo('tokenable', 'tokenable_type', 'tokenable_id')->whereType(User::class);
+        return $this->belongsTo(User::class, 'tokenable_id');
     }
 
     /**
