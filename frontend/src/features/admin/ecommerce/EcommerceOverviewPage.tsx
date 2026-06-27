@@ -1,102 +1,52 @@
-import { useEffect, useState } from 'react'
-import { Package, ShoppingCart, TrendingUp, AlertCircle } from 'lucide-react'
-import { EcommerceLayout } from './components/EcommerceLayout'
-import { Panel, ErrorState } from './components/EcommerceUi'
-import { getCommandesStats } from './ecommerce.api'
-import type { KPIStats } from './ecommerce.types'
+﻿import { useEffect, useState } from 'react';
+import { apiClient } from '../../../lib/apiClient';
+import type { Produit, LaravelPaginated } from './ecommerce.types';
 
-export function EcommerceOverviewPage() {
-  const [stats, setStats] = useState<KPIStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export default function EcommerceTestPage() {
+  const [produits, setProduits] = useState<Produit[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadStats()
-  }, [])
-
-  async function loadStats() {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await getCommandesStats()
-      setStats(data)
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Erreur lors du chargement des statistiques')
-    } finally {
-      setLoading(false)
+    async function fetchProduits() {
+      try {
+        const response = await apiClient.get('/api/admin/ecommerce/produits');
+        const data = response.data as LaravelPaginated<Produit>;
+        setProduits(data.data || []);
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setLoading(false);
+      }
     }
-  }
+    fetchProduits();
+  }, []);
+
+  if (loading) return <div className="p-6">Chargement...</div>;
+  if (error) return <div className="p-6 text-red-600">Erreur: {error}</div>;
 
   return (
-    <EcommerceLayout>
-      <Panel title="Tableau de bord Ecommerce" subtitle="Suivi des ventes boutique en ligne">
-        {error && <ErrorState message={error} />}
-
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded-lg animate-pulse" />
-            ))}
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Ecommerce — Produits ({produits.length})</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {produits.map(p => (
+          <div key={p.id} className="border rounded p-4">
+            <h3 className="font-semibold">{p.nom}</h3>
+            <p className="text-sm text-gray-600">{p.prix} FCFA</p>
+            <p className="text-xs">Stock: {p.stock_disponible}</p>
+            <span className={`text-xs px-2 py-1 rounded ${p.est_visible ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}>
+              {p.est_visible ? 'Visible' : 'Masqué'}
+            </span>
           </div>
-        ) : stats ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPICard
-              icon={TrendingUp}
-              label="Chiffre d'affaires"
-              value={`${(stats.chiffre_affaires / 1000).toFixed(0)}k FCFA`}
-              color="text-green-600"
-              bgColor="bg-green-50"
-            />
-            <KPICard
-              icon={ShoppingCart}
-              label="Nombre de commandes"
-              value={stats.nombre_commandes.toString()}
-              color="text-blue-600"
-              bgColor="bg-blue-50"
-            />
-            <KPICard
-              icon={Package}
-              label="Produits actifs"
-              value={stats.nombre_produits.toString()}
-              color="text-purple-600"
-              bgColor="bg-purple-50"
-            />
-            <KPICard
-              icon={AlertCircle}
-              label="En attente de paiement"
-              value={stats.commandes_en_attente.toString()}
-              color="text-orange-600"
-              bgColor="bg-orange-50"
-            />
-          </div>
-        ) : null}
-      </Panel>
-    </EcommerceLayout>
-  )
-}
-
-function KPICard({
-  icon: Icon,
-  label,
-  value,
-  color,
-  bgColor,
-}: {
-  icon: any
-  label: string
-  value: string
-  color: string
-  bgColor: string
-}) {
-  return (
-    <div className={`rounded-lg ${bgColor} p-6`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{label}</p>
-          <p className={`text-2xl font-bold ${color} mt-2`}>{value}</p>
-        </div>
-        <Icon size={32} className={color} strokeWidth={1.5} />
+        ))}
       </div>
+      
+      {produits.length === 0 && (
+        <div className="text-center text-gray-500 mt-8">
+          Aucun produit. Allez en créer un!
+        </div>
+      )}
     </div>
-  )
+  );
 }
