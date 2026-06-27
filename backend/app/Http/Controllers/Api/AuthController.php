@@ -58,7 +58,7 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return response()->json([
-            'user' => $this->serializeUser($request->user()->loadMissing('role')),
+            'user' => $this->serializeUser($request->user()),
         ]);
     }
 
@@ -93,7 +93,7 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'role' => $user->role?->nom,
+            'role' => $user->role,
         ];
     }
 

@@ -13,7 +13,7 @@ class LogSystemeController extends Controller
     public function index(Request $request): JsonResponse
     {
         $logs = LogSysteme::query()
-            ->with('user:id,name,email,role')
+            ->with('user:id,name,email,role_id')
             ->when($request->filled('action'), fn ($query) => $query->where('action', $request->string('action')->toString()))
             ->when($request->filled('module'), fn ($query) => $query->where('module', $request->string('module')->toString()))
             ->when($request->filled('user_id'), fn ($query) => $query->where('user_id', $request->integer('user_id')))
@@ -59,14 +59,14 @@ class LogSystemeController extends Controller
 
         return response()->json([
             'message' => 'Log systeme cree.',
-            'data' => $log?->load('user:id,name,email,role'),
+            'data' => $log?->load('user:id,name,email,role_id'),
         ], 201);
     }
 
     public function show(LogSysteme $logSysteme): JsonResponse
     {
         return response()->json([
-            'data' => $logSysteme->load('user:id,name,email,role'),
+            'data' => $logSysteme->load('user:id,name,email,role_id'),
         ]);
     }
 }

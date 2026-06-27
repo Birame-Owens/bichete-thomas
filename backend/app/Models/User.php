@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
+use App\Models\PersonalAccessToken;
 
 #[Fillable(['role', 'name', 'email', 'password', 'statut', 'email_verified_at'])]
 #[Hidden(['password', 'remember_token'])]
@@ -53,7 +54,9 @@ class User extends Authenticatable
         // (I1). Sans ca, un token frais avec last_used_at NULL ne pourrait
         // jamais etre invalide pour inactivite, meme si le compte est laisse
         // a l abandon entre la creation et la 1re requete.
-        $this->tokens()->create([
+        PersonalAccessToken::create([
+            'tokenable_type' => static::class,
+            'tokenable_id' => $this->id,
             'name' => $name,
             'token' => hash('sha256', $plainTextToken),
             'last_used_at' => now(),
