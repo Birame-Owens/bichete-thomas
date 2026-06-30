@@ -16,8 +16,12 @@ function LoginPage() {
   // Déjà connecté : évite d'afficher le formulaire inutilement
   useEffect(() => {
     const user = getUser()
-    if (user?.role === 'admin') navigate('/console-thomas/dashboard', { replace: true })
-    else if (user?.role === 'gerante') navigate('/manager/reservations', { replace: true })
+    // Seulement rediriger si on est exactement sur /console-thomas
+    // (pas sur d'autres pages comme /console-thomas/ecommerce)
+    if (location.pathname === '/console-thomas') {
+      if (user?.role === 'admin') navigate('/console-thomas/dashboard', { replace: true })
+      else if (user?.role === 'gerante') navigate('/manager/reservations', { replace: true })
+    }
   }, [navigate])
 
   const [identifier, setIdentifier] = useState('')
