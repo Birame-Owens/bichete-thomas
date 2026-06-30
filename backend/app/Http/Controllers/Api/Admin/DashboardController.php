@@ -140,14 +140,14 @@ class DashboardController extends Controller
         return [
             'available' => true,
             'value' => $today = (float) DB::table('paiements')
-                ->whereDate('date_paiement', now()->toDateString())
+                ->whereDate('created_at', now()->toDateString())
                 ->where('type', 'acompte')
                 ->where('statut', 'valide')
                 ->sum('montant'),
             'trend' => $this->trendLabel(
                 $today,
                 (float) DB::table('paiements')
-                    ->whereDate('date_paiement', now()->subDay()->toDateString())
+                    ->whereDate('created_at', now()->subDay()->toDateString())
                     ->where('type', 'acompte')
                     ->where('statut', 'valide')
                     ->sum('montant')
@@ -218,13 +218,13 @@ class DashboardController extends Controller
                     'paiements.montant',
                     'paiements.devise',
                     'paiements.statut',
-                    'paiements.date_paiement',
+                    'paiements.created_at',
                     'paiements.reservation_id',
                     'clients.nom as client_nom',
                     'clients.prenom as client_prenom',
                     'reservations.date_reservation',
                 ])
-                ->orderByDesc('paiements.date_paiement')
+                ->orderByDesc('paiements.created_at')
                 ->orderByDesc('paiements.id')
                 ->limit(5)
                 ->get(),
@@ -242,10 +242,10 @@ class DashboardController extends Controller
 
         $start = now()->startOfWeek();
         $rows = DB::table('paiements')
-            ->selectRaw('DATE(date_paiement) as date, SUM(montant) as total')
+            ->selectRaw('DATE(created_at) as date, SUM(montant) as total')
             ->where('statut', 'valide')
             ->whereIn('type', ['acompte', 'solde', 'complet', 'ajustement'])
-            ->whereBetween('date_paiement', [$start, now()->endOfWeek()])
+            ->whereBetween('created_at', [$start, now()->endOfWeek()])
             ->groupBy('date')
             ->pluck('total', 'date');
 
@@ -451,13 +451,13 @@ class DashboardController extends Controller
     private function netCA(string $date): float
     {
         $entrees = (float) DB::table('paiements')
-            ->whereDate('date_paiement', $date)
+            ->whereDate('created_at', $date)
             ->where('statut', 'valide')
             ->whereIn('type', ['acompte', 'solde', 'complet', 'ajustement'])
             ->sum('montant');
 
         $remboursements = (float) DB::table('paiements')
-            ->whereDate('date_paiement', $date)
+            ->whereDate('created_at', $date)
             ->where('statut', 'valide')
             ->where('type', 'remboursement')
             ->sum('montant');

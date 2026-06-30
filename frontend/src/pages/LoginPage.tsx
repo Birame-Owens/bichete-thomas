@@ -55,8 +55,10 @@ function LoginPage() {
       }
 
       navigate('/')
-    } catch {
-      setError('Impossible de vous connecter. Verifiez vos identifiants.')
+    } catch (err: any) {
+      console.error('Login error:', err)
+      const errorMsg = err?.response?.data?.message || 'Impossible de vous connecter. Verifiez vos identifiants.'
+      setError(errorMsg)
     } finally {
       setLoading(false)
     }
