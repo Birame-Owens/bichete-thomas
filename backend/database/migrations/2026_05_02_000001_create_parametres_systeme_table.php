@@ -11,9 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('wishlists', function (Blueprint $table) {
+        Schema::create('parametres_systeme', function (Blueprint $table) {
             $table->id();
+            $table->string('cle')->unique();
+            $table->json('valeur')->nullable();
+            $table->string('type')->default('string');
+            $table->text('description')->nullable();
+            $table->boolean('modifiable')->default(true);
             $table->timestamps();
+
+            $table->index('type');
         });
     }
 
@@ -22,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('wishlists');
+        Schema::dropIfExists('parametres_systeme');
     }
 };

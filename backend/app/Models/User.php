@@ -13,14 +13,21 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
-use App\Models\PersonalAccessToken;
 
-#[Fillable(['role', 'name', 'email', 'password', 'statut', 'email_verified_at'])]
+#[Fillable(['role_id', 'name', 'email', 'password', 'actif', 'email_verified_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /**
+     * @return BelongsTo<Role, $this>
+     */
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
 
     /**
      * @return HasOne<Client, $this>
@@ -54,9 +61,7 @@ class User extends Authenticatable
         // (I1). Sans ca, un token frais avec last_used_at NULL ne pourrait
         // jamais etre invalide pour inactivite, meme si le compte est laisse
         // a l abandon entre la creation et la 1re requete.
-        PersonalAccessToken::create([
-            'tokenable_type' => static::class,
-            'tokenable_id' => $this->id,
+        $this->tokens()->create([
             'name' => $name,
             'token' => hash('sha256', $plainTextToken),
             'last_used_at' => now(),
@@ -67,7 +72,7 @@ class User extends Authenticatable
 
     public function hasRole(string ...$roles): bool
     {
-        return in_array($this->role, $roles, true);
+        return $this->role !== null && in_array($this->role->nom, $roles, true);
     }
 
     /**
@@ -80,6 +85,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'actif' => 'boolean',
         ];
     }
 }

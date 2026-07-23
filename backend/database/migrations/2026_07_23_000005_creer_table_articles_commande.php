@@ -37,7 +37,9 @@ return new class extends Migration
             $table->text('instructions_tailleur')->nullable(); // Instructions spéciales
             
             // Production et affectation
-            $table->foreignId('tailleur_id')->nullable()->constrained('tailleurs');
+            // NB: pas de FK — la table tailleurs (projet ND WORLD) n'existe pas
+            // dans le schema du salon ; colonne conservee pour compatibilite modele.
+            $table->unsignedBigInteger('tailleur_id')->nullable();
             $table->enum('statut_production', [
                 'en_attente',       // En attente d'affectation
                 'affecte',          // Affecté à un tailleur

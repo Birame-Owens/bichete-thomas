@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('articles_panier', function (Blueprint $table) {
-            $table->string('taille')->nullable()->after('quantite');
-            $table->string('couleur')->nullable()->after('taille');
+        Schema::table('categories_coiffures', function (Blueprint $table) {
+            $table->string('image')->nullable()->after('description');
         });
     }
 
@@ -22,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('articles_panier', function (Blueprint $table) {
-            $table->dropColumn(['taille', 'couleur']);
+        Schema::table('categories_coiffures', function (Blueprint $table) {
+            $table->dropColumn('image');
         });
     }
 };

@@ -23,6 +23,7 @@ class AuthController extends Controller
         $credentials = $request->validated();
 
         $user = User::query()
+            ->with('role')
             ->where('email', $credentials['email'])
             ->first();
 
@@ -32,7 +33,7 @@ class AuthController extends Controller
             ], 401);
         }
 
-        if ($user->statut !== 'actif') {
+        if (! $user->actif) {
             return response()->json([
                 'message' => 'Compte desactive.',
             ], 403);
@@ -58,7 +59,7 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return response()->json([
-            'user' => $this->serializeUser($request->user()),
+            'user' => $this->serializeUser($request->user()->loadMissing('role')),
         ]);
     }
 
@@ -93,7 +94,7 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'role' => $user->role,
+            'role' => $user->role?->nom,
         ];
     }
 
