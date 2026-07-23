@@ -41,6 +41,17 @@ class Client extends Model
     }
 
     /**
+     * Mesures de couture du client (module confection sur mesure).
+     * Optionnel : la plupart des clients boutique n'en ont pas.
+     *
+     * @return HasOne<MesureClient, $this>
+     */
+    public function mesures(): HasOne
+    {
+        return $this->hasOne(MesureClient::class);
+    }
+
+    /**
      * @return HasMany<ListeNoireClient, $this>
      */
     public function listeNoire(): HasMany
