@@ -1,0 +1,166 @@
+﻿RAPPORT PERFORMANCE PRODUCTION - NDEYA SHOP
+Date: 12 mai 2026
+
+ETAT ACTUEL
+Le site NDEYA SHOP est stable apres les derniers correctifs.
+Le test de charge principal est valide avec 100 utilisateurs virtuels pendant 6 minutes.
+
+Resultat de reference k6:
+- 100 VUs pendant 6 minutes
+- 12 742 requetes traitees
+- 0% erreurs HTTP
+- 100% des checks reussis
+- p95: environ 826 ms
+- max: 1.72 s
+- environ 35 requetes/seconde
+
+Conclusion:
+La performance serveur est bonne pour une charge moderee a forte.
+Le site peut etre considere comme pret pour la production actuelle.
+
+
+CE QUI EST BON
+1. Stabilite sous charge
+- Aucun echec HTTP pendant le dernier test k6.
+- Toutes les pages testees ont repondu en moins de 2 secondes.
+- Les pics de lenteur observes avant ont disparu.
+
+2. Optimisation images
+- Les images existantes ont ete optimisees avec succes.
+- 8 images sur 8 optimisees.
+- Les nouvelles images uploades depuis l'admin generent automatiquement des versions legeres.
+- Les listes utilisent maintenant des images medium/thumb au lieu des originaux lourds.
+
+3. Cache navigateur
+- Les images et assets statiques ont un cache long via .htaccess.
+- Cela reduit la bande passante et ameliore le chargement client.
+
+4. Experience mobile
+- Le zoom automatique des formulaires sur mobile a ete corrige.
+- Les champs input/select/textarea ont une taille minimale adaptee sur mobile.
+
+5. Deploiement prive
+- Le depot GitHub peut rester prive.
+- Coolify est connecte via GitHub App privee.
+
+
+CE QU'IL FAUT CONTINUER A SURVEILLER
+1. Temps de reponse
+Objectif:
+- p95 inferieur a 2 secondes
+- erreurs HTTP inferieures a 1%
+
+Test recommande avant chaque gros deploiement:
+k6 run ndeya-load-test.js
+
+2. Logs Laravel
+Verifier regulierement:
+- storage/logs/laravel.log
+- erreurs 500
+- erreurs paiement
+- erreurs queue
+
+3. Serveur
+Surveiller:
+- CPU
+- RAM
+- espace disque
+- containers qui redemarrent
+- base PostgreSQL healthy
+- Redis healthy
+
+
+AMELIORATIONS PRIORITAIRES
+1. Index base de donnees
+Ajouter des index cibles pour garder les performances quand les donnees vont augmenter:
+- produits visibles par categorie
+- produits populaires
+- nouveautes
+- sitemap
+- recherche texte avec pg_trgm si PostgreSQL
+
+2. Recherche
+Les recherches avec ILIKE "%mot%" peuvent ralentir quand il y aura beaucoup de produits.
+Solution recommandee:
+- activer pg_trgm PostgreSQL
+- ajouter index GIN trigram sur produits.nom, produits.description, categories.nom
+
+3. Nombre de vues produit
+Eviter d'ecrire en base a chaque visite produit si le trafic augmente.
+Solution recommandee:
+- stocker temporairement les vues dans Redis/cache
+- synchroniser en base toutes les quelques minutes
+
+4. Monitoring
+Ajouter une surveillance externe:
+- UptimeRobot, Better Stack ou equivalent
+- alerte si le site tombe
+- alerte si temps de reponse trop long
+- alerte si erreur 500/502/504
+
+5. Lighthouse mobile
+Faire un test PageSpeed/Lighthouse mobile chaque mois.
+Verifier surtout:
+- LCP
+- CLS
+- poids des images
+- temps de chargement checkout
+
+6. Sauvegardes
+Verifier que les backups fonctionnent vraiment:
+- backup base PostgreSQL
+- backup storage/app/public
+- test de restauration au moins une fois
+
+
+CHECKLIST APRES CHAQUE DEPLOIEMENT
+1. Verifier que le site s'ouvre:
+https://ndeya-shop.site
+
+2. Verifier les containers:
+docker ps
+
+3. Verifier les logs:
+docker logs --tail=100 backend
+docker logs --tail=100 nginx
+docker logs --tail=100 queue
+
+4. Lancer les caches Laravel:
+php artisan optimize:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+5. Si des images ont ete modifiees:
+php artisan images:optimize
+
+6. Relancer un test de charge apres gros changement:
+k6 run ndeya-load-test.js
+
+
+SEUILS A RESPECTER
+Bon:
+- p95 < 1 seconde
+- erreurs HTTP = 0%
+- max < 2 secondes
+
+Acceptable:
+- p95 < 2 secondes
+- erreurs HTTP < 1%
+
+A corriger:
+- p95 > 2 secondes
+- erreurs HTTP > 1%
+- timeout Cloudflare frequent
+- container qui redemarre
+- logs Laravel avec erreurs repetees
+
+
+RESUME FINAL
+Le site est actuellement performant et stable.
+Les priorites futures sont surtout:
+1. Ajouter les index DB cibles.
+2. Mettre un monitoring uptime.
+3. Surveiller les logs et requetes lentes.
+4. Continuer les tests k6 avant les gros deploiements.
+5. Faire des tests mobile Lighthouse regulierement.

@@ -40,6 +40,15 @@ const GeranteClientsPage = lazy(() => import('./features/gerante/GeranteClientsP
 const GerantePaiementsPage = lazy(() => import('./features/gerante/GerantePaiementsPage'))
 const GeranteSignalementsPage = lazy(() => import('./features/gerante/GeranteSignalementsPage'))
 const AdminSignalementsPage = lazy(() => import('./features/admin/signalements/AdminSignalementsPage'))
+const BoutiquePage = lazy(() => import('./features/client/boutique/BoutiquePage').then(m => ({ default: m.BoutiquePage })))
+const BoutiqueProduitPage = lazy(() => import('./features/client/boutique/BoutiqueProduitPage').then(m => ({ default: m.BoutiqueProduitPage })))
+const PanierPage = lazy(() => import('./features/client/boutique/PanierPage').then(m => ({ default: m.PanierPage })))
+const CommanderPage = lazy(() => import('./features/client/boutique/CommanderPage').then(m => ({ default: m.CommanderPage })))
+const CommandeConfirmeePage = lazy(() => import('./features/client/boutique/CommandeConfirmeePage').then(m => ({ default: m.CommandeConfirmeePage })))
+const EcommerceOverviewPage = lazy(() => import('./features/admin/ecommerce/EcommerceOverviewPage'))
+const ProduitsPage = lazy(() => import('./features/admin/ecommerce/ProduitsPage').then(m => ({ default: m.ProduitsPage })))
+const CategoriesPage = lazy(() => import('./features/admin/ecommerce/CategoriesPage').then(m => ({ default: m.CategoriesPage })))
+const CommandesPage = lazy(() => import('./features/admin/ecommerce/CommandesPage').then(m => ({ default: m.CommandesPage })))
 
 function NotFound() {
   return (
@@ -82,6 +91,11 @@ function App() {
       <Route path="/client" element={<ClientHomePage />} />
       <Route path="/categories" element={<ClientCategoryPage />} />
       <Route path="/categories/:categoryId" element={<ClientCategoryPage />} />
+      <Route path="/boutique" element={<BoutiquePage />} />
+      <Route path="/boutique/panier" element={<PanierPage />} />
+      <Route path="/boutique/commander" element={<CommanderPage />} />
+      <Route path="/boutique/commande-confirmee" element={<CommandeConfirmeePage />} />
+      <Route path="/boutique/:slug" element={<BoutiqueProduitPage />} />
       <Route path="/avis/:token" element={<AvisPage />} />
       <Route path="/console-thomas" element={<LoginPage />} />
       <Route path="/console-thomas/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
@@ -101,6 +115,10 @@ function App() {
       <Route path="/console-thomas/personnel/gerantes" element={<AdminRoute><GerantesPage /></AdminRoute>} />
       <Route path="/console-thomas/personnel/coiffeuses" element={<AdminRoute><CoiffeusesPage /></AdminRoute>} />
       <Route path="/console-thomas/promotions" element={<AdminRoute><PromotionsPage /></AdminRoute>} />
+      <Route path="/console-thomas/ecommerce" element={<AdminRoute><EcommerceOverviewPage /></AdminRoute>} />
+      <Route path="/console-thomas/ecommerce/produits" element={<AdminRoute><ProduitsPage /></AdminRoute>} />
+      <Route path="/console-thomas/ecommerce/categories" element={<AdminRoute><CategoriesPage /></AdminRoute>} />
+      <Route path="/console-thomas/ecommerce/commandes" element={<AdminRoute><CommandesPage /></AdminRoute>} />
       <Route path="/console-thomas/logs" element={<AdminRoute><LogsPage /></AdminRoute>} />
       <Route path="/console-thomas/parametres" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       <Route path="/console-thomas/signalements" element={<AdminRoute><AdminSignalementsPage /></AdminRoute>} />

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'reservation_id',
+    'commande_id',
     'client_id',
     'caisse_id',
     'mouvement_caisse_id',
@@ -35,6 +36,16 @@ class Paiement extends Model
     public function reservation(): BelongsTo
     {
         return $this->belongsTo(Reservation::class);
+    }
+
+    /**
+     * Commande boutique reglee par ce paiement (phase 2 ecommerce).
+     *
+     * @return BelongsTo<Commande, $this>
+     */
+    public function commande(): BelongsTo
+    {
+        return $this->belongsTo(Commande::class);
     }
 
     /**
