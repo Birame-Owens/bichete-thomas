@@ -154,10 +154,15 @@ class PaymentController extends Controller
         }
 
         if ($payment->statut === 'valide') {
-            SendPaymentReceiptNotifications::dispatch($payment->id);
+            // Recu reservation uniquement (pas pour une commande boutique).
+            if ($payment->reservation_id) {
+                SendPaymentReceiptNotifications::dispatch($payment->id);
+            }
 
             return response()->json([
-                'message' => 'Paiement NabooPay valide. Votre reservation est securisee.',
+                'message' => $payment->commande_id
+                    ? 'Paiement valide. Votre commande est confirmee.'
+                    : 'Paiement NabooPay valide. Votre reservation est securisee.',
                 'data' => $payment->fresh(['reservation.client', 'client']),
             ]);
         }
@@ -174,7 +179,9 @@ class PaymentController extends Controller
         $this->markPaymentAsPaid($payment, (string) ($transaction['order_id'] ?? $payment->reference));
 
         return response()->json([
-            'message' => 'Paiement NabooPay valide. Votre reservation est securisee.',
+            'message' => $payment->commande_id
+                ? 'Paiement valide. Votre commande est confirmee.'
+                : 'Paiement NabooPay valide. Votre reservation est securisee.',
             'data' => $payment->fresh(['reservation.client', 'client']),
         ]);
     }
@@ -461,15 +468,22 @@ class PaymentController extends Controller
         $payment->refresh();
         $this->syncReservationPaymentState($payment->reservation_id);
         $this->syncCommandePaymentState($payment->commande_id);
-        // Notif asynchrone (I6) : la requete webhook Stripe/PayTech repond
-        // immediatement (~50 ms au lieu de 1-5 s avec les appels HTTP
-        // Twilio/WhatsApp/Mail synchrones). Un worker queue:work consomme
-        // la queue Redis et envoie le recu en arriere-plan.
-        SendPaymentReceiptNotifications::dispatch($payment->id);
-        // Magic link (Phase 5 etape 2) : lien de session 90j envoye par WhatsApp
-        // apres chaque paiement confirme. Si WhatsApp n est pas configure, le
-        // job log un warning et sort proprement (pas d exception).
-        SendMagicLinkNotification::dispatch($payment->id);
+
+        // Les notifications ci-dessous sont specifiques aux RESERVATIONS
+        // (recu de reservation + magic link de session salon). Un paiement
+        // de commande boutique (commande_id, pas de reservation_id) ne doit
+        // PAS declencher un email de reservation.
+        if ($payment->reservation_id) {
+            // Notif asynchrone (I6) : la requete webhook Stripe/PayTech repond
+            // immediatement (~50 ms au lieu de 1-5 s avec les appels HTTP
+            // Twilio/WhatsApp/Mail synchrones). Un worker queue:work consomme
+            // la queue Redis et envoie le recu en arriere-plan.
+            SendPaymentReceiptNotifications::dispatch($payment->id);
+            // Magic link (Phase 5 etape 2) : lien de session 90j envoye par WhatsApp
+            // apres chaque paiement confirme. Si WhatsApp n est pas configure, le
+            // job log un warning et sort proprement (pas d exception).
+            SendMagicLinkNotification::dispatch($payment->id);
+        }
     }
 
     /**

@@ -463,6 +463,7 @@ class CommandeController extends Controller
             'code_promo' => $commande->code_promo,
             'sous_total' => $commande->sous_total,
             'frais_livraison' => $commande->frais_livraison,
+            'zone_livraison_nom' => $commande->zone_livraison_nom,
             'remise' => $commande->remise,
             'source' => $commande->source,
             
