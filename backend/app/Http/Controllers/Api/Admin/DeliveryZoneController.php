@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Http\Controllers\Api\Client\BoutiqueController;
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryZone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class DeliveryZoneController extends Controller
 {
@@ -25,6 +27,7 @@ class DeliveryZoneController extends Controller
         ]);
 
         $zone = DeliveryZone::create($data);
+        $this->clearBoutiqueCache();
         return response()->json(['success' => true, 'data' => $zone], 201);
     }
 
@@ -38,18 +41,27 @@ class DeliveryZoneController extends Controller
         ]);
 
         $deliveryZone->update($data);
+        $this->clearBoutiqueCache();
         return response()->json(['success' => true, 'data' => $deliveryZone]);
     }
 
     public function destroy(DeliveryZone $deliveryZone): JsonResponse
     {
         $deliveryZone->delete();
+        $this->clearBoutiqueCache();
         return response()->json(['success' => true]);
     }
 
     public function toggleStatus(DeliveryZone $deliveryZone): JsonResponse
     {
         $deliveryZone->update(['est_active' => !$deliveryZone->est_active]);
+        $this->clearBoutiqueCache();
         return response()->json(['success' => true, 'data' => $deliveryZone]);
+    }
+
+    /** Les zones sont servies via le catalogue boutique mis en cache. */
+    private function clearBoutiqueCache(): void
+    {
+        Cache::forget(BoutiqueController::CACHE_KEY);
     }
 }

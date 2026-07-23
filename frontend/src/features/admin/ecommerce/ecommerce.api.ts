@@ -264,6 +264,11 @@ export async function updateDeliveryZone(id: number, payload: any) {
   return data.data
 }
 
+export async function toggleDeliveryZoneStatus(id: number) {
+  const { data } = await apiClient.post<ApiEnvelope<DeliveryZone>>(`${BASE}/delivery-zones/${id}/toggle-status`, {})
+  return data.data
+}
+
 export async function deleteDeliveryZone(id: number) {
   await apiClient.delete(`${BASE}/delivery-zones/${id}`)
 }

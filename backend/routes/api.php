@@ -204,6 +204,7 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
             Route::get('stats/commandes', [CommandeController::class, 'getStatistics'])->name('commandes.stats');
 
             // Zones de livraison
+            Route::post('delivery-zones/{deliveryZone}/toggle-status', [DeliveryZoneController::class, 'toggleStatus'])->name('delivery-zones.toggle-status');
             Route::apiResource('delivery-zones', DeliveryZoneController::class);
 
             // Paramètres boutique

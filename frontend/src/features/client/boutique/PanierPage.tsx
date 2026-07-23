@@ -106,7 +106,7 @@ export function PanierPage() {
                 <span className="text-slate-950">{Math.round(total).toLocaleString('fr-FR')} {devise}</span>
               </div>
               <p className="mt-1.5 text-xs font-semibold text-slate-400">
-                Livraison à Dakar : 2 000 {devise} — offerte en retrait au salon. Calculée à l'étape suivante.
+                Frais de livraison calculés selon votre zone à l'étape suivante — gratuits en retrait au salon.
               </p>
 
               <a

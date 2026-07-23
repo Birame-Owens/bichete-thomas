@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\DeliveryZone;
 use App\Models\Produit;
 use App\Support\SystemSettings;
 use Illuminate\Http\JsonResponse;
@@ -80,9 +81,22 @@ class BoutiqueController extends Controller
             ->values()
             ->all();
 
+        $deliveryZones = DeliveryZone::where('est_active', true)
+            ->orderBy('ordre_affichage')
+            ->orderBy('prix')
+            ->get()
+            ->map(fn (DeliveryZone $z) => [
+                'id' => $z->id,
+                'nom' => $z->nom,
+                'prix' => (float) $z->prix,
+            ])
+            ->values()
+            ->all();
+
         return [
             'categories' => $categories,
             'produits' => $produits,
+            'delivery_zones' => $deliveryZones,
             'settings' => [
                 'devise' => SystemSettings::get('devise', 'FCFA'),
                 'telephone_whatsapp' => SystemSettings::get('telephone_whatsapp', '221778153939'),
