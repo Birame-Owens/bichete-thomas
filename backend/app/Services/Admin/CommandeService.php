@@ -323,7 +323,7 @@ class CommandeService
                          ->where('paiements.statut', 'valide')
                          ->where('paiements.created_at', '>=', $thisMonth);
                 })
-                ->whereNull('clients.deleted_at')
+                // NB: la table clients du salon n'a pas de soft delete (deleted_at)
                 ->whereNotNull('paiements.id')
                 ->select(
                     'clients.id',

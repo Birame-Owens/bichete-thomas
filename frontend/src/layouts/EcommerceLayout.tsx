@@ -1,4 +1,4 @@
-﻿import { ReactNode } from 'react'
+﻿import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, ShoppingCart, Package, FolderOpen, FileText } from 'lucide-react'
 import { logout } from '../services/authService'

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
-import { AdminLayout } from '../../../../layouts/AdminLayout'
+import AdminLayout from '../../../../layouts/AdminLayout'
 
 type EcommerceLayoutProps = {
   children: ReactNode

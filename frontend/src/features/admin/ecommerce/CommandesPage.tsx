@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
 import { EcommerceLayout } from './components/EcommerceLayout'
 import {
   Panel,

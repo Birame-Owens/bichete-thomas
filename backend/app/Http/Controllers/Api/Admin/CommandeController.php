@@ -429,6 +429,8 @@ class CommandeController extends Controller
         'statut' => $commande->statut,
         'statut_label' => $this->getStatutLabel($commande->statut),
         'priorite' => $commande->priorite,
+        'source' => $commande->source,
+        'created_at' => $commande->created_at->toISOString(),
         'date_commande' => $commande->created_at->format('d/m/Y H:i'),
         'date_livraison_prevue' => $commande->date_livraison_prevue?->format('d/m/Y'),
         'nb_articles' => $commande->articles_commandes->sum('quantite'),
