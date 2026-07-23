@@ -2,6 +2,9 @@ FROM php:8.3-fpm
 
 WORKDIR /var/www/html
 
+# libwebp-dev + configure gd : requis pour la conversion WebP à l'upload
+# (aligné sur Dockerfile.prod — sans ça, imagewebp() n'existe pas et tout
+# upload d'image via Intervention Image plante en 500).
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -11,9 +14,14 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
+    libwebp-dev \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
+    && docker-php-ext-configure gd \
+    --with-freetype \
+    --with-jpeg \
+    --with-webp \
     && docker-php-ext-install \
     pdo \
     pdo_pgsql \
