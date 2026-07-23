@@ -189,6 +189,12 @@ export interface Commande {
   nb_articles?: number
   est_payee?: boolean
   est_en_retard?: boolean
+  peut_supprimer?: boolean
+  mode_livraison?: string | null
+  zone_livraison_nom?: string | null
+  sous_total?: number
+  frais_livraison?: number
+  instructions_livraison?: string | null
   /** Aplati par ecommerce.api.ts depuis data.commande.articles (format detail). */
   articles_commandes?: ArticleCommande[]
 }
