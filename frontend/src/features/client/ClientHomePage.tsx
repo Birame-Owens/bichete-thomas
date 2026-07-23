@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Gift,
-  Home,
   Image as ImageIcon,
   Loader2,
   LogOut,
@@ -18,6 +17,7 @@ import {
   Scissors,
   Search,
   ShieldCheck,
+  ShoppingBag,
   Sparkles,
   User,
   Users,
@@ -31,6 +31,7 @@ import {
   confirmPaytechReturn,
   confirmNaboopayReturn,
   confirmStripeCheckout,
+  getClientBoutique,
   getClientCatalogue,
   getClientSession,
   logoutClientSession,
@@ -54,9 +55,11 @@ import type {
   ClientCategory,
   ClientCoiffure,
   ClientPaymentWithRelations,
+  ClientProduit,
   ClientPromotion,
   ClientSession,
 } from './client.types'
+import { ProduitCard } from './boutique/ProduitCard'
 
 type SubmitState = {
   type: 'success' | 'error'
@@ -78,11 +81,12 @@ type ClientNavItem = {
   icon: LucideIcon
 }
 
+// Nav volontairement courte : le logo ramene deja a l'accueil et le contact
+// est accessible en pied de page — on garde l'essentiel.
 const clientNavItems: ClientNavItem[] = [
-  { id: 'accueil', label: 'Accueil', icon: Home },
+  { id: 'boutique', label: 'Boutique', icon: ShoppingBag },
   { id: 'galerie', label: 'Galerie', icon: ImageIcon },
   { id: 'apropos', label: 'A propos', icon: Users },
-  { id: 'contact', label: 'Contact', icon: MessageCircle },
 ]
 
 const benefits: Array<{ label: string; detail: string; icon: LucideIcon }> = [
@@ -154,6 +158,9 @@ function scrollToSection(sectionId: string) {
 function ClientHomePage() {
   useSeoPage('accueil')
   const [catalogue, setCatalogue] = useState<ClientCatalogue | null>(null)
+  const [boutiqueProduits, setBoutiqueProduits] = useState<ClientProduit[]>([])
+  const [boutiqueDevise, setBoutiqueDevise] = useState('FCFA')
+  const [boutiqueWhatsapp, setBoutiqueWhatsapp] = useState('')
   const [loading, setLoading] = useState(true)
   const [catalogueError, setCatalogueError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -209,6 +216,26 @@ function ClientHomePage() {
           setLoading(false)
         }
       })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  // Boutique (phase 2 ecommerce) : chargement silencieux — si l'API echoue,
+  // la section "Nos produits" est simplement masquee, le salon reste intact.
+  useEffect(() => {
+    let ignore = false
+
+    getClientBoutique()
+      .then((data) => {
+        if (!ignore) {
+          setBoutiqueProduits(data.produits.slice(0, 6))
+          setBoutiqueDevise(data.settings.devise)
+          setBoutiqueWhatsapp(data.settings.telephone_whatsapp)
+        }
+      })
+      .catch(() => { /* section masquee */ })
 
     return () => {
       ignore = true
@@ -1048,6 +1075,38 @@ function ClientHomePage() {
               </div>
             )}
           </section>
+
+          {/* Boutique (phase 2) : section visible uniquement si des produits existent */}
+          {boutiqueProduits.length > 0 ? (
+            <section id="boutique" className="py-12">
+              <div className="flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.assign('/boutique')
+                  }}
+                  className="border-b border-[#f31976] pb-1 text-xs font-black uppercase tracking-[0.18em] text-[#f31976]"
+                >
+                  Voir toute la boutique
+                </button>
+              </div>
+
+              <Reveal className="text-center">
+                <h2 className="text-4xl font-light uppercase tracking-[0.24em] text-slate-950">Nos produits</h2>
+                <p className="mt-3 text-sm font-semibold italic text-slate-500">
+                  Les produits du salon, à commander en ligne ou à récupérer lors de votre rendez-vous
+                </p>
+              </Reveal>
+
+              <div className="mt-9 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-10 xl:grid-cols-6">
+                {boutiqueProduits.map((produit, index) => (
+                  <Reveal key={produit.id} delay={Math.min(index * 80, 400)}>
+                    <ProduitCard produit={produit} devise={boutiqueDevise} whatsapp={boutiqueWhatsapp} />
+                  </Reveal>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <section id="apropos" className="grid gap-7 border-y border-[#f7d6e5] bg-white py-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <Reveal className="group min-h-[360px] overflow-hidden rounded-3xl bg-[#fff0f6]">

@@ -460,6 +460,7 @@ class PaymentController extends Controller
 
         $payment->refresh();
         $this->syncReservationPaymentState($payment->reservation_id);
+        $this->syncCommandePaymentState($payment->commande_id);
         // Notif asynchrone (I6) : la requete webhook Stripe/PayTech repond
         // immediatement (~50 ms au lieu de 1-5 s avec les appels HTTP
         // Twilio/WhatsApp/Mail synchrones). Un worker queue:work consomme
@@ -471,6 +472,24 @@ class PaymentController extends Controller
         SendMagicLinkNotification::dispatch($payment->id);
     }
 
+    /**
+     * Commande boutique (phase 2 ecommerce) : paiement valide => confirmee.
+     */
+    private function syncCommandePaymentState(?int $commandeId): void
+    {
+        if (! $commandeId) {
+            return;
+        }
+
+        \App\Models\Commande::query()
+            ->where('id', $commandeId)
+            ->where('statut', 'en_attente')
+            ->update([
+                'statut' => 'confirmee',
+                'date_confirmation' => now(),
+            ]);
+    }
+
     private function markPaymentAsCanceled(Paiement $payment, string $reference): void
     {
         $payment->forceFill([
@@ -478,6 +497,14 @@ class PaymentController extends Controller
             'reference' => $reference,
             'date_paiement' => now(),
         ])->save();
+
+        // Commande boutique : paiement annule avant tout encaissement => echec.
+        if ($payment->commande_id) {
+            \App\Models\Commande::query()
+                ->where('id', $payment->commande_id)
+                ->where('statut', 'en_attente')
+                ->update(['statut' => 'echoue']);
+        }
 
         $reservation = $payment->reservation_id ? Reservation::query()->find($payment->reservation_id) : null;
 

@@ -277,3 +277,71 @@ export type AvisVerifiePayload = {
   note: number
   commentaire: string
 }
+
+// -----------------------------------------------------------------
+// Phase 2 ecommerce : boutique publique (produits du salon).
+// -----------------------------------------------------------------
+
+export type ClientBoutiqueCategorie = {
+  id: number
+  nom: string
+  slug: string
+  parent_id: number | null
+  image: string | null
+  produits_count: number
+}
+
+export type ClientProduit = {
+  id: number
+  nom: string
+  slug: string
+  description_courte: string | null
+  prix: number
+  prix_promo: number | null
+  prix_actuel: number
+  en_promo: boolean
+  image: string | null
+  categorie: { id: number; nom: string; slug: string; parent_id: number | null } | null
+  est_nouveaute: boolean
+  est_populaire: boolean
+  en_stock: boolean
+  type_variante: 'vetement' | 'chaussure' | 'parfum' | 'aucun'
+  a_variantes: boolean
+  note_moyenne: number | null
+  nombre_avis: number
+}
+
+export type ClientProduitImage = {
+  id: number
+  url: string
+  url_miniature: string | null
+  alt_text: string | null
+  couleur_associee: string | null
+}
+
+export type ClientProduitAvis = {
+  id: number
+  client_nom: string
+  note: number
+  commentaire: string
+  date: string
+}
+
+export type ClientProduitDetail = ClientProduit & {
+  description: string
+  fait_sur_mesure: boolean
+  delai_production_jours: number | null
+  couleur_tailles: Record<string, string[]> | null
+  couleur_tailles_stock: Record<string, Record<string, number>> | null
+  images: ClientProduitImage[]
+  avis: ClientProduitAvis[]
+}
+
+export type ClientBoutique = {
+  categories: ClientBoutiqueCategorie[]
+  produits: ClientProduit[]
+  settings: {
+    devise: string
+    telephone_whatsapp: string
+  }
+}

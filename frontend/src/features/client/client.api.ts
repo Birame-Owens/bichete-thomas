@@ -6,8 +6,11 @@ import type {
   ClientApiItem,
   ClientAuthRequestResponse,
   ClientAvailability,
+  ClientBoutique,
   ClientCatalogue,
   ClientCategory,
+  ClientProduit,
+  ClientProduitDetail,
   ClientCoiffure,
   ClientCoiffureReviewPayload,
   ClientCoiffureReviewResponse,
@@ -67,6 +70,66 @@ function normalizeCatalogue(catalogue: ClientCatalogue): ClientCatalogue {
       image_accueil: apiAssetUrl(catalogue.settings.image_accueil),
     },
   }
+}
+
+// -----------------------------------------------------------------
+// Phase 2 ecommerce : boutique publique
+// -----------------------------------------------------------------
+
+function normalizeClientProduit<T extends ClientProduit>(produit: T): T {
+  return {
+    ...produit,
+    image: apiAssetUrl(produit.image),
+  }
+}
+
+export async function getClientBoutique() {
+  const response = await apiClient.get<ClientApiItem<ClientBoutique>>('/client/boutique')
+  const data = response.data.data
+
+  return {
+    ...data,
+    categories: data.categories.map((c) => ({ ...c, image: apiAssetUrl(c.image) })),
+    produits: data.produits.map(normalizeClientProduit),
+  }
+}
+
+export async function getClientProduitDetail(slug: string) {
+  const response = await apiClient.get<ClientApiItem<ClientProduitDetail>>(`/client/boutique/${slug}`)
+  const produit = normalizeClientProduit(response.data.data)
+
+  return {
+    ...produit,
+    images: (produit.images ?? []).map((image) => ({
+      ...image,
+      url: apiAssetUrl(image.url) ?? image.url,
+      url_miniature: apiAssetUrl(image.url_miniature),
+    })),
+  }
+}
+
+export type BoutiqueCommandePayload = {
+  client: { prenom: string; nom: string; telephone: string; email: string | null }
+  mode_livraison: 'domicile' | 'boutique'
+  adresse_livraison: string | null
+  instructions_livraison: string | null
+  mode_paiement: 'wave' | 'orange_money' | 'livraison'
+  articles: Array<{ produit_id: number; quantite: number; couleur: string | null; taille: string | null }>
+  success_url: string
+  cancel_url: string
+}
+
+export type BoutiqueCommandeResponse = {
+  numero_commande: string
+  montant_total: number
+  checkout_url: string | null
+  requires_redirect: boolean
+}
+
+export async function createBoutiqueCommande(payload: BoutiqueCommandePayload) {
+  const response = await apiClient.post<ClientApiItem<BoutiqueCommandeResponse>>('/client/boutique/commandes', payload)
+
+  return response.data.data
 }
 
 export async function getClientCatalogue(params?: CatalogueParams) {

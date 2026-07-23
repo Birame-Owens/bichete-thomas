@@ -42,6 +42,8 @@ use App\Http\Controllers\Api\Admin\ShippingSettingsController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Client\AvisController as ClientAvisController;
+use App\Http\Controllers\Api\Client\BoutiqueCommandeController as ClientBoutiqueCommandeController;
+use App\Http\Controllers\Api\Client\BoutiqueController as ClientBoutiqueController;
 use App\Http\Controllers\Api\Client\CatalogueController as ClientCatalogueController;
 use App\Http\Controllers\Api\Client\ClientSessionController;
 use App\Http\Controllers\Api\Client\PaymentController as ClientPaymentController;
@@ -66,6 +68,10 @@ Route::get('/reservations/disponibilites', ClientReservationAvailabilityControll
 Route::prefix('client')->name('client.')->group(function (): void {
     Route::get('/catalogue', [ClientCatalogueController::class, 'index'])->name('catalogue.index');
     Route::get('/catalogue/{coiffure}', [ClientCatalogueController::class, 'show'])->name('catalogue.show');
+    // Boutique publique (phase 2 ecommerce) : lecture seule, produits visibles.
+    Route::get('/boutique', [ClientBoutiqueController::class, 'index'])->name('boutique.index');
+    Route::post('/boutique/commandes', [ClientBoutiqueCommandeController::class, 'store'])->middleware('throttle:10,1')->name('boutique.commandes.store');
+    Route::get('/boutique/{slug}', [ClientBoutiqueController::class, 'show'])->name('boutique.show');
     Route::get('/promo-active', [ClientCatalogueController::class, 'promoActive'])->name('promo.active');
     // Lookup tel international (Phase 5 etape 1).
     Route::get('/lookup', [ClientCatalogueController::class, 'lookup'])->middleware('throttle:5,1')->name('lookup');
@@ -176,7 +182,12 @@ Route::middleware(['auth.token', 'role:admin', 'log.admin'])
 
         // Ecommerce — Module indépendant du salon de coiffure (v2)
         Route::prefix('ecommerce')->group(function (): void {
-            // Catégories produits
+            // Catégories produits (routes literales avant l'apiResource pour
+            // ne pas etre capturees par le binding categories/{category})
+            Route::get('categories/stats', [CategoryController::class, 'stats'])->name('categories.stats');
+            Route::get('categories/options', [CategoryController::class, 'options'])->name('categories.options');
+            Route::post('categories/{category}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('categories.toggle-status');
+            Route::get('categories/{category}/sous-categories', [CategoryController::class, 'sousCategoriesOf'])->name('categories.sous-categories');
             Route::apiResource('categories', CategoryController::class);
 
             // Produits

@@ -928,6 +928,7 @@ class ProduitController extends Controller
 
     private function clearClientProductCaches(?string $slug = null): void
     {
+        Cache::forget(\App\Http\Controllers\Api\Client\BoutiqueController::CACHE_KEY);
         Cache::forget('client_home_data');
         Cache::forget('home_page_data_' . now()->format('Y-m-d-H'));
         Cache::forget('products:list:' . md5(json_encode([])));
