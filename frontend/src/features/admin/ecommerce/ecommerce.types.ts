@@ -238,8 +238,12 @@ export interface KPIStats {
 
 export interface DeliveryZone {
   id: number
-  nom?: string
-  [key: string]: unknown
+  nom: string
+  prix: number
+  est_active: boolean
+  ordre_affichage: number
+  created_at?: string
+  updated_at?: string
 }
 
 // ============= ENVELOPPES API =============

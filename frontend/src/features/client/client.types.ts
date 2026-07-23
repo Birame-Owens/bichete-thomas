@@ -337,9 +337,16 @@ export type ClientProduitDetail = ClientProduit & {
   avis: ClientProduitAvis[]
 }
 
+export type ClientDeliveryZone = {
+  id: number
+  nom: string
+  prix: number
+}
+
 export type ClientBoutique = {
   categories: ClientBoutiqueCategorie[]
   produits: ClientProduit[]
+  delivery_zones: ClientDeliveryZone[]
   settings: {
     devise: string
     telephone_whatsapp: string

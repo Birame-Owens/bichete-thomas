@@ -91,6 +91,7 @@ export async function getClientBoutique() {
     ...data,
     categories: data.categories.map((c) => ({ ...c, image: apiAssetUrl(c.image) })),
     produits: data.produits.map(normalizeClientProduit),
+    delivery_zones: data.delivery_zones ?? [],
   }
 }
 
@@ -111,6 +112,7 @@ export async function getClientProduitDetail(slug: string) {
 export type BoutiqueCommandePayload = {
   client: { prenom: string; nom: string; telephone: string; email: string | null }
   mode_livraison: 'domicile' | 'boutique'
+  delivery_zone_id: number | null
   adresse_livraison: string | null
   instructions_livraison: string | null
   mode_paiement: 'wave' | 'orange_money' | 'livraison'

@@ -43,6 +43,7 @@ class BoutiqueCommandeController extends Controller
             'client.telephone' => ['required', 'string', 'max:30'],
             'client.email' => ['nullable', 'email', 'max:255'],
             'mode_livraison' => ['required', 'in:domicile,boutique'],
+            'delivery_zone_id' => ['required_if:mode_livraison,domicile', 'nullable', 'integer', 'exists:delivery_zones,id'],
             'adresse_livraison' => ['required_if:mode_livraison,domicile', 'nullable', 'string', 'max:500'],
             'instructions_livraison' => ['nullable', 'string', 'max:500'],
             'mode_paiement' => ['required', 'in:wave,orange_money,livraison'],
@@ -99,10 +100,27 @@ class BoutiqueCommandeController extends Controller
             ];
         }
 
-        $fraisLivraison = $data['mode_livraison'] === 'boutique' ? 0.0 : 2000.0;
+        // Frais de livraison : zone choisie (retrait boutique = gratuit). Le
+        // prix vient TOUJOURS de la base, jamais du client.
+        $zone = null;
+        $fraisLivraison = 0.0;
+
+        if ($data['mode_livraison'] === 'domicile') {
+            $zone = \App\Models\DeliveryZone::where('est_active', true)
+                ->find($data['delivery_zone_id']);
+
+            if (! $zone) {
+                throw ValidationException::withMessages([
+                    'delivery_zone_id' => 'La zone de livraison choisie n est plus disponible.',
+                ]);
+            }
+
+            $fraisLivraison = (float) $zone->prix;
+        }
+
         $montantTotal = round($sousTotal + $fraisLivraison, 2);
 
-        $result = DB::transaction(function () use ($data, $client, $lignes, $sousTotal, $fraisLivraison, $montantTotal) {
+        $result = DB::transaction(function () use ($data, $client, $lignes, $sousTotal, $fraisLivraison, $montantTotal, $zone) {
             $commande = Commande::create([
                 'numero_commande' => $this->commandes->generateNumeroCommande(),
                 'client_id' => $client->id,
@@ -119,6 +137,8 @@ class BoutiqueCommandeController extends Controller
                 'nom_destinataire' => trim($client->prenom . ' ' . $client->nom),
                 'instructions_livraison' => $data['instructions_livraison'] ?? null,
                 'mode_livraison' => $data['mode_livraison'] === 'boutique' ? 'boutique' : 'domicile',
+                'delivery_zone_id' => $zone?->id,
+                'zone_livraison_nom' => $zone?->nom,
                 'source' => 'site_web',
                 'notes_client' => $data['mode_paiement'] === 'livraison'
                     ? 'Paiement a la livraison choisi par le client.'

@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Loader2, Lock, MapPin, ShieldCheck, ShoppingBag, Store, Truck } from 'lucide-react'
 import { createBoutiqueCommande, getClientBoutique } from '../client.api'
+import type { ClientDeliveryZone } from '../client.types'
 import { BoutiqueHeader } from './BoutiqueHeader'
 import { clearPanier, panierTotal, usePanier } from './panier'
-
-const FRAIS_LIVRAISON = 2000
 
 type ModePaiement = 'wave' | 'orange_money' | 'livraison'
 
@@ -13,12 +12,14 @@ type ModePaiement = 'wave' | 'orange_money' | 'livraison'
 export function CommanderPage() {
   const items = usePanier()
   const [devise, setDevise] = useState('FCFA')
+  const [zones, setZones] = useState<ClientDeliveryZone[]>([])
 
   const [prenom, setPrenom] = useState('')
   const [nom, setNom] = useState('')
   const [telephone, setTelephone] = useState('')
   const [email, setEmail] = useState('')
   const [modeLivraison, setModeLivraison] = useState<'domicile' | 'boutique'>('domicile')
+  const [zoneId, setZoneId] = useState<number | null>(null)
   const [adresse, setAdresse] = useState('')
   const [instructions, setInstructions] = useState('')
   const [modePaiement, setModePaiement] = useState<ModePaiement>('wave')
@@ -28,20 +29,26 @@ export function CommanderPage() {
 
   useEffect(() => {
     getClientBoutique()
-      .then((data) => setDevise(data.settings.devise))
+      .then((data) => {
+        setDevise(data.settings.devise)
+        setZones(data.delivery_zones)
+        if (data.delivery_zones.length > 0) setZoneId(data.delivery_zones[0].id)
+      })
       .catch(() => { /* devise par defaut */ })
   }, [])
 
+  const selectedZone = useMemo(() => zones.find((z) => z.id === zoneId) ?? null, [zones, zoneId])
+
   const sousTotal = panierTotal(items)
-  const frais = modeLivraison === 'boutique' ? 0 : FRAIS_LIVRAISON
+  const frais = modeLivraison === 'boutique' ? 0 : (selectedZone?.prix ?? 0)
   const total = sousTotal + frais
 
   const formValide = useMemo(() =>
     prenom.trim() !== '' &&
     nom.trim() !== '' &&
     telephone.replace(/\D/g, '').length >= 9 &&
-    (modeLivraison === 'boutique' || adresse.trim() !== ''),
-  [prenom, nom, telephone, modeLivraison, adresse])
+    (modeLivraison === 'boutique' || (adresse.trim() !== '' && zoneId !== null)),
+  [prenom, nom, telephone, modeLivraison, adresse, zoneId])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -58,6 +65,7 @@ export function CommanderPage() {
           email: email.trim() || null,
         },
         mode_livraison: modeLivraison,
+        delivery_zone_id: modeLivraison === 'domicile' ? zoneId : null,
         adresse_livraison: modeLivraison === 'domicile' ? adresse.trim() : null,
         instructions_livraison: instructions.trim() || null,
         mode_paiement: modePaiement,
@@ -147,8 +155,8 @@ export function CommanderPage() {
                 >
                   <Truck className={`h-5 w-5 shrink-0 ${modeLivraison === 'domicile' ? 'text-[#f31976]' : 'text-slate-400'}`} />
                   <span>
-                    <span className="block text-sm font-black text-slate-950">Livraison à Dakar</span>
-                    <span className="block text-xs font-semibold text-slate-500">{FRAIS_LIVRAISON.toLocaleString('fr-FR')} {devise}</span>
+                    <span className="block text-sm font-black text-slate-950">Livraison à domicile</span>
+                    <span className="block text-xs font-semibold text-slate-500">Tarif selon votre zone</span>
                   </span>
                 </button>
                 <button
@@ -168,12 +176,35 @@ export function CommanderPage() {
 
               {modeLivraison === 'domicile' ? (
                 <div className="mt-3 space-y-3">
+                  {/* Zone de livraison (definit le tarif) */}
+                  {zones.length > 0 ? (
+                    <div>
+                      <label className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                        Zone de livraison *
+                      </label>
+                      <select
+                        value={zoneId ?? ''}
+                        onChange={(e) => setZoneId(Number(e.target.value) || null)}
+                        className={inputCls}
+                      >
+                        {zones.map((zone) => (
+                          <option key={zone.id} value={zone.id}>
+                            {zone.nom} — {Math.round(zone.prix).toLocaleString('fr-FR')} {devise}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <p className="bg-amber-50 px-4 py-3 text-xs font-bold text-amber-700">
+                      Aucune zone de livraison configurée. Choisissez le retrait au salon, ou contactez-nous sur WhatsApp.
+                    </p>
+                  )}
                   <div className="relative">
                     <MapPin className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
                       value={adresse}
                       onChange={(e) => setAdresse(e.target.value)}
-                      placeholder="Adresse de livraison (quartier, rue, repère) *"
+                      placeholder="Adresse précise (rue, immeuble, repère) *"
                       className={`${inputCls} pl-10`}
                     />
                   </div>
@@ -268,8 +299,8 @@ export function CommanderPage() {
                   <span>{Math.round(sousTotal).toLocaleString('fr-FR')} {devise}</span>
                 </div>
                 <div className="flex justify-between text-slate-500">
-                  <span>Livraison</span>
-                  <span>{frais === 0 ? 'Gratuit' : `${frais.toLocaleString('fr-FR')} ${devise}`}</span>
+                  <span>{modeLivraison === 'boutique' ? 'Retrait salon' : selectedZone ? `Livraison — ${selectedZone.nom}` : 'Livraison'}</span>
+                  <span>{frais === 0 ? 'Gratuit' : `${Math.round(frais).toLocaleString('fr-FR')} ${devise}`}</span>
                 </div>
                 <div className="flex justify-between pt-1.5 text-base font-black text-slate-950">
                   <span>Total</span>

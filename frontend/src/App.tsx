@@ -49,6 +49,7 @@ const EcommerceOverviewPage = lazy(() => import('./features/admin/ecommerce/Ecom
 const ProduitsPage = lazy(() => import('./features/admin/ecommerce/ProduitsPage').then(m => ({ default: m.ProduitsPage })))
 const CategoriesPage = lazy(() => import('./features/admin/ecommerce/CategoriesPage').then(m => ({ default: m.CategoriesPage })))
 const CommandesPage = lazy(() => import('./features/admin/ecommerce/CommandesPage').then(m => ({ default: m.CommandesPage })))
+const EcommerceParametresPage = lazy(() => import('./features/admin/ecommerce/ParametresPage').then(m => ({ default: m.ParametresPage })))
 
 function NotFound() {
   return (
@@ -119,6 +120,7 @@ function App() {
       <Route path="/console-thomas/ecommerce/produits" element={<AdminRoute><ProduitsPage /></AdminRoute>} />
       <Route path="/console-thomas/ecommerce/categories" element={<AdminRoute><CategoriesPage /></AdminRoute>} />
       <Route path="/console-thomas/ecommerce/commandes" element={<AdminRoute><CommandesPage /></AdminRoute>} />
+      <Route path="/console-thomas/ecommerce/parametres" element={<AdminRoute><EcommerceParametresPage /></AdminRoute>} />
       <Route path="/console-thomas/logs" element={<AdminRoute><LogsPage /></AdminRoute>} />
       <Route path="/console-thomas/parametres" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       <Route path="/console-thomas/signalements" element={<AdminRoute><AdminSignalementsPage /></AdminRoute>} />

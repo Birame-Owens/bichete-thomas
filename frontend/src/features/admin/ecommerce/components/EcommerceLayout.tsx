@@ -11,6 +11,7 @@ const tabs = [
   { label: 'Produits', path: '/console-thomas/ecommerce/produits' },
   { label: 'Catégories', path: '/console-thomas/ecommerce/categories' },
   { label: 'Commandes', path: '/console-thomas/ecommerce/commandes' },
+  { label: 'Paramètres', path: '/console-thomas/ecommerce/parametres' },
 ]
 
 export function EcommerceLayout({ children }: EcommerceLayoutProps) {
