@@ -12,6 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // SQL Postgres brut : inapplicable sur SQLite (tests). Sans objet sur
+        // une base fraiche de toute facon (l'enum de creer_table_commandes
+        // contient deja 'echoue') — conserve pour les bases historiques.
+        if (Schema::getConnection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
         // Ajouter le statut 'echoue' à l'enum statut des commandes
         DB::statement("ALTER TABLE commandes DROP CONSTRAINT IF EXISTS commandes_statut_check");
         DB::statement("ALTER TABLE commandes ALTER COLUMN statut TYPE VARCHAR(255)");

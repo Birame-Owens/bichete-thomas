@@ -72,7 +72,11 @@ return new class extends Migration
             $table->index(['categorie_id', 'est_visible']);
             $table->index(['est_populaire', 'ordre_affichage']);
             $table->index('slug');
-            $table->fullText(['nom', 'description']); // Recherche textuelle
+            // Recherche textuelle : non supportee par SQLite (base des tests),
+            // la recherche admin passe par ILIKE de toute facon.
+            if (in_array(Schema::getConnection()->getDriverName(), ['pgsql', 'mysql'], true)) {
+                $table->fullText(['nom', 'description']);
+            }
         });
     }
 
