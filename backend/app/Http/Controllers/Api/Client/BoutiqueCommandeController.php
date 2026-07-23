@@ -283,18 +283,21 @@ class BoutiqueCommandeController extends Controller
             ],
         ];
 
+        // Endpoint et auth alignes EXACTEMENT sur le flux reservation qui
+        // fonctionne en prod (ReservationController::createNaboopayCheckoutSession) :
+        // meme /api/v2/transactions, meme withToken(), meme detection multi-cles.
         try {
             $response = Http::acceptJson()
                 ->asJson()
-                ->withHeaders(['Authorization' => 'Bearer ' . $apiKey])
-                ->post(rtrim((string) config('services.naboopay.base_url', 'https://api.naboopay.com/api/v1'), '/') . '/transaction/create-transaction', $payload);
+                ->withToken((string) $apiKey)
+                ->post(rtrim((string) config('services.naboopay.base_url'), '/') . '/api/v2/transactions', $payload);
         } catch (ConnectionException) {
             throw ValidationException::withMessages([
                 'mode_paiement' => 'NabooPay est momentanement injoignable. Reessayez ou choisissez le paiement a la livraison.',
             ]);
         }
 
-        if (! $response->successful()) {
+        if ($response->failed()) {
             Log::error('NabooPay checkout boutique failed', [
                 'status' => $response->status(),
                 'body' => $response->json(),
@@ -302,23 +305,28 @@ class BoutiqueCommandeController extends Controller
             ]);
 
             throw ValidationException::withMessages([
-                'mode_paiement' => 'Le paiement en ligne a echoue. Reessayez ou choisissez le paiement a la livraison.',
+                'mode_paiement' => $response->json('error') ?? 'Le paiement en ligne a echoue. Reessayez ou choisissez le paiement a la livraison.',
             ]);
         }
 
         $body = $response->json();
-        $checkoutUrl = (string) ($body['checkout_url'] ?? '');
-        $orderId = (string) ($body['order_id'] ?? $payload['order_id']);
+        $checkoutUrl = $body['checkout_url']
+            ?? $body['checkoutUrl']
+            ?? $body['checkout_url_payment']
+            ?? $body['payment_url']
+            ?? $body['url']
+            ?? null;
+        $orderId = $body['order_id'] ?? $body['orderId'] ?? $payload['order_id'];
 
-        if ($checkoutUrl === '') {
+        if (! $checkoutUrl || ! $orderId) {
             throw ValidationException::withMessages([
-                'mode_paiement' => 'NabooPay n a pas renvoye de lien de paiement.',
+                'mode_paiement' => 'NabooPay n a pas renvoye de lien de paiement valide.',
             ]);
         }
 
-        $payment->update(['reference' => $orderId]);
+        $payment->update(['reference' => (string) $orderId]);
 
-        return $checkoutUrl;
+        return (string) $checkoutUrl;
     }
 
     private function naboopayReturnSignature(int|string $paymentId): string

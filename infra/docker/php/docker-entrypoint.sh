@@ -8,6 +8,13 @@
 
 set -e
 
+# Les volumes nommes (app_storage, app_logs) sont montes par-dessus les
+# dossiers de l'image et demarrent en root : le chown fait au build est
+# ecrase. On le refait ici, au runtime en root, AVANT de passer FPM en
+# www-data. Sans ca : logs muets (root:root) et uploads d'images en echec.
+echo "[entrypoint] Ajustement des droits storage..."
+chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
+
 echo "[entrypoint] Génération des caches Laravel..."
 php artisan config:cache
 php artisan route:cache
