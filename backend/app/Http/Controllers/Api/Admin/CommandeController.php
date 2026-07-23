@@ -1047,19 +1047,31 @@ public function markAsPaid(Request $request, Commande $commande): JsonResponse
         // Limiter le montant au montant restant
         $montantAPayer = min($validated['montant'], $montantRestant);
 
-        // Créer le paiement
+        // Le schema paiements du salon impose numero_recu, type et mode_paiement
+        // (enum precis). On mappe la methode saisie vers l'enum et on genere un
+        // numero de recu unique. Paiement complet vs acompte selon le reste du.
+        $modePaiement = match ($validated['methode_paiement']) {
+            'especes' => 'especes',
+            'wave' => 'wave',
+            'orange_money' => 'orange_money',
+            'carte' => 'carte_bancaire',
+            'virement' => 'virement',
+            default => 'autre', // free_money, cheque, ...
+        };
+
         $paiement = \App\Models\Paiement::create([
             'commande_id' => $commande->id,
             'client_id' => $commande->client_id,
+            'numero_recu' => 'RECU-' . now()->format('Ymd') . '-' . strtoupper(substr(md5(uniqid()), 0, 8)),
+            'type' => $montantAPayer >= $montantRestant ? 'complet' : 'acompte',
+            'mode_paiement' => $modePaiement,
             'montant' => $montantAPayer,
-            'reference_paiement' => $validated['reference_paiement'] ?: 'PAY-' . now()->format('Ymd') . '-' . strtoupper(substr(md5(uniqid()), 0, 6)),
-            'methode_paiement' => $validated['methode_paiement'],
+            'devise' => 'FCFA',
             'statut' => 'valide',
-            'date_initiation' => now(),
-            'date_validation' => now(),
-            'est_acompte' => $montantAPayer < $montantRestant,
-            'montant_restant' => max(0, $montantRestant - $montantAPayer),
-            'notes_admin' => 'Paiement enregistré manuellement par ' . auth()->user()->name
+            'date_paiement' => now(),
+            'reference' => $validated['reference_paiement'] ?: null,
+            'notes' => 'Paiement enregistré manuellement par ' . (auth()->user()->name ?? 'admin')
+                . ' (méthode : ' . $validated['methode_paiement'] . ')',
         ]);
 
         // Mettre à jour le statut de la commande si entièrement payée

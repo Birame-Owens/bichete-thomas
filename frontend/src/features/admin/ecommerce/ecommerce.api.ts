@@ -186,6 +186,7 @@ export async function getCommandes(
   dateDebut = '',
   dateFin = '',
   priorite = '',
+  clientSearch = '',
 ) {
   const params: any = { page, per_page: perPage }
   if (search) params.numero_commande = search
@@ -193,6 +194,7 @@ export async function getCommandes(
   if (dateDebut) params.date_debut = dateDebut
   if (dateFin) params.date_fin = dateFin
   if (priorite) params.priorite = priorite
+  if (clientSearch) params.client_search = clientSearch
 
   const { data } = await apiClient.get<ApiEnvelope<{ commandes: Commande[]; pagination: BackendPagination }>>(
     `${BASE}/commandes`,

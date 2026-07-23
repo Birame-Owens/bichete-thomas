@@ -495,13 +495,27 @@ class PaymentController extends Controller
             return;
         }
 
-        \App\Models\Commande::query()
-            ->where('id', $commandeId)
-            ->where('statut', 'en_attente')
-            ->update([
-                'statut' => 'confirmee',
-                'date_confirmation' => now(),
+        $commande = \App\Models\Commande::query()->find($commandeId);
+
+        if (! $commande || $commande->statut !== 'en_attente') {
+            return;
+        }
+
+        $commande->update([
+            'statut' => 'confirmee',
+            'date_confirmation' => now(),
+        ]);
+
+        // Decrement du stock (idempotent via stock_decremented_at) : meme
+        // comportement que le paiement manuel admin. Non bloquant si erreur.
+        try {
+            app(\App\Services\Admin\CommandeService::class)->confirmCommandeStock($commande);
+        } catch (\Throwable $e) {
+            Log::warning('Decrement stock commande boutique echoue', [
+                'commande_id' => $commande->id,
+                'error' => $e->getMessage(),
             ]);
+        }
     }
 
     private function markPaymentAsCanceled(Paiement $payment, string $reference): void
