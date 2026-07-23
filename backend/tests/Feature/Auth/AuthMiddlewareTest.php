@@ -43,10 +43,12 @@ class AuthMiddlewareTest extends TestCase
     {
         $auth = $this->loggedInAdmin();
 
-        // Force last_used_at a 7h dans le passe -> au-dela des 6h de la
-        // sliding window (I1) -> middleware doit rejeter.
+        // 1h au-dela de la sliding window configuree (I1) -> middleware doit
+        // rejeter. Derive de la config pour rester valide si la fenetre change
+        // (elle est passee de 6h a 2h en cours de projet).
+        $window = (int) config('auth.session_inactivity_hours', 2);
         PersonalAccessToken::query()->update([
-            'last_used_at' => now()->subHours(7),
+            'last_used_at' => now()->subHours($window + 1),
         ]);
 
         $response = $this->authenticatedAs($auth)->getJson('/api/auth/me');
@@ -55,13 +57,14 @@ class AuthMiddlewareTest extends TestCase
         $response->assertJsonPath('message', 'Session expiree pour cause d inactivite.');
     }
 
-    public function test_session_active_dans_la_fenetre_de_6h_reste_valide(): void
+    public function test_session_active_dans_la_fenetre_d_inactivite_reste_valide(): void
     {
         $auth = $this->loggedInAdmin();
 
-        // 5h dans le passe -> dans la fenetre 6h, doit passer.
+        // 1h en-deca de la fenetre configuree -> doit passer.
+        $window = (int) config('auth.session_inactivity_hours', 2);
         PersonalAccessToken::query()->update([
-            'last_used_at' => now()->subHours(5),
+            'last_used_at' => now()->subHours(max($window - 1, 0)),
         ]);
 
         $response = $this->authenticatedAs($auth)->getJson('/api/auth/me');
